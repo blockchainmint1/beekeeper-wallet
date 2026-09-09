@@ -83,7 +83,7 @@ function WifAddPage() {
               s.mempool_stats.funded_txo_sum -
               s.mempool_stats.spent_txo_sum;
             found[addr] = sats;
-            if (sats > 0 && (!best || sats > best.sats)) best = { kind: k, sats };
+            if (sats > 0) winners.push({ kind: k, sats });
           } catch {
             found[addr] = null;
           }
