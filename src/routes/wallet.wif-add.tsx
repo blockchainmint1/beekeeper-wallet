@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { api as chainApi } from "@/lib/wif/chain-io";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { decodeWif, defaultKindFor, type DecodedWif, type WifAddressKind } from "@/lib/wif/decode";
 import { addWifWallet } from "@/lib/wif/store";
@@ -44,9 +45,71 @@ function WifAddPage() {
     }
   }, [wif]);
 
+  // Probe every candidate address so we can preselect the one that actually
+  // holds coins. A key imported as native segwit shows a zero balance when the
+  // funds sit on the legacy address for the very same key.
+  const [balances, setBalances] = useState<Record<string, number | null>>({});
+  const [probing, setProbing] = useState(false);
+  const [autoKind, setAutoKind] = useState<WifAddressKind | null>(null);
+
+  const candidateKey = decoded
+    ? `${decoded.chain}:${Object.values(decoded.addresses).join("|")}`
+    : "";
+
+  useEffect(() => {
+    if (!decoded) {
+      setBalances({});
+      setAutoKind(null);
+      return;
+    }
+    let cancelled = false;
+    const chain = decoded.chain;
+    const entries = (["bip84", "bip49", "bip44"] as const)
+      .map((k) => [k, decoded.addresses[k]] as const)
+      .filter((e): e is readonly [WifAddressKind, string] => !!e[1]);
+    setProbing(true);
+    setBalances({});
+    setAutoKind(null);
+    (async () => {
+      const found: Record<string, number | null> = {};
+      const winners: { kind: WifAddressKind; sats: number }[] = [];
+      await Promise.all(
+        entries.map(async ([k, addr]) => {
+          try {
+            const s = await chainApi(chain).getAddressStats(addr);
+            const sats =
+              s.chain_stats.funded_txo_sum -
+              s.chain_stats.spent_txo_sum +
+              s.mempool_stats.funded_txo_sum -
+              s.mempool_stats.spent_txo_sum;
+            found[addr] = sats;
+            if (sats > 0) winners.push({ kind: k, sats });
+          } catch {
+            found[addr] = null;
+          }
+        }),
+      );
+      if (cancelled) return;
+      setBalances(found);
+      winners.sort((a, b) => b.sats - a.sats);
+      setAutoKind(winners[0]?.kind ?? null);
+      setProbing(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidateKey]);
+
   const effectiveKind: WifAddressKind | null = decoded
-    ? (kind && decoded.addresses[kind] ? kind : defaultKindFor(decoded))
+    ? kind && decoded.addresses[kind]
+      ? kind
+      : (autoKind ?? defaultKindFor(decoded))
     : null;
+
+  function formatSats(sats: number, chain: string): string {
+    return `${(sats / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${chain.toUpperCase()}`;
+  }
 
   async function submit() {
     if (!decoded || !effectiveKind || !root) return;
@@ -149,11 +212,19 @@ function WifAddPage() {
 
               <div>
                 <Label>Address type</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {probing
+                    ? "Checking which address holds coins…"
+                    : autoKind
+                      ? "We selected the address that holds your coins."
+                      : "No coins found on any address for this key."}
+                </p>
                 <div className="mt-2 grid gap-2">
                   {(["bip84", "bip49", "bip44"] as const).map((k) => {
                     const addr = decoded.addresses[k];
                     if (!addr) return null;
                     const active = effectiveKind === k;
+                    const sats = balances[addr];
                     return (
                       <button
                         key={k}
@@ -163,12 +234,25 @@ function WifAddPage() {
                           active ? "border-primary bg-primary/10" : "border-border hover:bg-accent"
                         }`}
                       >
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                          {k === "bip84"
-                            ? "Native SegWit"
-                            : k === "bip49"
-                              ? "Wrapped SegWit"
-                              : "Legacy"}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            {k === "bip84"
+                              ? "Native SegWit"
+                              : k === "bip49"
+                                ? "Wrapped SegWit"
+                                : "Legacy"}
+                          </div>
+                          <div
+                            className={`text-xs ${
+                              sats && sats > 0 ? "font-semibold text-primary" : "text-muted-foreground"
+                            }`}
+                          >
+                            {probing && sats === undefined
+                              ? "checking…"
+                              : sats === null || sats === undefined
+                                ? "—"
+                                : formatSats(sats, decoded.chain)}
+                          </div>
                         </div>
                         <div className="font-mono text-xs break-all">{addr}</div>
                       </button>
