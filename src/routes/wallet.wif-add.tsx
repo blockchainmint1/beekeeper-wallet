@@ -72,7 +72,7 @@ function WifAddPage() {
     setAutoKind(null);
     (async () => {
       const found: Record<string, number | null> = {};
-      let best: { kind: WifAddressKind; sats: number } | null = null;
+      const winners: { kind: WifAddressKind; sats: number }[] = [];
       await Promise.all(
         entries.map(async ([k, addr]) => {
           try {
