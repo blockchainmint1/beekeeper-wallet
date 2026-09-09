@@ -45,9 +45,70 @@ function WifAddPage() {
     }
   }, [wif]);
 
+  // Probe every candidate address so we can preselect the one that actually
+  // holds coins. A key imported as native segwit shows a zero balance when the
+  // funds sit on the legacy address for the very same key.
+  const [balances, setBalances] = useState<Record<string, number | null>>({});
+  const [probing, setProbing] = useState(false);
+  const [autoKind, setAutoKind] = useState<WifAddressKind | null>(null);
+
+  const candidateKey = decoded
+    ? `${decoded.chain}:${Object.values(decoded.addresses).join("|")}`
+    : "";
+
+  useEffect(() => {
+    if (!decoded) {
+      setBalances({});
+      setAutoKind(null);
+      return;
+    }
+    let cancelled = false;
+    const chain = decoded.chain;
+    const entries = (["bip84", "bip49", "bip44"] as const)
+      .map((k) => [k, decoded.addresses[k]] as const)
+      .filter((e): e is readonly [WifAddressKind, string] => !!e[1]);
+    setProbing(true);
+    setBalances({});
+    setAutoKind(null);
+    (async () => {
+      const found: Record<string, number | null> = {};
+      let best: { kind: WifAddressKind; sats: number } | null = null;
+      await Promise.all(
+        entries.map(async ([k, addr]) => {
+          try {
+            const s = await chainApi(chain).getAddressStats(addr);
+            const sats =
+              s.chain_stats.funded_txo_sum -
+              s.chain_stats.spent_txo_sum +
+              s.mempool_stats.funded_txo_sum -
+              s.mempool_stats.spent_txo_sum;
+            found[addr] = sats;
+            if (sats > 0 && (!best || sats > best.sats)) best = { kind: k, sats };
+          } catch {
+            found[addr] = null;
+          }
+        }),
+      );
+      if (cancelled) return;
+      setBalances(found);
+      setAutoKind(best ? best.kind : null);
+      setProbing(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidateKey]);
+
   const effectiveKind: WifAddressKind | null = decoded
-    ? (kind && decoded.addresses[kind] ? kind : defaultKindFor(decoded))
+    ? kind && decoded.addresses[kind]
+      ? kind
+      : (autoKind ?? defaultKindFor(decoded))
     : null;
+
+  function formatSats(sats: number, chain: string): string {
+    return `${(sats / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${chain.toUpperCase()}`;
+  }
 
   async function submit() {
     if (!decoded || !effectiveKind || !root) return;
