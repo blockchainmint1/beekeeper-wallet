@@ -5,9 +5,16 @@
 import type { WifChain } from "./decode";
 import * as txc from "@/lib/txc/mempool";
 import * as isk from "@/lib/isk/mempool";
+import * as ltc from "@/lib/ltc/mempool";
+import * as doge from "@/lib/doge/mempool";
 
 export function api(chain: WifChain) {
-  return chain === "txc" ? txc : isk;
+  switch (chain) {
+    case "txc": return txc;
+    case "isk": return isk;
+    case "ltc": return ltc;
+    case "doge": return doge;
+  }
 }
 
 export function explorerTxUrl(chain: WifChain, txid: string): string {
