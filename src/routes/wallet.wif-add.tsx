@@ -91,7 +91,8 @@ function WifAddPage() {
       );
       if (cancelled) return;
       setBalances(found);
-      setAutoKind(best ? best.kind : null);
+      winners.sort((a, b) => b.sats - a.sats);
+      setAutoKind(winners[0]?.kind ?? null);
       setProbing(false);
     })();
     return () => {
