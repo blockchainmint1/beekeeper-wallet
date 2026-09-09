@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { api as chainApi } from "@/lib/wif/chain-io";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { decodeWif, defaultKindFor, type DecodedWif, type WifAddressKind } from "@/lib/wif/decode";
 import { addWifWallet } from "@/lib/wif/store";
