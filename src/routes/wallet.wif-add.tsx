@@ -211,11 +211,19 @@ function WifAddPage() {
 
               <div>
                 <Label>Address type</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {probing
+                    ? "Checking which address holds coins…"
+                    : autoKind
+                      ? "We selected the address that holds your coins."
+                      : "No coins found on any address for this key."}
+                </p>
                 <div className="mt-2 grid gap-2">
                   {(["bip84", "bip49", "bip44"] as const).map((k) => {
                     const addr = decoded.addresses[k];
                     if (!addr) return null;
                     const active = effectiveKind === k;
+                    const sats = balances[addr];
                     return (
                       <button
                         key={k}
@@ -225,12 +233,25 @@ function WifAddPage() {
                           active ? "border-primary bg-primary/10" : "border-border hover:bg-accent"
                         }`}
                       >
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                          {k === "bip84"
-                            ? "Native SegWit"
-                            : k === "bip49"
-                              ? "Wrapped SegWit"
-                              : "Legacy"}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            {k === "bip84"
+                              ? "Native SegWit"
+                              : k === "bip49"
+                                ? "Wrapped SegWit"
+                                : "Legacy"}
+                          </div>
+                          <div
+                            className={`text-xs ${
+                              sats && sats > 0 ? "font-semibold text-primary" : "text-muted-foreground"
+                            }`}
+                          >
+                            {probing && sats === undefined
+                              ? "checking…"
+                              : sats === null || sats === undefined
+                                ? "—"
+                                : formatSats(sats, decoded.chain)}
+                          </div>
                         </div>
                         <div className="font-mono text-xs break-all">{addr}</div>
                       </button>
