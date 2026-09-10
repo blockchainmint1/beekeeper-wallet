@@ -26,6 +26,7 @@ import { Route as WalletBackupRouteImport } from './routes/wallet.backup'
 import { Route as PayInvoiceIdRouteImport } from './routes/pay.$invoiceId'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
+import { Route as ApiZcuExplorerBaseRouteImport } from './routes/api/zcu-explorer-base'
 import { Route as ApiSolanaRouteImport } from './routes/api/solana'
 import { Route as WalletTxcPathsRouteImport } from './routes/wallet.txc.paths'
 import { Route as WalletTxcMigrateRouteImport } from './routes/wallet.txc.migrate'
@@ -144,6 +145,11 @@ const LegalTermsRoute = LegalTermsRouteImport.update({
 const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
   id: '/legal/privacy',
   path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiZcuExplorerBaseRoute = ApiZcuExplorerBaseRouteImport.update({
+  id: '/api/zcu-explorer-base',
+  path: '/api/zcu-explorer-base',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSolanaRoute = ApiSolanaRouteImport.update({
@@ -325,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/manifesto': typeof ManifestoRoute
   '/wallet': typeof WalletRouteWithChildren
   '/api/solana': typeof ApiSolanaRoute
+  '/api/zcu-explorer-base': typeof ApiZcuExplorerBaseRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
   '/pay/$invoiceId': typeof PayInvoiceIdRoute
@@ -377,6 +384,7 @@ export interface FileRoutesByTo {
   '/import-key': typeof ImportKeyRoute
   '/manifesto': typeof ManifestoRoute
   '/api/solana': typeof ApiSolanaRoute
+  '/api/zcu-explorer-base': typeof ApiZcuExplorerBaseRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
   '/pay/$invoiceId': typeof PayInvoiceIdRoute
@@ -431,6 +439,7 @@ export interface FileRoutesById {
   '/manifesto': typeof ManifestoRoute
   '/wallet': typeof WalletRouteWithChildren
   '/api/solana': typeof ApiSolanaRoute
+  '/api/zcu-explorer-base': typeof ApiZcuExplorerBaseRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
   '/pay/$invoiceId': typeof PayInvoiceIdRoute
@@ -486,6 +495,7 @@ export interface FileRouteTypes {
     | '/manifesto'
     | '/wallet'
     | '/api/solana'
+    | '/api/zcu-explorer-base'
     | '/legal/privacy'
     | '/legal/terms'
     | '/pay/$invoiceId'
@@ -538,6 +548,7 @@ export interface FileRouteTypes {
     | '/import-key'
     | '/manifesto'
     | '/api/solana'
+    | '/api/zcu-explorer-base'
     | '/legal/privacy'
     | '/legal/terms'
     | '/pay/$invoiceId'
@@ -591,6 +602,7 @@ export interface FileRouteTypes {
     | '/manifesto'
     | '/wallet'
     | '/api/solana'
+    | '/api/zcu-explorer-base'
     | '/legal/privacy'
     | '/legal/terms'
     | '/pay/$invoiceId'
@@ -645,6 +657,7 @@ export interface RootRouteChildren {
   ManifestoRoute: typeof ManifestoRoute
   WalletRoute: typeof WalletRouteWithChildren
   ApiSolanaRoute: typeof ApiSolanaRoute
+  ApiZcuExplorerBaseRoute: typeof ApiZcuExplorerBaseRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
   PayInvoiceIdRoute: typeof PayInvoiceIdRoute
@@ -778,6 +791,13 @@ declare module '@tanstack/react-router' {
       path: '/legal/privacy'
       fullPath: '/legal/privacy'
       preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/zcu-explorer-base': {
+      id: '/api/zcu-explorer-base'
+      path: '/api/zcu-explorer-base'
+      fullPath: '/api/zcu-explorer-base'
+      preLoaderRoute: typeof ApiZcuExplorerBaseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/solana': {
@@ -1112,6 +1132,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManifestoRoute: ManifestoRoute,
   WalletRoute: WalletRouteWithChildren,
   ApiSolanaRoute: ApiSolanaRoute,
+  ApiZcuExplorerBaseRoute: ApiZcuExplorerBaseRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,
   PayInvoiceIdRoute: PayInvoiceIdRoute,

@@ -52,7 +52,7 @@ import { decodeOmniSend } from "@/lib/txc/omni-decode";
 import { getEnabledChains, CHAIN_META, type ChainId } from "@/lib/chain-prefs";
 import { getChainLabel, CHAIN_LABEL_EVENT } from "@/lib/chain-labels";
 import { EVM_CHAINS, deriveEvmAccount, evmClient, formatEth, setZcuExplorerBase, type EvmChainId } from "@/lib/chains/evm";
-import { getZcuExplorerBase } from "@/lib/chains/zcu-explorer.functions";
+
 import { TxDetailSheet, type TxDetail } from "@/components/wallet/TxDetailSheet";
 import { WalletDetailSheet } from "@/components/wallet/WalletDetailSheet";
 import { ReorderTilesSheet } from "@/components/wallet/ReorderTilesSheet";
@@ -123,18 +123,18 @@ function WalletHome() {
   }, []);
 
   // Load the Zero Chill explorer base (server-provided) for tx links.
-  const loadZcuExplorerBase = useServerFn(getZcuExplorerBase);
   useEffect(() => {
     let cancelled = false;
-    loadZcuExplorerBase()
-      .then((r) => {
+    fetch("/api/zcu-explorer-base", { headers: { accept: "application/json" } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((r: { base?: string } | null) => {
         if (!cancelled && r?.base) setZcuExplorerBase(r.base);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [loadZcuExplorerBase]);
+  }, []);
 
   // Unified carousel item list — chains first, then watch-only, then WIF.
   type Slot =
