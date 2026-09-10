@@ -121,6 +121,19 @@ function WalletHome() {
     return () => window.removeEventListener(CHAIN_LABEL_EVENT, h);
   }, []);
 
+  // Load the Zero Chill explorer base (server-provided) for tx links.
+  const loadZcuExplorerBase = useServerFn(getZcuExplorerBase);
+  useEffect(() => {
+    let cancelled = false;
+    loadZcuExplorerBase()
+      .then((r) => {
+        if (!cancelled && r?.base) setZcuExplorerBase(r.base);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [loadZcuExplorerBase]);
 
   // Unified carousel item list — chains first, then watch-only, then WIF.
   type Slot =
