@@ -52,7 +52,7 @@ import { decodeOmniSend } from "@/lib/txc/omni-decode";
 import { getEnabledChains, CHAIN_META, type ChainId } from "@/lib/chain-prefs";
 import { getChainLabel, CHAIN_LABEL_EVENT } from "@/lib/chain-labels";
 import { EVM_CHAINS, deriveEvmAccount, evmClient, formatEth, setZcuExplorerBase, type EvmChainId } from "@/lib/chains/evm";
-import { getZcuExplorerBase } from "@/lib/chains/zcu-explorer.functions";
+
 import { TxDetailSheet, type TxDetail } from "@/components/wallet/TxDetailSheet";
 import { WalletDetailSheet } from "@/components/wallet/WalletDetailSheet";
 import { ReorderTilesSheet } from "@/components/wallet/ReorderTilesSheet";
