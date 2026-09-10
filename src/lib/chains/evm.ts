@@ -98,8 +98,8 @@ export const EVM_CHAINS: Record<EvmChainId, EvmChainMeta> = {
     priceSymbol: "ZCU",
     viemChain: zeroChill,
     accent: "#0EA5E9",
-    explorerTx: (h) => `https://scan.zerochill.com/tx/${h}`,
-    explorerAddress: (a) => `https://scan.zerochill.com/address/${a}`,
+    explorerTx: (h) => (zcuExplorerBase ? `${zcuExplorerBase}/tx/${h}` : ""),
+    explorerAddress: (a) => (zcuExplorerBase ? `${zcuExplorerBase}/address/${a}` : ""),
   },
 };
 
