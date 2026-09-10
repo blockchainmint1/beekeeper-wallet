@@ -24,6 +24,7 @@ import { getSolBalance } from "@/lib/solana/api";
 import { parsePaymentUri } from "@/lib/pay-uri";
 import { rootFingerprintHex } from "@/lib/txc/fingerprint";
 import { QrScanButton } from "@/components/wallet/QrScanButton";
+import { looksLikeLoginQr } from "@/lib/nectar/auth";
 import { ProfileSwitcher } from "@/components/wallet/ProfileSwitcher";
 import { toast } from "sonner";
 import {
@@ -147,6 +148,12 @@ function WalletLayout() {
   >(null);
 
   function handleScan(raw: string) {
+    // Website sign-in QR (NectarPay, streamTXC, …) — go straight to the
+    // sign-in page with the scanned payload.
+    if (looksLikeLoginQr(raw)) {
+      navigate({ to: "/wallet/signin", search: { payload: raw } });
+      return;
+    }
     const intent = parsePaymentUri(raw);
     if (intent.kind === "txc") {
       navigate({

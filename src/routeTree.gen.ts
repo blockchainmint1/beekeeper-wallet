@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as WalletIndexRouteImport } from './routes/wallet.index'
 import { Route as WalletWifAddRouteImport } from './routes/wallet.wif-add'
 import { Route as WalletWatchAddRouteImport } from './routes/wallet.watch-add'
+import { Route as WalletSigninRouteImport } from './routes/wallet.signin'
 import { Route as WalletSettingsRouteImport } from './routes/wallet.settings'
 import { Route as WalletSendRouteImport } from './routes/wallet.send'
 import { Route as WalletReceiveRouteImport } from './routes/wallet.receive'
@@ -105,6 +106,11 @@ const WalletWifAddRoute = WalletWifAddRouteImport.update({
 const WalletWatchAddRoute = WalletWatchAddRouteImport.update({
   id: '/watch-add',
   path: '/watch-add',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletSigninRoute = WalletSigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
   getParentRoute: () => WalletRoute,
 } as any)
 const WalletSettingsRoute = WalletSettingsRouteImport.update({
@@ -340,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
   '/wallet/settings': typeof WalletSettingsRoute
+  '/wallet/signin': typeof WalletSigninRoute
   '/wallet/watch-add': typeof WalletWatchAddRoute
   '/wallet/wif-add': typeof WalletWifAddRoute
   '/wallet/': typeof WalletIndexRoute
@@ -393,6 +400,7 @@ export interface FileRoutesByTo {
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
   '/wallet/settings': typeof WalletSettingsRoute
+  '/wallet/signin': typeof WalletSigninRoute
   '/wallet/watch-add': typeof WalletWatchAddRoute
   '/wallet/wif-add': typeof WalletWifAddRoute
   '/wallet': typeof WalletIndexRoute
@@ -448,6 +456,7 @@ export interface FileRoutesById {
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
   '/wallet/settings': typeof WalletSettingsRoute
+  '/wallet/signin': typeof WalletSigninRoute
   '/wallet/watch-add': typeof WalletWatchAddRoute
   '/wallet/wif-add': typeof WalletWifAddRoute
   '/wallet/': typeof WalletIndexRoute
@@ -504,6 +513,7 @@ export interface FileRouteTypes {
     | '/wallet/receive'
     | '/wallet/send'
     | '/wallet/settings'
+    | '/wallet/signin'
     | '/wallet/watch-add'
     | '/wallet/wif-add'
     | '/wallet/'
@@ -557,6 +567,7 @@ export interface FileRouteTypes {
     | '/wallet/receive'
     | '/wallet/send'
     | '/wallet/settings'
+    | '/wallet/signin'
     | '/wallet/watch-add'
     | '/wallet/wif-add'
     | '/wallet'
@@ -611,6 +622,7 @@ export interface FileRouteTypes {
     | '/wallet/receive'
     | '/wallet/send'
     | '/wallet/settings'
+    | '/wallet/signin'
     | '/wallet/watch-add'
     | '/wallet/wif-add'
     | '/wallet/'
@@ -735,6 +747,13 @@ declare module '@tanstack/react-router' {
       path: '/watch-add'
       fullPath: '/wallet/watch-add'
       preLoaderRoute: typeof WalletWatchAddRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/signin': {
+      id: '/wallet/signin'
+      path: '/signin'
+      fullPath: '/wallet/signin'
+      preLoaderRoute: typeof WalletSigninRouteImport
       parentRoute: typeof WalletRoute
     }
     '/wallet/settings': {
@@ -1063,6 +1082,7 @@ interface WalletRouteChildren {
   WalletReceiveRoute: typeof WalletReceiveRoute
   WalletSendRoute: typeof WalletSendRoute
   WalletSettingsRoute: typeof WalletSettingsRoute
+  WalletSigninRoute: typeof WalletSigninRoute
   WalletWatchAddRoute: typeof WalletWatchAddRoute
   WalletWifAddRoute: typeof WalletWifAddRoute
   WalletIndexRoute: typeof WalletIndexRoute
@@ -1095,6 +1115,7 @@ const WalletRouteChildren: WalletRouteChildren = {
   WalletReceiveRoute: WalletReceiveRoute,
   WalletSendRoute: WalletSendRoute,
   WalletSettingsRoute: WalletSettingsRoute,
+  WalletSigninRoute: WalletSigninRoute,
   WalletWatchAddRoute: WalletWatchAddRoute,
   WalletWifAddRoute: WalletWifAddRoute,
   WalletIndexRoute: WalletIndexRoute,
