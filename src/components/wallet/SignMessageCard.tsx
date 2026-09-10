@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { QrScanButton } from "@/components/wallet/QrScanButton";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
 import { fetchLoginMessage, parseLoginInput, signInToNectar, type NectarLoginRequest } from "@/lib/nectar/auth";
+import { loginSiteName } from "@/lib/web-login-hosts";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { signMessageWithSeed, verifyMessage, type SignedMessage } from "@/lib/txc/message-sign";
 
@@ -39,7 +40,7 @@ export function SignMessageCard({ compact }: { compact?: boolean }) {
       const request = parseLoginInput(text);
       setLoginRequest(await fetchLoginMessage(request));
     } catch (e) {
-      setLoginError(e instanceof Error ? e.message : "Could not read this NectarPay request.");
+      setLoginError(e instanceof Error ? e.message : "Could not read this sign-in request.");
     }
   }
 
@@ -55,7 +56,7 @@ export function SignMessageCard({ compact }: { compact?: boolean }) {
       });
       setLoginDone(true);
     } catch (e) {
-      setLoginError(e instanceof Error ? e.message : "Could not sign in to NectarPay.");
+      setLoginError(e instanceof Error ? e.message : "Could not complete sign-in.");
     } finally {
       setLoginBusy(false);
     }
@@ -185,24 +186,29 @@ export function SignMessageCard({ compact }: { compact?: boolean }) {
               <div className="border-t border-border/60 pt-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium">Sign in with NectarPay</p>
-                    <p className="text-xs text-muted-foreground">Scan a NectarPay QR to sign in. No payment is authorized.</p>
+                    <p className="text-sm font-medium">Sign in to a website</p>
+                    <p className="text-xs text-muted-foreground">
+                      Scan a sign-in QR from a partner site like NectarPay or streamTXC. We sign you in with your
+                      wallet — no payment is authorized.
+                    </p>
                   </div>
                   <QrScanButton onScan={onNectarScan} />
                 </div>
                 {loginRequest && (
                   <div className="mt-3 space-y-3 rounded-md border border-border/60 p-3">
                     <p className="text-xs text-muted-foreground">
-                      NectarPay is asking this wallet to sign a temporary login message for <span className="font-medium text-foreground">{loginRequest.origin}</span>.
+                      <span className="font-medium text-foreground">{loginSiteName(loginRequest.origin)}</span>{" "}
+                      (<span className="font-medium text-foreground">{loginRequest.origin}</span>) is asking this
+                      wallet to sign a temporary login message.
                     </p>
                     <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-muted/40 p-2 text-xs">{loginRequest.message}</pre>
                     <Button onClick={onNectarSign} disabled={loginBusy || loginDone} size="sm">
-                      {loginDone ? "Signed in" : loginBusy ? "Signing…" : "Approve sign-in"}
+                      {loginDone ? "Signed in" : loginBusy ? "Signing…" : `Approve sign-in to ${loginSiteName(loginRequest.origin)}`}
                     </Button>
                   </div>
                 )}
                 {loginError && <p className="mt-2 text-sm text-destructive">{loginError}</p>}
-                {loginDone && <p className="mt-2 text-sm text-emerald-500">NectarPay accepted the signature. You can return to the sign-in window.</p>}
+                {loginDone && <p className="mt-2 text-sm text-emerald-500">The site accepted the signature. You can return to the sign-in window.</p>}
               </div>
             </div>
           )
