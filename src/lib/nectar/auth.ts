@@ -158,6 +158,23 @@ export function parseLoginInput(raw: string): NectarLoginRequest {
   }
 }
 
+/**
+ * Cheap pre-check used by the camera scanner: does this QR look like a
+ * website sign-in request (hm-login envelope or payhme://login deep link)?
+ * Full validation still happens in parseLoginInput.
+ */
+export function looksLikeLoginQr(raw: string): boolean {
+  const text = raw.trim();
+  if (/^payhme:\/\/login/i.test(text)) return true;
+  if (!text.startsWith("{")) return false;
+  try {
+    const value: unknown = JSON.parse(text);
+    return !!value && typeof value === "object" && (value as Record<string, unknown>).type === "hm-login";
+  } catch {
+    return false;
+  }
+}
+
 async function proxyRequest(callbackUrl: string, init?: RequestInit): Promise<Response> {
   return fetch(`${PROXY}?url=${encodeURIComponent(callbackUrl)}`, init);
 }

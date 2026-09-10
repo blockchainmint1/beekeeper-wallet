@@ -13,11 +13,14 @@ export const TRUSTED_LOGIN_HOSTS: ReadonlySet<string> = new Set([
   // NectarPay
   "app.nectar-pay.com",
   "pay.honest.money",
-  // streamTXC — TODO: add the exact sign-in domain once confirmed.
+  // streamTXC
+  "streamtxc.com",
+  "www.streamtxc.com",
 ]);
 
 /** Human-friendly site name for a trusted host, used in the confirm UI. */
 export function loginSiteName(hostname: string): string {
   if (hostname === "app.nectar-pay.com" || hostname === "pay.honest.money") return "NectarPay";
+  if (hostname === "streamtxc.com" || hostname === "www.streamtxc.com") return "streamTXC";
   return hostname;
 }
