@@ -24,6 +24,7 @@ import { getSolBalance } from "@/lib/solana/api";
 import { parsePaymentUri } from "@/lib/pay-uri";
 import { rootFingerprintHex } from "@/lib/txc/fingerprint";
 import { QrScanButton } from "@/components/wallet/QrScanButton";
+import { looksLikeLoginQr } from "@/lib/nectar/auth";
 import { ProfileSwitcher } from "@/components/wallet/ProfileSwitcher";
 import { toast } from "sonner";
 import {

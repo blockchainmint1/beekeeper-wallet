@@ -150,24 +150,6 @@ export function SignMessageCard({ compact }: { compact?: boolean }) {
               <div className="border-t border-border/60 pt-4">
                 <WebsiteSignInCard />
               </div>
-                  <QrScanButton onScan={onNectarScan} />
-                </div>
-                {loginRequest && (
-                  <div className="mt-3 space-y-3 rounded-md border border-border/60 p-3">
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">{loginSiteName(loginRequest.origin)}</span>{" "}
-                      (<span className="font-medium text-foreground">{loginRequest.origin}</span>) is asking this
-                      wallet to sign a temporary login message.
-                    </p>
-                    <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-muted/40 p-2 text-xs">{loginRequest.message}</pre>
-                    <Button onClick={onNectarSign} disabled={loginBusy || loginDone} size="sm">
-                      {loginDone ? "Signed in" : loginBusy ? "Signing…" : `Approve sign-in to ${loginSiteName(loginRequest.origin)}`}
-                    </Button>
-                  </div>
-                )}
-                {loginError && <p className="mt-2 text-sm text-destructive">{loginError}</p>}
-                {loginDone && <p className="mt-2 text-sm text-emerald-500">The site accepted the signature. You can return to the sign-in window.</p>}
-              </div>
             </div>
           )
         ) : (
