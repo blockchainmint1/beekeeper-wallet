@@ -2209,7 +2209,22 @@ function EvmActivity({
         ) : visibleTransfers.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-sm text-muted-foreground">
-              {spamCount > 0
+              {history.data?.unavailable ? (
+                <>
+                  {meta.name} activity can't be loaded right now — the block
+                  explorer isn't responding. Your balance is unaffected.{" "}
+                  {address && (
+                    <a
+                      href={meta.explorerAddress(address)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      Open in {meta.shortName} explorer
+                    </a>
+                  )}
+                </>
+              ) : spamCount > 0
                 ? `${spamCount} spam / imposter ${spamCount === 1 ? "transfer" : "transfers"} hidden. Toggle "Hide worthless / spam tokens" in Settings to view.`
                 : `No transactions on ${meta.name} yet.`}
             </CardContent>
