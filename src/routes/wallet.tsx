@@ -147,6 +147,12 @@ function WalletLayout() {
   >(null);
 
   function handleScan(raw: string) {
+    // Website sign-in QR (NectarPay, streamTXC, …) — go straight to the
+    // sign-in page with the scanned payload.
+    if (looksLikeLoginQr(raw)) {
+      navigate({ to: "/wallet/signin", search: { payload: raw } });
+      return;
+    }
     const intent = parsePaymentUri(raw);
     if (intent.kind === "txc") {
       navigate({
