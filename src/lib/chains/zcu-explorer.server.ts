@@ -56,10 +56,19 @@ async function scanList(action: string, address: string): Promise<ScanTx[]> {
 
 export async function fetchZcuHistory(address: string): Promise<ZcuTransfer[]> {
   const lower = address.toLowerCase();
-  const [txs, tokenTxs] = await Promise.all([
-    scanList("txlist", address).catch(() => [] as ScanTx[]),
-    scanList("tokentx", address).catch(() => [] as ScanTx[]),
+  const [txsRes, tokenRes] = await Promise.allSettled([
+    scanList("txlist", address),
+    scanList("tokentx", address),
   ]);
+  // If the explorer is down entirely, surface it instead of returning an
+  // empty list that looks like "no transactions".
+  if (txsRes.status === "rejected" && tokenRes.status === "rejected") {
+    throw txsRes.reason instanceof Error
+      ? txsRes.reason
+      : new Error("zcu explorer unavailable");
+  }
+  const txs = txsRes.status === "fulfilled" ? txsRes.value : [];
+  const tokenTxs = tokenRes.status === "fulfilled" ? tokenRes.value : [];
 
   const rows: ZcuTransfer[] = [];
 
