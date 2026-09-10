@@ -1,15 +1,19 @@
 /**
- * NectarPay wallet sign-in protocol.
+ * Website wallet sign-in protocol (NectarPay, streamTXC, and other partners).
  *
- * Login QR codes contain a short-lived challenge and a callback owned by
- * NectarPay. We fetch the exact message from that callback before signing, so
- * the wallet never guesses what it is authorizing. Only the TXC identity
- * address and compact signature leave the device.
+ * Login QR codes contain a short-lived challenge and a callback owned by the
+ * site. We fetch the exact message from that callback before signing, so the
+ * wallet never guesses what it is authorizing. Only the TXC identity address
+ * and compact signature leave the device. Callbacks are restricted to
+ * TRUSTED_LOGIN_HOSTS (src/lib/web-login-hosts.ts), shared with the proxy.
  */
 
 import { signMessageWithSeed, verifyMessage, type SignedMessage } from "@/lib/txc/message-sign";
+import { TRUSTED_LOGIN_HOSTS } from "@/lib/web-login-hosts";
 
-export const NECTAR_LOGIN_HOSTS = new Set(["app.nectar-pay.com", "pay.honest.money"]);
+export { TRUSTED_LOGIN_HOSTS };
+/** @deprecated Use TRUSTED_LOGIN_HOSTS. */
+export const NECTAR_LOGIN_HOSTS = TRUSTED_LOGIN_HOSTS;
 const PROXY = "/api/nectar/link";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -38,7 +42,7 @@ function trustedUrl(raw: string): URL | null {
     const url = new URL(raw);
     if (
       url.protocol !== "https:" ||
-      !NECTAR_LOGIN_HOSTS.has(url.hostname) ||
+      !TRUSTED_LOGIN_HOSTS.has(url.hostname) ||
       url.port ||
       url.username ||
       url.password
@@ -83,11 +87,11 @@ function validateRequest(raw: {
   const expiresAt = numberFrom(raw.expiresAt);
   const callback = trustedUrl(callbackUrl);
 
-  if (!UUID_RE.test(challengeId)) throw new Error("This is not a valid NectarPay sign-in QR.");
-  if (nonce.length < 16 || nonce.length > 128) throw new Error("The NectarPay sign-in challenge is malformed.");
+  if (!UUID_RE.test(challengeId)) throw new Error("This is not a valid website sign-in QR.");
+  if (nonce.length < 16 || nonce.length > 128) throw new Error("The sign-in challenge is malformed.");
   if (!callback) throw new Error("This sign-in QR points to an untrusted server.");
-  if (!NECTAR_LOGIN_HOSTS.has(origin)) throw new Error("This sign-in request is not from NectarPay.");
-  if (expiresAt === null || expiresAt <= Date.now()) throw new Error("This NectarPay sign-in QR has expired.");
+  if (!TRUSTED_LOGIN_HOSTS.has(origin)) throw new Error("This sign-in request is not from a trusted site.");
+  if (expiresAt === null || expiresAt <= Date.now()) throw new Error("This sign-in QR has expired.");
   if (callback.searchParams.get("id") !== challengeId) throw new Error("The sign-in challenge does not match its callback.");
   if (callback.hostname !== origin) throw new Error("The sign-in request domain does not match its callback.");
   if (callback.searchParams.get("domain") && callback.searchParams.get("domain") !== origin) {
@@ -108,16 +112,16 @@ function validateRequest(raw: {
   };
 }
 
-/** Parse the JSON envelope or payhme://login URL emitted by NectarPay. */
+/** Parse the JSON envelope or payhme://login URL emitted by a partner site. */
 export function parseLoginInput(raw: string): NectarLoginRequest {
   const text = raw.trim();
-  if (!text) throw new Error("Scan a NectarPay sign-in QR to continue.");
+  if (!text) throw new Error("Scan a website sign-in QR to continue.");
 
   try {
     const value: unknown = JSON.parse(text);
     if (value && typeof value === "object") {
       const envelope = value as Record<string, unknown>;
-      if (envelope.type !== "hm-login") throw new Error("This QR is not a NectarPay sign-in request.");
+      if (envelope.type !== "hm-login") throw new Error("This QR is not a supported sign-in request.");
       return validateRequest({
         challengeId: typeof envelope.callback === "string" ? new URL(envelope.callback).searchParams.get("id") : undefined,
         nonce: envelope.nonce,
@@ -134,7 +138,7 @@ export function parseLoginInput(raw: string): NectarLoginRequest {
   try {
     const url = new URL(text);
     if (url.protocol !== "payhme:" || url.hostname !== "login") {
-      throw new Error("This QR is not a NectarPay sign-in request.");
+      throw new Error("This QR is not a supported sign-in request.");
     }
     const callbackUrl = url.searchParams.get("cb") ?? "";
     const message = url.searchParams.get("msg");
@@ -149,8 +153,8 @@ export function parseLoginInput(raw: string): NectarLoginRequest {
       message: message ? decodeBase64Url(message) ?? undefined : undefined,
     });
   } catch (error) {
-    if (error instanceof Error && error.message !== "This QR is not a NectarPay sign-in request.") throw error;
-    throw new Error("This QR is not a NectarPay sign-in request.");
+    if (error instanceof Error && error.message !== "This QR is not a supported sign-in request.") throw error;
+    throw new Error("This QR is not a supported sign-in request.");
   }
 }
 
@@ -162,11 +166,11 @@ async function proxyRequest(callbackUrl: string, init?: RequestInit): Promise<Re
 export async function fetchLoginMessage(request: NectarLoginRequest): Promise<NectarLoginRequest & { message: string }> {
   const response = await proxyRequest(request.callbackUrl, { headers: { Accept: "application/json" } });
   const body = (await response.json().catch(() => null)) as LoginChallengeResponse | null;
-  if (!response.ok || !body) throw new Error(body?.message ?? "Could not read the NectarPay sign-in request.");
+  if (!response.ok || !body) throw new Error(body?.message ?? "Could not read the sign-in request.");
   if (body.id !== request.challengeId || body.nonce !== request.nonce) {
-    throw new Error("The NectarPay sign-in challenge changed or is invalid.");
+    throw new Error("The sign-in challenge changed or is invalid.");
   }
-  if (body.status && body.status !== "pending") throw new Error("This NectarPay sign-in request is no longer waiting.");
+  if (body.status && body.status !== "pending") throw new Error("This sign-in request is no longer waiting.");
   const message = body.message;
   const responseDomain = body.domain ?? request.origin;
   const responseIssuedAt = body.issued_at;
@@ -188,10 +192,10 @@ export async function fetchLoginMessage(request: NectarLoginRequest): Promise<Ne
     responseDomain !== request.origin ||
     !message.includes(`Nonce: ${request.nonce}`)
   ) {
-    throw new Error("NectarPay returned an invalid sign-in message.");
+    throw new Error("The site returned an invalid sign-in message.");
   }
   const expiresAt = body.expires_at ? Date.parse(body.expires_at) : request.expiresAt;
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error("This NectarPay sign-in request has expired.");
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error("This sign-in request has expired.");
   return { ...request, expiresAt, message };
 }
 
@@ -201,7 +205,7 @@ export async function signInToNectar(args: {
   passphrase?: string;
 }): Promise<SignedMessage> {
   const { request, mnemonic, passphrase = "" } = args;
-  if (request.expiresAt <= Date.now()) throw new Error("This NectarPay sign-in request has expired.");
+  if (request.expiresAt <= Date.now()) throw new Error("This sign-in request has expired.");
 
   const signed = await signMessageWithSeed({
     mnemonic,
@@ -226,6 +230,6 @@ export async function signInToNectar(args: {
     }),
   });
   const body = (await response.json().catch(() => null)) as { error?: string } | null;
-  if (!response.ok) throw new Error(body?.error ?? `NectarPay sign-in failed (${response.status}).`);
+  if (!response.ok) throw new Error(body?.error ?? `Sign-in failed (${response.status}).`);
   return signed;
 }

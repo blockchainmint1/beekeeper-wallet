@@ -1,17 +1,19 @@
 /**
- * Same-origin proxy for the Nectar Pay wallet-link protocol.
+ * Same-origin proxy for the wallet-link and website sign-in protocols
+ * (NectarPay, streamTXC, and other trusted partner sites).
  *
- * The wallet never talks to app.nectar-pay.com directly: the strict CSP
+ * The wallet never talks to partner hosts directly: the strict CSP
  * `connect-src` only allows same-origin + our own chain endpoints, and this
- * keeps one place to pin the trusted relying party.
+ * keeps one place to pin the trusted relying parties.
  *
- * Usage: /api/nectar/link?url=<url-encoded absolute https URL on the
- * trusted host>. GET reads the manifest, POST claims it.
+ * Usage: /api/nectar/link?url=<url-encoded absolute https URL on a
+ * trusted host>. GET reads the manifest/challenge, POST claims it.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { TRUSTED_LOGIN_HOSTS } from "@/lib/web-login-hosts";
 
-/** Exact NectarPay hosts used by the merchant-link and wallet-login protocols. */
-const TRUSTED_HOSTS = new Set(["app.nectar-pay.com", "pay.honest.money"]);
+/** Exact hosts trusted for the merchant-link and wallet-login protocols. */
+const TRUSTED_HOSTS = TRUSTED_LOGIN_HOSTS;
 
 function targetFrom(request: Request): URL | null {
   const raw = new URL(request.url).searchParams.get("url");
