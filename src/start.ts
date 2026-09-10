@@ -56,7 +56,9 @@ const securityMiddleware = createMiddleware().server(async ({ next, request }) =
 
   try {
     const result = await next();
-    setSecurityHeaders(result.response.headers, cors);
+    // Some failure paths resolve without a response object — guard so the
+    // header pass never turns an upstream error into an opaque 500.
+    if (result?.response?.headers) setSecurityHeaders(result.response.headers, cors);
     return result;
   } catch (error) {
     if (error != null && typeof error === "object" && "statusCode" in error) {
