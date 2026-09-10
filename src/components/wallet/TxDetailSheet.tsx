@@ -134,11 +134,13 @@ function EvmDetail({ detail }: { detail: Extract<TxDetail, { kind: "evm" }> }) {
       <Field label="From" value={t.from} mono copy />
       {t.to && <Field label="To" value={t.to} mono copy />}
       <Field label="Transaction hash" value={t.hash} mono copy />
-      <Button asChild variant="outline" className="w-full">
-        <a href={meta.explorerTx(t.hash)} target="_blank" rel="noreferrer">
-          <ExternalLink className="h-4 w-4 mr-2" /> View on {meta.shortName} explorer
-        </a>
-      </Button>
+      {meta.explorerTx(t.hash) && (
+        <Button asChild variant="outline" className="w-full">
+          <a href={meta.explorerTx(t.hash)} target="_blank" rel="noreferrer">
+            <ExternalLink className="h-4 w-4 mr-2" /> View on {meta.shortName} explorer
+          </a>
+        </Button>
+      )}
     </div>
   );
 }

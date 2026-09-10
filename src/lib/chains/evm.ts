@@ -19,15 +19,26 @@ export type EvmChainId = "eth" | "bsc" | "base" | "zcu";
 /** Chains that have canonical stablecoin deployments we ship built-in. */
 export type StableEvmChainId = Exclude<EvmChainId, "zcu">;
 
+/**
+ * Base URL of the Zero Chill explorer/indexer. Provided at runtime by the
+ * server (ZCU_MEMPOOL) so no host is hardcoded here.
+ */
+let zcuExplorerBase = "";
+
+export function setZcuExplorerBase(base: string): void {
+  zcuExplorerBase = (base ?? "").replace(/\/+$/, "");
+}
+
+export function getZcuExplorerBaseUrl(): string {
+  return zcuExplorerBase;
+}
+
 /** Zero Chill Units — Honest Money ecosystem L1 (EVM). */
 export const zeroChill = defineChain({
   id: 90031273,
   name: "Zero Chill",
   nativeCurrency: { name: "Zero Chill Units", symbol: "ZCU", decimals: 18 },
   rpcUrls: { default: { http: ["https://node-zcu.honest.money"] } },
-  blockExplorers: {
-    default: { name: "Zero Chill Scan", url: "https://scan.zerochill.com" },
-  },
 });
 
 export interface EvmChainMeta {
@@ -87,8 +98,8 @@ export const EVM_CHAINS: Record<EvmChainId, EvmChainMeta> = {
     priceSymbol: "ZCU",
     viemChain: zeroChill,
     accent: "#0EA5E9",
-    explorerTx: (h) => `https://scan.zerochill.com/tx/${h}`,
-    explorerAddress: (a) => `https://scan.zerochill.com/address/${a}`,
+    explorerTx: (h) => (zcuExplorerBase ? `${zcuExplorerBase}/tx/${h}` : ""),
+    explorerAddress: (a) => (zcuExplorerBase ? `${zcuExplorerBase}/address/${a}` : ""),
   },
 };
 
