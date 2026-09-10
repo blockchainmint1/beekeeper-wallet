@@ -191,13 +191,15 @@ export const getEvmHistory = createServerFn({ method: "POST" })
     if (!/^0x[0-9a-fA-F]{40}$/.test(input.address)) throw new Error("invalid address");
     return input;
   })
-  .handler(async ({ data }): Promise<{ transfers: EvmTransfer[]; supported: boolean }> => {
+  .handler(async ({ data }): Promise<{ transfers: EvmTransfer[]; supported: boolean; unavailable?: boolean }> => {
     // Zero Chill is our own L1 — Alchemy doesn't index it. Use the explorer API.
     if (data.chain === "zcu") {
       try {
         return { transfers: await fetchZcuHistory(data.address), supported: true };
       } catch {
-        return { transfers: [], supported: true };
+        // Explorer unreachable (outage / TLS) — tell the UI instead of
+        // pretending the address has no history.
+        return { transfers: [], supported: true, unavailable: true };
       }
     }
 
