@@ -191,26 +191,28 @@ export async function fetchLoginMessage(request: NectarLoginRequest): Promise<Ne
   const message = body.message;
   const responseDomain = body.domain ?? request.origin;
   const responseIssuedAt = body.issued_at;
-  const expectedMessage = responseIssuedAt
-    ? [
-        `${responseDomain} wants you to sign in with your TXC wallet.`,
-        "",
-        `Nonce: ${request.nonce}`,
-        `Issued At: ${responseIssuedAt}`,
-        "By signing, you authorize a sign-in session for payHME.",
-        "This signature does not authorize any payment.",
-      ].join("\n")
-    : null;
+  // Every line is checked against a fixed template so a site cannot smuggle
+  // extra terms into what the wallet signs. Only the site's own display name
+  // on the "authorize a sign-in session for X" line is free-form.
+  const lines = message ? message.split("\n") : [];
+  const shapeOk =
+    !!message &&
+    !!responseIssuedAt &&
+    lines.length === 6 &&
+    lines[0] === `${responseDomain} wants you to sign in with your TXC wallet.` &&
+    lines[1] === "" &&
+    lines[2] === `Nonce: ${request.nonce}` &&
+    lines[3] === `Issued At: ${responseIssuedAt}` &&
+    /^By signing, you authorize a sign-in session for [A-Za-z0-9 ._-]{1,40}\.$/.test(lines[4] ?? "") &&
+    lines[5] === "This signature does not authorize any payment.";
   if (
-    !message ||
-    !expectedMessage ||
-    message !== expectedMessage ||
+    !shapeOk ||
     (request.message !== undefined && request.message !== message) ||
-    responseDomain !== request.origin ||
-    !message.includes(`Nonce: ${request.nonce}`)
+    responseDomain !== request.origin
   ) {
     throw new Error("The site returned an invalid sign-in message.");
   }
+
   const expiresAt = body.expires_at ? Date.parse(body.expires_at) : request.expiresAt;
   if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error("This sign-in request has expired.");
   return { ...request, expiresAt, message };
