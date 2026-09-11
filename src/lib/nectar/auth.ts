@@ -215,7 +215,7 @@ export async function fetchLoginMessage(request: NectarLoginRequest): Promise<Ne
 
   const expiresAt = body.expires_at ? Date.parse(body.expires_at) : request.expiresAt;
   if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error("This sign-in request has expired.");
-  return { ...request, expiresAt, message };
+  return { ...request, expiresAt, message: message as string };
 }
 
 export async function signInToNectar(args: {
