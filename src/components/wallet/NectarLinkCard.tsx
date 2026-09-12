@@ -42,6 +42,8 @@ export function NectarLinkCard({ compact, hideWhenLinked }: { compact?: boolean;
     setLinks(listLinks());
   }, [unlocked]);
 
+  if (hideWhenLinked && links.length > 0) return null;
+
   async function onLoad(raw: string) {
     setError(null);
     setNotice(null);
