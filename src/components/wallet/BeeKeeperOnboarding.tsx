@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { QrScanDialog } from "@/components/wallet/QrScanButton";
-import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
+
 import { enableBiometric, isBiometricAvailable } from "@/lib/native/biometric";
 import { assessPassword } from "@/lib/security/password-strength";
 import { hasWallet, saveWallet, saveWalletToNewProfile } from "@/lib/txc/storage";
@@ -376,23 +376,6 @@ export function BeeKeeperOnboarding() {
               <div className="grid grid-cols-[auto_1fr] gap-3"><Button type="button" variant="ghost" disabled={busy} onClick={() => setStep(2)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><Button type="submit" disabled={busy}>{busy ? "Activating…" : <><KeyRound className="mr-2 h-4 w-4" />Activate wallet</>}</Button></div>
             </div>
           </form>
-        )}
-
-        {step === 4 && (
-          <div>
-            <div className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/10 p-4">
-              <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <p className="text-sm">Your wallet is active and encrypted on this device.</p>
-            </div>
-            <h2 className="mt-6 text-xl font-semibold">Link a merchant (optional)</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Shopping with a Nectar Pay store? Scan or paste their link QR and this wallet can receive their invoices. You can always do this later in Settings.</p>
-            <div className="mt-5 rounded-md border border-border p-4">
-              <NectarLinkCard compact />
-            </div>
-            <Button className="mt-6 w-full" onClick={() => void navigate({ to: "/wallet" })}>
-              <WalletCards className="mr-2 h-4 w-4" /> Go to my wallet
-            </Button>
-          </div>
         )}
       </section>
 
