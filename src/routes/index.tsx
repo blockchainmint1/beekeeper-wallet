@@ -38,6 +38,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const navigate = useNavigate();
+  const router = useRouter();
   const { unlock, unlocked } = useWallet();
   const [exists, setExists] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
