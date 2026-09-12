@@ -85,6 +85,16 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/wallet/")({
+  head: () => ({
+    meta: [
+      { title: "Full Wallet — BeeKeeper Wallet" },
+      { name: "description", content: "Use the complete BeeKeeper wallet experience across every enabled blockchain." },
+      { property: "og:title", content: "Full Wallet — BeeKeeper Wallet" },
+      { property: "og:description", content: "Use the complete BeeKeeper wallet experience across every enabled blockchain." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: WalletHome,
 });
 
