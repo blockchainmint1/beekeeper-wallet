@@ -15,12 +15,17 @@ type RelayOrder = {
   usd_amount: string;
   asset_amount: string;
   rate: "1";
-  fee_bps: 100;
+  fee_bps: number;
   fee_usd: string;
   return_url: string;
   cancel_url: string;
   accepted_disclaimers: string[];
+  /** Wallet-by-wallet transfers the merchant actually sent for this order. */
+  transfers: Array<{ chain: string; asset: string; usd: string }>;
+  /** NectarPay merchant id when the wallet is linked (0% fee tier). */
+  merchant_ref?: string;
 };
+
 
 export function vectorPayConfigured(): boolean {
   return Boolean(
@@ -41,6 +46,12 @@ export function cashoutDepositAddress(chain: CashoutChain): string | null {
     return null;
   }
 }
+
+/** Deposit addresses the wallet may send to. Safe for the owner's device. */
+export function cashoutDestinations(): Record<CashoutChain, string | null> {
+  return { txc: cashoutDepositAddress("txc"), base: cashoutDepositAddress("base") };
+}
+
 
 async function signatureFor(body: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();

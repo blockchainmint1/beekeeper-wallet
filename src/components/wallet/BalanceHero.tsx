@@ -19,7 +19,15 @@ export type BreakdownRow = {
   selected?: boolean;
   onSelect: () => void;
   onDetails?: () => void;
+  /** Chain id for spendable own-key wallets — used by cash out. */
+  chain?: string;
+  /** Numeric fiat value, when priced. */
+  usd?: number | null;
+  /** Numeric coin amount and ticker, for prefilling a send. */
+  coinAmount?: number | null;
+  ticker?: string;
 };
+
 
 export function BalanceHero({
   totalText,
