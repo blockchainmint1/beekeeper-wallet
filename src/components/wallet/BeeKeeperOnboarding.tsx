@@ -29,7 +29,7 @@ const DISCLAIMERS = [
   "I understand my copper coin is my only backup. If I lose it, my wallet is gone forever.",
   "I will keep my copper coin safe. Anyone who finds it has unlimited access to my funds. I will store it in a safe or safe deposit box.",
   "I will never share my copper coin. No support agent, app, or website will ever ask me to scan it elsewhere. It is for me only.",
-  "I understand this wallet is self-custodial. Neither honest.money nor BeeKeeper can recover my funds or reverse a transaction.",
+  "I understand this wallet is self-custodial. No one — not BeeKeeper, not the hive — can recover my funds or reverse a transaction.",
 ] as const;
 
 function looksLikePublicAddressOrKey(value: string): boolean {
@@ -42,13 +42,37 @@ function looksLikePublicAddressOrKey(value: string): boolean {
 
 function HoneycombMark() {
   return (
-    <div className="mx-auto grid h-20 w-20 place-items-center rounded-lg border border-primary/30 bg-primary/10 text-primary" aria-hidden="true">
-      <svg viewBox="0 0 64 64" className="h-14 w-14" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M20 8 30 14v12l-10 6-10-6V14l10-6Zm24 0 10 6v12l-10 6-10-6V14l10-6ZM32 30l10 6v12L32 54l-10-6V36l10-6Z" />
-        <path d="M23 22c6-8 13-8 18 0M27 23c-4 7 1 15 5 17 4-2 9-10 5-17M24 29h16" />
+    <div className="relative mx-auto flex h-20 w-20 items-center justify-center" aria-hidden="true">
+      <div className="absolute inset-0 rounded-full opacity-60 blur-xl" style={{ background: "radial-gradient(circle, oklch(0.769 0.188 70.08) 0%, transparent 70%)" }} />
+      <svg viewBox="0 0 64 64" className="relative h-20 w-20">
+        <defs>
+          <linearGradient id="combFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="oklch(0.88 0.16 88)" />
+            <stop offset="100%" stopColor="oklch(0.62 0.17 60)" />
+          </linearGradient>
+        </defs>
+        {[[32, 14], [20, 21], [44, 21], [32, 28], [20, 35], [44, 35], [32, 42]].map(([cx, cy], i) => (
+          <polygon key={i} points={hexPoints(cx, cy, 6.5)} fill="url(#combFill)" stroke="oklch(0.4 0.08 70)" strokeWidth="0.8" opacity={0.95} />
+        ))}
+        <g transform="translate(40 46) rotate(20)">
+          <ellipse cx="0" cy="0" rx="7" ry="4.5" fill="oklch(0.88 0.18 92)" stroke="oklch(0.2 0.02 80)" strokeWidth="0.9" />
+          <rect x="-4" y="-4.5" width="2" height="9" fill="oklch(0.2 0.02 80)" />
+          <rect x="0" y="-4.5" width="2" height="9" fill="oklch(0.2 0.02 80)" />
+          <ellipse cx="-3" cy="-3" rx="4" ry="2.2" fill="#ffffff" opacity="0.85" transform="rotate(-25 -3 -3)" />
+          <ellipse cx="3" cy="-3" rx="4" ry="2.2" fill="#ffffff" opacity="0.85" transform="rotate(25 3 -3)" />
+        </g>
       </svg>
     </div>
   );
+}
+
+function hexPoints(cx: number, cy: number, r: number): string {
+  const pts: string[] = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 2;
+    pts.push(`${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`);
+  }
+  return pts.join(" ");
 }
 
 export function BeeKeeperOnboarding() {
@@ -228,19 +252,20 @@ export function BeeKeeperOnboarding() {
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-5 pb-10 pt-8">
       <header className="text-center">
         <HoneycombMark />
-        <p className="mt-4 text-xs font-semibold uppercase text-muted-foreground">Pollinated money</p>
-        <h1 className="mt-1 text-3xl font-bold">Activate your BeeKeeper Wallet</h1>
+        <p className="mt-4 text-sm font-semibold uppercase tracking-[0.32em] text-primary/90">Pollinated money</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">Activate your BeeKeeper</h1>
+        <p className="mt-2 text-muted-foreground">Scan your Cold Storage Coin and the hive comes to life — Bitcoin, TEXITcoin, and EVM wallets, all from one queen seed.</p>
       </header>
 
-      <ol className="mt-7 grid grid-cols-4 gap-2" aria-label="Activation progress">
+      <ol className="mt-7 flex items-center gap-1.5 text-[10px]" aria-label="Activation progress">
         {["Scan", "Rules", "Password", "Merchant"].map((label, index) => {
           const number = index + 1;
           const active = number === step;
           const complete = number < step;
           return (
-            <li key={label} className={`flex items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-xs font-medium ${active ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground"}`} aria-current={active ? "step" : undefined}>
-              {complete ? <Check className="h-3.5 w-3.5" /> : <span>{number}</span>}
-              {label}
+            <li key={label} className={`flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-1.5 text-center font-medium uppercase tracking-wider transition-colors ${complete ? "bg-primary/30 text-primary" : active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`} aria-current={active ? "step" : undefined}>
+              {complete && <Check className="h-3 w-3" />}
+              {number}. {label}
             </li>
           );
         })}
@@ -288,8 +313,8 @@ export function BeeKeeperOnboarding() {
           </form>
         ) : step === 1 && (
           <div>
-            <h2 className="text-xl font-semibold">Wake up your wallet</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Remove the security seal, then scan the recovery words etched into your Copper Coin.</p>
+            <h2 className="text-xl font-semibold">Scan your copper Cold Storage Coin</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Your Cold Storage Coin is the only way to activate this wallet. No phrase, no wallet. Peel off the security seal, then scan the recovery words etched underneath.</p>
             <Button className="mt-6 h-14 w-full text-base" onClick={() => setScannerOpen(true)}>
               <Camera className="mr-2 h-5 w-5" /> Scan my copper coin
             </Button>
@@ -307,17 +332,17 @@ export function BeeKeeperOnboarding() {
                   </div>
                 </div>
               </div>
-            <div className="mt-8 flex flex-col items-center gap-2 text-sm text-muted-foreground">
-              <a href="https://coldstoragecoins.com" target="_blank" rel="noreferrer" className="underline underline-offset-4">Don&apos;t have a Copper Coin yet?</a>
-              <a href="https://words.honest.money" target="_blank" rel="noreferrer" className="underline underline-offset-4">Really know what you&apos;re doing? Get some words</a>
+            <div className="mt-8 flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
+              <p>Don&apos;t have one yet? <a href="https://coldstoragecoins.com" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">Get a Cold Storage Coin</a></p>
+              <p>Really know what you&apos;re doing? <a href="https://words.honest.money" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">Get some words</a></p>
             </div>
           </div>
         )}
 
         {step === 2 && (
           <div>
-            <h2 className="text-xl font-semibold">Protect the keys to your hive</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Confirm each rule before your wallet can be activated.</p>
+            <h2 className="text-xl font-semibold">Acknowledge the rules</h2>
+            <p className="mt-2 text-sm text-muted-foreground">These four rules keep your funds yours. Please read each one.</p>
             <div className="mt-6 space-y-3">
               {DISCLAIMERS.map((text, index) => (
                 <label key={text} className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-4 text-sm leading-relaxed">
@@ -335,8 +360,8 @@ export function BeeKeeperOnboarding() {
 
         {step === 3 && (
           <form onSubmit={(event) => { event.preventDefault(); void activate(); }}>
-            <h2 className="text-xl font-semibold">Secure this device</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Choose a password that encrypts your wallet on this device.</p>
+            <h2 className="text-xl font-semibold">Set a device password</h2>
+            <p className="mt-2 text-sm text-muted-foreground">This password encrypts your wallet on this device. It can't recover your funds — only your Copper Coin can do that.</p>
             <div className="mt-6 space-y-4">
               <div><Label htmlFor="onboard-password">Wallet password</Label><Input id="onboard-password" className="mt-1" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></div>
               {password && <div><div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>Password strength</span><span>{passwordVerdict.label}</span></div><Progress value={passwordVerdict.score * 25} /></div>}
