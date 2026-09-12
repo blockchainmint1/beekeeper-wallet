@@ -12,7 +12,7 @@ import { QrScanDialog } from "@/components/wallet/QrScanButton";
 import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 import { enableBiometric, isBiometricAvailable } from "@/lib/native/biometric";
 import { assessPassword } from "@/lib/security/password-strength";
-import { saveWallet, saveWalletToNewProfile } from "@/lib/txc/storage";
+import { hasWallet, saveWallet, saveWalletToNewProfile } from "@/lib/txc/storage";
 import { DEFAULT_PROFILE_ID, setActiveProfileId } from "@/lib/profiles";
 import {
   isSupportedLegacyBackupFile,
