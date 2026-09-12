@@ -1,7 +1,7 @@
 import { scopedKey } from "@/lib/profiles";
 
-export type CashoutAsset = "TSD" | "USDC";
-export type CashoutChain = "txc" | "base";
+export type CashoutAsset = "TSD" | "USDC" | "USDT";
+export type CashoutChain = "txc" | "base" | "eth" | "bsc" | "tron";
 
 /** Whole-order limits. There is no increment — merchants round up whatever they hold. */
 export const ORDER_MIN_USD = 1;
@@ -13,6 +13,12 @@ export const MERCHANT_FEE_BPS = 0;
 export const CASHOUT_ASSETS = [
   { asset: "TSD", chain: "txc", label: "TSD on TEXITcoin" },
   { asset: "USDC", chain: "base", label: "USDC on Base" },
+  { asset: "USDC", chain: "eth", label: "USDC on Ethereum" },
+  { asset: "USDC", chain: "bsc", label: "USDC on BNB Chain" },
+  { asset: "USDT", chain: "base", label: "USDT on Base" },
+  { asset: "USDT", chain: "eth", label: "USDT on Ethereum" },
+  { asset: "USDT", chain: "bsc", label: "USDT on BNB Chain" },
+  { asset: "USDT", chain: "tron", label: "USDT on TRON" },
 ] as const;
 
 export const CASHOUT_DISCLOSURES = [
@@ -51,6 +57,8 @@ export interface LocalVectorPayOrder {
   chain: CashoutChain;
   checkoutUrl: string | null;
   detail: string;
+  /** Every chain/asset the merchant actually sent for this order. */
+  transfers?: Array<{ chain: CashoutChain; asset: CashoutAsset; usd: number }>;
 }
 
 const ORDER_STORE = "beekeeper.vectorpay.orders.v1";

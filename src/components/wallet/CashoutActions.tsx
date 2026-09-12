@@ -1,8 +1,8 @@
 /**
  * Cash out to a bank account, in two parts:
  *
- *   Part 1 (here)      total up every wallet the merchant wants to cash out,
- *                      then send each one to the cash-out deposit address,
+ *   Part 1 (here)      total up every stable balance the merchant wants to cash
+ *                      out, then send each one to the cash-out deposit address,
  *                      one authorised transfer at a time.
  *   Part 2 (VectorPay) identity verification, bank linking through Plaid and
  *                      the dollar payout.
@@ -17,7 +17,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowDownToLine,
@@ -35,10 +35,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { BreakdownRow } from "@/components/wallet/BalanceHero";
 import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { getTxcTokenBalancesForAddresses } from "@/lib/txc/tokens.functions";
-import { readErc20Balance, tokenAmountFromRaw, USDC_BY_CHAIN } from "@/lib/chains/erc20";
+import { readErc20Balance, tokenAmountFromRaw, USDC_BY_CHAIN, USDT_BY_CHAIN } from "@/lib/chains/erc20";
+import { EVM_CHAINS, type StableEvmChainId } from "@/lib/chains/evm";
 import { listLinks } from "@/lib/nectar/link";
 import {
   CASHOUT_DISCLOSURES,
@@ -49,23 +49,29 @@ import {
   quoteCashout,
   saveLocalVectorPayOrder,
   openVectorPayCheckout,
+  type CashoutChain,
+  type CashoutAsset,
 } from "@/lib/vectorpay";
 import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.functions";
+
+const STABLE_EVM_CHAINS: StableEvmChainId[] = ["eth", "base", "bsc"];
+
+const STABLE_TOKEN_CATALOG: { asset: CashoutAsset; byChain: Record<StableEvmChainId, { symbol: string; address: Address; decimals: number }> }[] = [
+  { asset: "USDC", byChain: USDC_BY_CHAIN },
+  { asset: "USDT", byChain: USDT_BY_CHAIN },
+];
 
 type Step = "intro" | "holdings" | "details" | "review" | "transfers" | "done";
 const STEPS: Step[] = ["intro", "holdings", "details", "review", "transfers", "done"];
 
-/** Deposit chain that accepts each wallet's coin. */
-const DEPOSIT_CHAIN: Record<string, "txc" | "base"> = { txc: "txc", base: "base" };
-
 interface Holding {
   key: string;
   /** Wallet's own chain id. */
-  chain: string;
+  chain: CashoutChain;
   /** Which cash-out deposit address receives it. */
-  depositChain: "txc" | "base";
+  depositChain: CashoutChain;
   label: string;
-  asset: string;
+  asset: CashoutAsset;
   coinAmount: number;
   usd: number;
   /** Omni property id, for TSD. */
@@ -79,11 +85,9 @@ function fmt(value: number, digits = 6) {
 export function CashoutActions({
   txcAddresses,
   evmAddress,
-  holdings: rows = [],
 }: {
   txcAddresses: string[];
   evmAddress: string | null;
-  holdings?: BreakdownRow[];
 }) {
   const allowed = useExchangeFeaturesAllowed();
   const configFn = useServerFn(getVectorPayConfig);
@@ -102,12 +106,16 @@ export function CashoutActions({
     queryFn: () => fetchTsd({ data: { addresses: txcAddresses, propertyIds: [39] } }),
     staleTime: 15_000,
   });
-  const usdc = useQuery({
-    queryKey: ["cashout-usdc-base", evmAddress],
-    enabled: allowed && Boolean(evmAddress),
-    queryFn: () => readErc20Balance("base", USDC_BY_CHAIN.base, evmAddress as Address),
-    staleTime: 15_000,
-  });
+
+  const stableQueries = STABLE_EVM_CHAINS.flatMap((chain) =>
+    STABLE_TOKEN_CATALOG.map((entry) => ({
+      queryKey: ["cashout-stable", chain, entry.asset, evmAddress],
+      enabled: allowed && Boolean(evmAddress),
+      queryFn: () => readErc20Balance(chain, entry.byChain[chain], evmAddress as Address),
+      staleTime: 15_000,
+    })),
+  );
+  const stableBalances = useQueries({ queries: stableQueries });
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("intro");
@@ -129,14 +137,14 @@ export function CashoutActions({
   }, [open]);
   const feeBps = merchantId ? MERCHANT_FEE_BPS : ORDER_FEE_BPS;
 
-  const destinations = config.data?.destinations ?? { txc: null, base: null };
+  const destinations = config.data?.destinations ?? { txc: null, base: null, eth: null, bsc: null, tron: null };
 
   /** Everything the merchant holds that a cash-out deposit address can accept. */
   const cashable = useMemo<Holding[]>(() => {
     const list: Holding[] = [];
 
     const tsdAmount = Number(BigInt(tsd.data?.[39] ?? "0")) / 1e8;
-    if (tsdAmount > 0) {
+    if (tsdAmount > 0 && destinations.txc) {
       list.push({
         key: "t:tsd",
         chain: "txc",
@@ -149,46 +157,29 @@ export function CashoutActions({
       });
     }
 
-    const usdcAmount = Number(tokenAmountFromRaw(usdc.data ?? 0n, USDC_BY_CHAIN.base.decimals));
-    if (usdcAmount > 0) {
-      list.push({
-        key: "t:usdc-base",
-        chain: "base",
-        depositChain: "base",
-        label: "USDC on Base",
-        asset: "USDC",
-        coinAmount: usdcAmount,
-        usd: usdcAmount,
-      });
-    }
-
-    for (const row of rows) {
-      const chain = row.chain;
-      const depositChain = chain ? DEPOSIT_CHAIN[chain] : undefined;
-      if (!chain || !depositChain) continue;
-      const usd = row.usd ?? 0;
-      const coinAmount = row.coinAmount ?? 0;
-      if (usd <= 0 || coinAmount <= 0) continue;
-      list.push({
-        key: row.key,
-        chain,
-        depositChain,
-        label: row.label,
-        asset: row.ticker ?? chain.toUpperCase(),
-        coinAmount,
-        usd,
-      });
+    let idx = 0;
+    for (const chain of STABLE_EVM_CHAINS) {
+      for (const entry of STABLE_TOKEN_CATALOG) {
+        const raw = stableBalances[idx]?.data ?? 0n;
+        idx++;
+        if (raw <= 0n) continue;
+        const amt = Number(tokenAmountFromRaw(raw, entry.byChain[chain].decimals));
+        if (amt <= 0 || !destinations[chain]) continue;
+        list.push({
+          key: `e:${chain}:${entry.asset}`,
+          chain,
+          depositChain: chain,
+          label: `${entry.asset} on ${EVM_CHAINS[chain].name}`,
+          asset: entry.asset,
+          coinAmount: amt,
+          usd: amt,
+        });
+      }
     }
 
     list.sort((a, b) => b.usd - a.usd);
     return list;
-  }, [rows, tsd.data, usdc.data]);
-
-  /** Held on chains no cash-out deposit address accepts yet. */
-  const notAccepted = useMemo(
-    () => rows.filter((row) => row.chain && !DEPOSIT_CHAIN[row.chain] && (row.usd ?? 0) > 0),
-    [rows],
-  );
+  }, [tsd.data, stableBalances, destinations]);
 
   const chosen = useMemo(() => cashable.filter((row) => selected.includes(row.key)), [cashable, selected]);
   const chosenTotal = chosen.reduce((sum, row) => sum + row.usd, 0);
@@ -262,6 +253,7 @@ export function CashoutActions({
         chain: response.chain ?? "txc",
         checkoutUrl: response.handoffUrl,
         detail: response.detail,
+        transfers: response.transfers,
       });
       setResult({ orderId: response.orderId, checkoutUrl: response.handoffUrl, detail: response.detail });
       setStep("done");
@@ -293,14 +285,14 @@ export function CashoutActions({
               Cash out · {STEPS.indexOf(step) + 1} of {STEPS.length}
             </p>
             <DialogTitle>{step === "done" ? "Link your bank and get paid" : "Cash out to your bank"}</DialogTitle>
-            <DialogDescription>Turn your balances into dollars in your bank account.</DialogDescription>
+            <DialogDescription>Turn your USDC, USDT and TSD into dollars in your bank account.</DialogDescription>
           </DialogHeader>
 
           {step === "intro" && (
             <div className="space-y-4 text-sm text-muted-foreground">
               <p>
-                First BeeKeeper adds up what you hold and you approve a transfer out of each wallet. Then VectorPay
-                verifies your identity, links your bank and sends the dollars.
+                First BeeKeeper adds up the stablecoins you hold and you approve a transfer out of each wallet. Then
+                VectorPay verifies your identity, links your bank and sends the dollars.
               </p>
               <div className="rounded-md border border-border/60 bg-muted/40 p-3">
                 <p className="font-medium text-foreground">
@@ -321,18 +313,18 @@ export function CashoutActions({
               <div>
                 <p className="text-sm font-medium">What you can cash out</p>
                 <p className="text-xs text-muted-foreground">
-                  Everything is selected by default. Uncheck anything you want to keep.
+                  Only USDC, USDT and TSD can be cashed out. Everything is selected by default.
                 </p>
               </div>
 
-              {(tsd.isLoading || usdc.isLoading) && (
+              {(tsd.isLoading || stableBalances.some((q) => q.isLoading)) && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Checking your wallets…
                 </p>
               )}
 
-              {cashable.length === 0 && !tsd.isLoading && (
-                <p className="text-sm text-destructive">Nothing here can be cashed out yet.</p>
+              {cashable.length === 0 && !tsd.isLoading && !stableBalances.some((q) => q.isLoading) && (
+                <p className="text-sm text-destructive">No USDC, USDT or TSD balances to cash out yet.</p>
               )}
 
               <div className="space-y-2">
@@ -373,13 +365,6 @@ export function CashoutActions({
                 <Row label={feeBps === 0 ? "Service fee (merchant)" : "Service fee (1%)"} value={`$${quote.feeUsd.toFixed(2)}`} />
                 <Row label="Estimated to your bank" value={`$${quote.settlementUsd.toFixed(2)}`} strong />
               </div>
-
-              {notAccepted.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Not accepted yet: {notAccepted.map((row) => row.label).join(", ")}. Swap those to TSD or Base USDC
-                  first if you want them in this payout.
-                </p>
-              )}
 
               {totalError && <p className="text-sm text-destructive">{totalError}</p>}
 
@@ -581,7 +566,7 @@ function SendLink({ holding, to, onOpen }: { holding: Holding; to: string; onOpe
 
   return (
     <Button asChild size="sm" className="flex-1">
-      <Link to="/wallet/evm/$chain/send" params={{ chain: holding.chain }} search={{ to }} onClick={onOpen}>
+      <Link to="/wallet/evm/$chain/send" params={{ chain: holding.chain }} search={{ to, asset: holding.asset }} onClick={onOpen}>
         {label}
       </Link>
     </Button>

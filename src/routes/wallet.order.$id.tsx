@@ -62,8 +62,15 @@ function CashoutOrderRoute() {
     <p className="mt-1 text-sm text-muted-foreground">VectorPay handles bank verification and settlement.</p>
     {!order ? <Card className="mt-6"><CardContent className="space-y-4 pt-6"><p className="font-medium">This order is not stored on this device.</p><p className="text-sm text-muted-foreground">You may have returned in another browser. Use the order reference from VectorPay for support.</p><Button asChild className="w-full"><Link to="/dashboard">Back to dashboard</Link></Button></CardContent></Card>
       : <Card className="mt-6"><CardContent className="space-y-5 pt-6">
-        <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-md bg-primary/15 text-primary"><Landmark /></div><div><p className="font-semibold">{order.asset} on {order.chain === "txc" ? "TEXITcoin" : "Base"}</p><p className="font-mono text-xs text-muted-foreground">{order.id}</p></div></div>
-        <div className="space-y-2 border-y border-border/60 py-4 text-sm"><Row label="You sell" value={`${order.assetAmount.toFixed(2)} ${order.asset}`} /><Row label="Service fee" value={`$${order.feeUsd.toFixed(2)}`} /><Row label="Estimated bank payout" value={`$${(live.data?.payoutUsd ?? order.settlementUsd).toFixed(2)}`} strong /></div>
+        <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-md bg-primary/15 text-primary"><Landmark /></div><div><p className="font-semibold">{order.asset} on {order.chain === "txc" ? "TEXITcoin" : order.chain === "base" ? "Base" : order.chain.toUpperCase()}</p><p className="font-mono text-xs text-muted-foreground">{order.id}</p></div></div>
+        {order.transfers && order.transfers.length > 0 && (
+          <div className="space-y-2 border-y border-border/60 py-4 text-sm">
+            {order.transfers.map((t, i) => (
+              <Row key={i} label={`${t.asset} on ${t.chain === "txc" ? "TEXITcoin" : t.chain === "base" ? "Base" : t.chain.toUpperCase()}`} value={`$${t.usd.toFixed(2)}`} />
+            ))}
+          </div>
+        )}
+        <div className="space-y-2 border-y border-border/60 py-4 text-sm"><Row label="Service fee" value={`$${order.feeUsd.toFixed(2)}`} /><Row label="Estimated bank payout" value={`$${(live.data?.payoutUsd ?? order.settlementUsd).toFixed(2)}`} strong /></div>
         <div className="rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
           <p className="font-medium">{statusLine ?? "Continue at VectorPay to link your bank"}</p>
           {live.data?.updatedAt && <p className="mt-1 text-xs text-muted-foreground">Updated {new Date(live.data.updatedAt).toLocaleString()}</p>}

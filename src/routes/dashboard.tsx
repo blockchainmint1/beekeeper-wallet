@@ -991,11 +991,7 @@ function WalletHome() {
             onRefresh={refreshAll}
           />
 
-          <CashoutActions
-            txcAddresses={[...ownAddresses]}
-            evmAddress={evmAddress}
-            holdings={breakdown}
-          />
+          <CashoutActions txcAddresses={[...ownAddresses]} evmAddress={evmAddress} />
 
 
           {/* Optional merchant linking tile */}

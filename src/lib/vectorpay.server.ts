@@ -21,7 +21,7 @@ type RelayOrder = {
   cancel_url: string;
   accepted_disclaimers: string[];
   /** Wallet-by-wallet transfers the merchant actually sent for this order. */
-  transfers: Array<{ chain: string; asset: string; usd: string }>;
+  transfers: Array<{ chain: string; asset: string; usd: string; destination_address?: string }>;
   /** NectarPay merchant id when the wallet is linked (0% fee tier). */
   merchant_ref?: string;
 };
@@ -35,12 +35,13 @@ export function vectorPayConfigured(): boolean {
   );
 }
 
-export function cashoutDepositAddress(chain: CashoutChain): string | null {
+export function cashoutDepositAddress(chain: string): string | null {
   try {
     const parsed = JSON.parse(process.env["CASHOUT_DEPOSIT_ADDRESSES"] ?? "{}") as Record<string, unknown>;
     const value = typeof parsed[chain] === "string" ? parsed[chain].trim() : "";
-    if (chain === "base" && !/^0x[0-9a-fA-F]{40}$/.test(value)) return null;
+    if (["base", "eth", "bsc"].includes(chain) && !/^0x[0-9a-fA-F]{40}$/.test(value)) return null;
     if (chain === "txc" && !/^[A-Za-z0-9]{26,64}$/.test(value)) return null;
+    if (chain === "tron" && !/^[T][A-Za-z1-9]{33}$/.test(value)) return null;
     return value || null;
   } catch {
     return null;
@@ -49,7 +50,8 @@ export function cashoutDepositAddress(chain: CashoutChain): string | null {
 
 /** Deposit addresses the wallet may send to. Safe for the owner's device. */
 export function cashoutDestinations(): Record<CashoutChain, string | null> {
-  return { txc: cashoutDepositAddress("txc"), base: cashoutDepositAddress("base") };
+  const chains: CashoutChain[] = ["txc", "base", "eth", "bsc", "tron"];
+  return Object.fromEntries(chains.map((c) => [c, cashoutDepositAddress(c)])) as Record<CashoutChain, string | null>;
 }
 
 
