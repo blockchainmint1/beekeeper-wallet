@@ -38,7 +38,7 @@ export const Route = createFileRoute("/")({
 function Home() {
   const navigate = useNavigate();
   const { unlock, unlocked } = useWallet();
-  const [exists, setExists] = useState(false);
+  const [exists, setExists] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -131,6 +131,8 @@ function Home() {
     [navigate],
   );
 
+
+  if (exists === null) return null;
 
   return (
     !exists ? <BeeKeeperOnboarding /> :
