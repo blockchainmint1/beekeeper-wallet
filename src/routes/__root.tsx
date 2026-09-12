@@ -222,13 +222,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "honest.money" },
+      { name: "apple-mobile-web-app-title", content: "BeeKeeper" },
       { name: "format-detection", content: "telephone=no" },
       { title: "BeeKeeper Wallet — TEXITcoin & EVM multi-chain wallet" },
       {
         name: "description",
         content:
-          "BeeKeeper Wallet — a self-custodial multi-chain wallet for TEXITcoin (TXC), Ethereum, Base, and BSC. Part of the Honest Money ecosystem.",
+          "BeeKeeper Wallet — a self-custodial multi-chain wallet for TEXITcoin (TXC), Ethereum, Base, and BSC. Part of the honest.money ecosystem.",
       },
       { name: "theme-color", content: "#ffffff" },
       { property: "og:title", content: "BeeKeeper Wallet" },

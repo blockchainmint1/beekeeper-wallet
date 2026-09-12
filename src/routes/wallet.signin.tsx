@@ -14,13 +14,13 @@ export const Route = createFileRoute("/wallet/signin")({
   }),
   head: () => ({
     meta: [
-      { title: "Sign in to a website — Honest Money" },
+      { title: "Sign in to a website — BeeKeeper Wallet" },
       {
         name: "description",
         content:
           "Scan a sign-in QR from a partner site like NectarPay or streamTXC and approve it with your TEXITcoin wallet. No payment is authorized.",
       },
-      { property: "og:title", content: "Sign in to a website — Honest Money" },
+      { property: "og:title", content: "Sign in to a website — BeeKeeper Wallet" },
       {
         property: "og:description",
         content: "Wallet sign-in for partner sites — scan a QR, approve with your TXC key, no payment authorized.",
