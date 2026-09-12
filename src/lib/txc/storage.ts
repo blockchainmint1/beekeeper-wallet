@@ -34,11 +34,13 @@ const STORAGE_KEY = "txc.wallet.v1";
 function walletKey(profileId: string = activeProfileId()): string {
   return scopedKey(STORAGE_KEY, profileId);
 }
-// KDF cost for NEW wallets. Raised from the previous 600k. The actual count
-// used to DECRYPT is read from each envelope (see `iterations` below) so
-// existing wallets keep unlocking with whatever they were saved at. This is
-// what prevents a lockout when the default changes.
-const PBKDF2_ITERATIONS = 1_000_000;
+// KDF cost for NEW wallets. 600k PBKDF2-SHA256 is the current OWASP
+// recommendation and keeps unlock responsive on phones (1M made unlock take
+// several seconds). The actual count used to DECRYPT is read from each
+// envelope (see `iterations` below) so existing wallets keep unlocking with
+// whatever they were saved at. This is what prevents a lockout when the
+// default changes.
+const PBKDF2_ITERATIONS = 600_000;
 // Envelopes written before this field existed were all PBKDF2-SHA256 @ 600k.
 const LEGACY_ITERATIONS = 600_000;
 
