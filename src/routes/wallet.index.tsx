@@ -2117,8 +2117,8 @@ function EvmActivity({
 
   return (
     <>
-      <section className="mt-8 px-4">
-        <h2 className="text-lg font-semibold mb-3">Tokens</h2>
+      <section>
+        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-2">Tokens</h2>
         <ul className="space-y-2">
           {visibleTokens.map(({ token: t, index: i }) => {
             const q = tokenBalances[i];
@@ -2168,16 +2168,7 @@ function EvmActivity({
       </section>
 
 
-      <section className="mt-6 px-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Recent activity</h2>
-          <button
-            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-            onClick={() => history.refetch()}
-          >
-            <RefreshCw className={`h-3 w-3 ${history.isFetching ? "animate-spin" : ""}`} /> Refresh
-          </button>
-        </div>
+      <section className="mt-4">
         {pending.length > 0 && (
           <ul className="space-y-2 mb-2">
             {pending.map((p) => {
