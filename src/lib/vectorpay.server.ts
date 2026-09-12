@@ -15,12 +15,17 @@ type RelayOrder = {
   usd_amount: string;
   asset_amount: string;
   rate: "1";
-  fee_bps: 100;
+  fee_bps: number;
   fee_usd: string;
   return_url: string;
   cancel_url: string;
   accepted_disclaimers: string[];
+  /** Wallet-by-wallet transfers the merchant actually sent for this order. */
+  transfers: Array<{ chain: string; asset: string; usd: string }>;
+  /** NectarPay merchant id when the wallet is linked (0% fee tier). */
+  merchant_ref?: string;
 };
+
 
 export function vectorPayConfigured(): boolean {
   return Boolean(
