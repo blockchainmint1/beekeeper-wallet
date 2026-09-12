@@ -69,6 +69,13 @@ function Home() {
     void import("@/lib/native/ui").then(({ hideSplash }) => hideSplash());
   }, []);
 
+  // Fetch the dashboard's code while the user is still typing their password,
+  // so unlocking doesn't wait on a chunk download afterwards.
+  useEffect(() => {
+    void router.preloadRoute({ to: "/dashboard" }).catch(() => undefined);
+  }, [router]);
+
+
   useEffect(() => {
     if (unlocked) navigate({ to: "/dashboard" });
   }, [unlocked, navigate]);
