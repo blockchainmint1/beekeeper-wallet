@@ -44,15 +44,15 @@ import {
 export const Route = createFileRoute("/wallet/tron/send")({
   head: () => ({
     meta: [
-      { title: "Send TRX & USDT — honest.money" },
+      { title: "Send TRX & USDT — BeeKeeper Wallet" },
       {
         name: "description",
-        content: "Send TRX or USDT-TRC20 from your self-custodial honest.money wallet.",
+        content: "Send TRX or USDT-TRC20 from your self-custodial BeeKeeper wallet.",
       },
-      { property: "og:title", content: "Send TRX & USDT — honest.money" },
+      { property: "og:title", content: "Send TRX & USDT — BeeKeeper Wallet" },
       {
         property: "og:description",
-        content: "Send TRX or USDT-TRC20 from your self-custodial honest.money wallet.",
+        content: "Send TRX or USDT-TRC20 from your self-custodial BeeKeeper wallet.",
       },
     ],
   }),

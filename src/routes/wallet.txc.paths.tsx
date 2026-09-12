@@ -32,13 +32,13 @@ export const Route = createFileRoute("/wallet/txc/paths")({
   component: PathsPage,
   head: () => ({
     meta: [
-      { title: "TXC derivation inspector | honest.money" },
+      { title: "TXC derivation inspector | BeeKeeper Wallet" },
       {
         name: "description",
         content:
           "Check the account xpub and first addresses of every TEXITcoin derivation path for the seed on this device.",
       },
-      { property: "og:title", content: "TXC derivation inspector | honest.money" },
+      { property: "og:title", content: "TXC derivation inspector | BeeKeeper Wallet" },
       {
         property: "og:description",
         content:

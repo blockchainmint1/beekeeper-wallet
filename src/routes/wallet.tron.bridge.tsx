@@ -55,13 +55,13 @@ import { ExchangeUnavailable } from "@/components/wallet/ExchangeUnavailable";
 export const Route = createFileRoute("/wallet/tron/bridge")({
   head: () => ({
     meta: [
-      { title: "Bridge Tron USDT to Base, Ethereum & BNB — honest.money" },
+      { title: "Bridge Tron USDT to Base, Ethereum & BNB — BeeKeeper Wallet" },
       {
         name: "description",
         content:
           "Move USDT or USDC off Tron to USDC on Base, Ethereum or BNB Chain. Non-custodial, signed on your device.",
       },
-      { property: "og:title", content: "Bridge Tron USDT to Base, Ethereum & BNB — honest.money" },
+      { property: "og:title", content: "Bridge Tron USDT to Base, Ethereum & BNB — BeeKeeper Wallet" },
       {
         property: "og:description",
         content:
@@ -405,7 +405,7 @@ function TronBridge() {
           <p className="inline-flex items-start gap-1.5 text-[10px] text-muted-foreground">
             <ShieldCheck className="h-3 w-3 mt-0.5 shrink-0" />
             Routing by Relay Protocol. Funds go straight to your own address on the
-            destination chain — honest.money never holds them.
+            destination chain — BeeKeeper never holds them.
           </p>
         </CardContent>
       </Card>

@@ -16,9 +16,9 @@ import { getSolBalance, sendSol } from "@/lib/solana/api";
 export const Route = createFileRoute("/wallet/solana/send")({
   head: () => ({ meta: [
     { title: "Send SOL — BeeKeeper Wallet" },
-    { name: "description", content: "Send native SOL from your self-custodial honest.money wallet." },
+    { name: "description", content: "Send native SOL from your self-custodial BeeKeeper wallet." },
     { property: "og:title", content: "Send SOL — BeeKeeper Wallet" },
-    { property: "og:description", content: "Send native SOL from your self-custodial honest.money wallet." },
+    { property: "og:description", content: "Send native SOL from your self-custodial BeeKeeper wallet." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary" },
   ] }),
