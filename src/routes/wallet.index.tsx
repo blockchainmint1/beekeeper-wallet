@@ -463,7 +463,7 @@ function WalletHome() {
   });
   const dogeTxs = useQuery({
     queryKey: ["doge-txs", dogeAccount.data?.external.map((a) => a.address).join(",")],
-    enabled: !!dogeAccount.data && activeChain === "doge",
+    enabled: !!dogeAccount.data && dogeEnabled,
     queryFn: async () => {
       const all = await Promise.all(
         [...(dogeAccount.data?.external ?? []), ...(dogeAccount.data?.internal ?? [])].map((a) =>
