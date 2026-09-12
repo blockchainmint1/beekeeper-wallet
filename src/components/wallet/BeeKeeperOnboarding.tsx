@@ -192,7 +192,6 @@ export function BeeKeeperOnboarding() {
       return;
     }
     setMnemonic(normalized);
-    setManualPhrase("");
     setScannerOpen(false);
     setStep(2);
     toast.success("Copper Coin recognized.");
