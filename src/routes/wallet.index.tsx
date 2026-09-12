@@ -428,7 +428,7 @@ function WalletHome() {
   });
   const ltcTxs = useQuery({
     queryKey: ["ltc-txs", ltcAccount.data?.external.map((a) => a.address).join(",")],
-    enabled: !!ltcAccount.data && activeChain === "ltc",
+    enabled: !!ltcAccount.data && ltcEnabled,
     queryFn: async () => {
       const all = await Promise.all(
         [...(ltcAccount.data?.external ?? []), ...(ltcAccount.data?.internal ?? [])].map((a) =>
