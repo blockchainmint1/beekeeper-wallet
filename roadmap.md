@@ -13,3 +13,4 @@
 - [x] Add encrypted old BeeKeeper backup-file import without overwriting legacy data
 - [x] Removed NectarPay merchant step from onboarding; kept it as a tile on the balance dashboard
 - [x] Split the post-unlock dashboard from the full wallet and restored the detailed wallet experience
+- [x] Add dashboard Top up/Cash out controls and secure VectorPay handoff; live checkout awaits three secure settings
