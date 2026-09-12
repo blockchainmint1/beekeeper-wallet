@@ -178,16 +178,7 @@ export function TronActivity({ address }: { address: string | null }) {
   const rows = useMemo(() => history.data ?? null, [history.data]);
 
   return (
-    <section className="mt-8 px-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Recent activity</h2>
-        <button
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-          onClick={() => history.refetch()}
-        >
-          <RefreshCw className={`h-3 w-3 ${history.isFetching ? "animate-spin" : ""}`} /> Refresh
-        </button>
-      </div>
+    <section>
       {history.isLoading && !rows ? (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
