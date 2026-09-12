@@ -688,6 +688,10 @@ function WalletHome() {
           selected,
           onSelect: select,
           onDetails: () => setTileOpen(c),
+          chain: c,
+          usd,
+          coinAmount: wei != null ? Number(wei) / 1e18 : null,
+          ticker: m.nativeSymbol,
         };
       }
       if (c === "tron") {
@@ -702,6 +706,10 @@ function WalletHome() {
           selected,
           onSelect: select,
           onDetails: () => setTileOpen("tron"),
+          chain: "tron",
+          usd: px != null ? sunToTrx(sun) * px : null,
+          coinAmount: sunToTrx(sun),
+          ticker: "TRX",
         };
       }
       const lam = solana.balance.data ?? 0;
@@ -715,7 +723,12 @@ function WalletHome() {
         selected,
         onSelect: select,
         onDetails: () => setTileOpen("solana"),
+        chain: "solana",
+        usd: solPx != null ? (lam / 1e9) * solPx : null,
+        coinAmount: lam / 1e9,
+        ticker: "SOL",
       };
+
     }
     if (slot.kind === "watch") {
       const w = slot.watch;
