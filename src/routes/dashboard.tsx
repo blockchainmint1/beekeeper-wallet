@@ -88,7 +88,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export const Route = createFileRoute("/wallet/")({
+export const Route = createFileRoute("/dashboard")({
   component: WalletHome,
 });
 
