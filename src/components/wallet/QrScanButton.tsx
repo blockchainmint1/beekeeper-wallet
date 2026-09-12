@@ -43,7 +43,7 @@ export function QrScanButton({ onScan }: { onScan: (text: string) => void }) {
         <Camera className="h-4 w-4" />
       </Button>
       {open && (
-        <ScannerDialog
+        <QrScanDialog
           onClose={() => setOpen(false)}
           onScan={(text) => {
             setOpen(false);
