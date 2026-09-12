@@ -8,3 +8,4 @@
 - [x] Normalize stale encrypted/session TXC primary-path metadata while loading a seed wallet so Settings always reports m/44'/696969'/0' before Receive is opened
 - [x] Add Solana chain support with seed-derived address, balance, activity, send, receive, and chain settings
 - [x] Replace first-time wallet choices with BeeKeeper Coin Scan → Rules → Password onboarding
+- [x] Add non-destructive import of old BeeKeeper encrypted wallets to onboarding
