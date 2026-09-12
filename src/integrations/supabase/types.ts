@@ -53,6 +53,33 @@ export type Database = {
         }
         Relationships: []
       }
+      cashout_order_status: {
+        Row: {
+          created_at: string
+          detail: string | null
+          payout_usd: number | null
+          reference: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          payout_usd?: number | null
+          reference: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          payout_usd?: number | null
+          reference?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
