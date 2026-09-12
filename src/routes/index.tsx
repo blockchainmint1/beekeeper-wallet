@@ -10,6 +10,7 @@ import {
   getBiometricStatus,
   unlockWithBiometric,
 } from "@/lib/native/biometric";
+import { BeeKeeperOnboarding } from "@/components/wallet/BeeKeeperOnboarding";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,6 +26,10 @@ export const Route = createFileRoute("/")({
         property: "og:description",
         content: "A self-custodial wallet for TEXITcoin (TXC), Iskander Coin (ISK), Zero Chill Units (ZCU), and EVM Stablecoins.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "BeeKeeper Wallet activation" },
+      { name: "twitter:description", content: "Activate your self-custodial BeeKeeper Wallet with your Copper Coin." },
     ],
   }),
   component: Home,
@@ -33,7 +38,7 @@ export const Route = createFileRoute("/")({
 function Home() {
   const navigate = useNavigate();
   const { unlock, unlocked } = useWallet();
-  const [exists, setExists] = useState(false);
+  const [exists, setExists] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -127,7 +132,10 @@ function Home() {
   );
 
 
+  if (exists === null) return null;
+
   return (
+    !exists ? <BeeKeeperOnboarding /> :
     <main className="mx-auto max-w-3xl px-4 pt-16 pb-12">
       <header className="text-center mb-12">
         <img

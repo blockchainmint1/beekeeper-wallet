@@ -13,9 +13,10 @@
  * (it is) and the page is HTTPS (it is).
  */
 import { useEffect, useRef, useState } from "react";
-import { Camera, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Camera, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type BarcodeDetectorLike = {
   detect: (source: CanvasImageSource) => Promise<Array<{ rawValue: string }>>;
@@ -42,7 +43,7 @@ export function QrScanButton({ onScan }: { onScan: (text: string) => void }) {
         <Camera className="h-4 w-4" />
       </Button>
       {open && (
-        <ScannerDialog
+        <QrScanDialog
           onClose={() => setOpen(false)}
           onScan={(text) => {
             setOpen(false);
@@ -54,11 +55,23 @@ export function QrScanButton({ onScan }: { onScan: (text: string) => void }) {
   );
 }
 
-function ScannerDialog({ onClose, onScan }: { onClose: () => void; onScan: (t: string) => void }) {
+export function QrScanDialog({
+  onClose,
+  onScan,
+  title = "Scan QR",
+  helpUrl,
+}: {
+  onClose: () => void;
+  onScan: (t: string) => void;
+  title?: string;
+  helpUrl?: string;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [manual, setManual] = useState("");
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -162,21 +175,39 @@ function ScannerDialog({ onClose, onScan }: { onClose: () => void; onScan: (t: s
     };
   }, [onScan]);
 
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-sm p-0 overflow-hidden">
-        <DialogHeader className="px-4 pt-4">
-          <DialogTitle className="flex items-center justify-between">
-            <span>Scan QR</span>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
-            </button>
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Use your device camera to scan a wallet address QR code.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="relative aspect-square bg-black">
+  async function scanPhoto(file: File) {
+    setError(null);
+    try {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) throw new Error("Could not read that image.");
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const { default: jsQR } = await import("jsqr");
+      const result = jsQR(image.data, image.width, image.height, { inversionAttempts: "attemptBoth" });
+      if (!result?.data) throw new Error("No QR code was found in that photo.");
+      onScan(result.data);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not scan that photo.");
+    }
+  }
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-background/95 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="qr-scan-title">
+      <div className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-y-auto bg-background sm:max-h-[92dvh] sm:rounded-lg sm:border sm:border-border">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h2 id="qr-scan-title" className="font-semibold">{title}</h2>
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close scanner">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="relative aspect-square shrink-0 bg-foreground">
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover"
@@ -184,17 +215,49 @@ function ScannerDialog({ onClose, onScan }: { onClose: () => void; onScan: (t: s
             muted
             autoPlay
           />
-          <div className="pointer-events-none absolute inset-8 border-2 border-white/70 rounded-lg" />
+          <div className="pointer-events-none absolute inset-8 rounded-lg border-2 border-background/70" />
         </div>
-        <div className="p-4 text-xs text-muted-foreground min-h-[3rem]">
-          {error
-            ? error
-            : ready
-              ? "Point the camera at a wallet address QR code."
-              : "Starting camera…"}
+        <div className="space-y-3 p-4">
+          <p className={error ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+            {error ? error : ready ? "Hold the QR code inside the frame." : "Starting camera…"}
+          </p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void scanPhoto(file);
+              event.currentTarget.value = "";
+            }}
+          />
+          <Button type="button" variant="outline" className="w-full" onClick={() => fileRef.current?.click()}>
+            <ImagePlus className="mr-2 h-4 w-4" /> Scan from a photo
+          </Button>
+          <div className="space-y-2">
+            <Textarea
+              value={manual}
+              onChange={(event) => setManual(event.target.value.slice(0, 1000))}
+              rows={2}
+              placeholder="Or paste the QR contents"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <Button type="button" variant="secondary" className="w-full" disabled={!manual.trim()} onClick={() => onScan(manual.trim())}>
+              Use pasted text
+            </Button>
+          </div>
+          {helpUrl && (
+            <a href={helpUrl} target="_blank" rel="noreferrer" className="block text-center text-xs text-muted-foreground underline underline-offset-4">
+              How to remove the security seal and clean your coin
+            </a>
+          )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
