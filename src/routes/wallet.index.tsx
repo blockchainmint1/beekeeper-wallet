@@ -222,7 +222,7 @@ function WalletHome() {
   // TXC tile is actually being viewed; cached data still renders on swipe-in.
   const txs = useQuery({
     queryKey: ["txs", account.data?.external.map((a) => a.address).join(",")],
-    enabled: !!account.data && activeChain === "txc",
+    enabled: !!account.data && enabled.includes("txc"),
     queryFn: async () => {
       const all = await Promise.all(
         [...(account.data?.external ?? []), ...(account.data?.internal ?? [])].map((a) =>
@@ -238,12 +238,12 @@ function WalletHome() {
         return (b.status.block_time ?? 0) - (a.status.block_time ?? 0);
       });
     },
-    // TXC blocks are slow, so watch the mempool closely while the tile is
-    // open: 5s while anything is unconfirmed, 12s otherwise, plus an immediate
-    // refetch whenever the app comes back to the foreground. An inbound
-    // payment shows up as "Pending" within seconds without pulling refresh.
+    // TXC blocks are slow, so watch the mempool closely while the chain is
+    // enabled: 5s while anything is unconfirmed, 12s otherwise, plus an
+    // immediate refetch whenever the app comes back to the foreground. An
+    // inbound payment shows up as "Pending" within seconds without pull refresh.
     refetchInterval: (q) => {
-      if (activeChain !== "txc") return false;
+      if (!enabled.includes("txc")) return false;
       const data = q.state.data as MempoolTx[] | undefined;
       return data?.some((t) => !t.status.confirmed) ? 5_000 : 12_000;
     },
