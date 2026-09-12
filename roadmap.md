@@ -7,4 +7,4 @@
 - [x] Pin TXC Receive to the canonical m/44'/696969'/0' branch and persist it as primary so imported-wallet metadata can never issue another fresh old-path address
 - [x] Normalize stale encrypted/session TXC primary-path metadata while loading a seed wallet so Settings always reports m/44'/696969'/0' before Receive is opened
 - [x] Add Solana chain support with seed-derived address, balance, activity, send, receive, and chain settings
-- [ ] Replace first-time wallet choices with BeeKeeper Coin Scan → Rules → Password onboarding
+- [x] Replace first-time wallet choices with BeeKeeper Coin Scan → Rules → Password onboarding
