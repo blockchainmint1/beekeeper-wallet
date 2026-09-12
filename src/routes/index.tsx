@@ -110,10 +110,10 @@ function Home() {
   // Belt-and-suspenders navigation. Prefer the router once React is hydrated;
   // the native static shell also has a tiny fallback script for pre-hydration
   // taps. Do not bypass the router on Capacitor when React is alive.
-  const goImport = useCallback(
+  const goOnboarding = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      void navigate({ to: "/import" }).catch(() => window.location.assign("/import"));
+      void navigate({ to: "/onboarding" }).catch(() => window.location.assign("/onboarding"));
     },
     [navigate],
   );
@@ -198,7 +198,7 @@ function Home() {
                     Use biometrics
                   </Button>
                 )}
-                <a href="/import" data-native-route="/import" onClick={goImport} className={buttonVariants({ variant: "ghost" })}>Import a different wallet</a>
+                <a href="/onboarding" data-native-route="/onboarding" onClick={goOnboarding} className={buttonVariants({ variant: "ghost" })}>Import a different wallet</a>
               </div>
             </form>
           </CardContent>
@@ -216,7 +216,7 @@ function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <a href="/import" data-native-route="/import" onClick={goImport} className={buttonVariants({ className: "w-full" })}>Import seed phrase</a>
+                <a href="/onboarding" data-native-route="/onboarding" onClick={goOnboarding} className={buttonVariants({ className: "w-full" })}>Import seed phrase</a>
               </CardContent>
             </Card>
 
