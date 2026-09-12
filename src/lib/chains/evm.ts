@@ -118,6 +118,34 @@ export function evmClient(id: EvmChainId): PublicClient {
 }
 
 /** Derive the EVM account from the existing BIP32 root (single key, all chains). */
+/** Base BIP44 account path for EVM chains. */
+export const EVM_ACCOUNT_PATH = "m/44'/60'/0'";
+
+/** Derive the EVM account at external index `i` (m/44'/60'/0'/0/i). */
+export function deriveEvmAccountAt(root: BIP32Interface, index: number): PrivateKeyAccount {
+  const node = root.derivePath(`${EVM_ACCOUNT_PATH}/0/${index}`);
+  if (!node.privateKey) throw new Error("Failed to derive EVM private key");
+  return privateKeyToAccount(`0x${bytesToHex(node.privateKey)}`);
+}
+
+/** Derive a page of addresses (no private keys retained). */
+export function deriveEvmAddresses(
+  root: BIP32Interface,
+  count: number,
+  offset = 0,
+): { index: number; path: string; address: `0x${string}` }[] {
+  const out: { index: number; path: string; address: `0x${string}` }[] = [];
+  for (let i = 0; i < count; i++) {
+    const index = offset + i;
+    out.push({
+      index,
+      path: `${EVM_ACCOUNT_PATH}/0/${index}`,
+      address: deriveEvmAccountAt(root, index).address,
+    });
+  }
+  return out;
+}
+
 export function deriveEvmAccount(root: BIP32Interface): PrivateKeyAccount {
   const node = root.derivePath("m/44'/60'/0'/0/0");
   if (!node.privateKey) throw new Error("Failed to derive EVM private key");
