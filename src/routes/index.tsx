@@ -147,7 +147,7 @@ function Home() {
           className="mx-auto mb-5 h-16 w-16 rounded-2xl shadow-lg shadow-amber-900/40"
         />
 
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">BeeKeeper</h1>
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">BeeKeeper Wallet</h1>
         <p className="mt-2 text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
           beekeeper.money
         </p>
