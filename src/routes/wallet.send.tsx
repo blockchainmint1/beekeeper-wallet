@@ -75,7 +75,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/wallet/send")({
-  head: () => ({ meta: [{ title: "Send — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Send — BeeKeeper Wallet" }] }),
   validateSearch: (raw) => searchSchema.parse(raw),
   component: SendPage,
 });

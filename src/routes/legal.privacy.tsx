@@ -3,11 +3,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/legal/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy — HME Wallet" },
+      { title: "Privacy — BeeKeeper Wallet" },
       {
         name: "description",
         content:
-          "Privacy policy for the HME Wallet. No accounts, no analytics, no tracking — your seed never leaves your device.",
+          "Privacy policy for the BeeKeeper Wallet. No accounts, no analytics, no tracking — your seed never leaves your device.",
       },
     ],
   }),

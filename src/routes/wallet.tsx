@@ -38,7 +38,7 @@ import {
 
 export const Route = createFileRoute("/wallet")({
   head: () => ({
-    meta: [{ title: "Wallet — HME Wallet" }],
+    meta: [{ title: "Wallet — BeeKeeper Wallet" }],
   }),
   component: WalletLayout,
 });

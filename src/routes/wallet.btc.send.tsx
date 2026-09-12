@@ -28,7 +28,7 @@ import { rootFingerprintHex } from "@/lib/txc/fingerprint";
 const searchSchema = z.object({ to: z.string().optional(), amount: z.string().optional() });
 
 export const Route = createFileRoute("/wallet/btc/send")({
-  head: () => ({ meta: [{ title: "Send BTC — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Send BTC — BeeKeeper Wallet" }] }),
   validateSearch: (raw) => searchSchema.parse(raw),
   component: SendBtcPage,
 });

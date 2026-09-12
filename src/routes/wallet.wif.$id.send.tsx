@@ -56,7 +56,7 @@ const OMNI_DUST_SATS = 10_000;
 const OP_RETURN_VBYTES = 32;
 
 export const Route = createFileRoute("/wallet/wif/$id/send")({
-  head: () => ({ meta: [{ title: "Send — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Send — BeeKeeper Wallet" }] }),
   validateSearch: (raw) => searchSchema.parse(raw),
   component: WifSendPage,
 });

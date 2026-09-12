@@ -4,13 +4,13 @@ import { UtxoSwap } from "@/components/wallet/UtxoSwap";
 export const Route = createFileRoute("/wallet/ltc/swap")({
   head: () => ({
     meta: [
-      { title: "Swap LTC to stablecoins — HME Wallet" },
+      { title: "Swap LTC to stablecoins — BeeKeeper Wallet" },
       {
         name: "description",
         content:
-          "Swap Litecoin for USDC or USDT natively through THORChain, signed on your device inside HME Wallet.",
+          "Swap Litecoin for USDC or USDT natively through THORChain, signed on your device inside BeeKeeper Wallet.",
       },
-      { property: "og:title", content: "Swap LTC to stablecoins — HME Wallet" },
+      { property: "og:title", content: "Swap LTC to stablecoins — BeeKeeper Wallet" },
       {
         property: "og:description",
         content: "Native LTC to USDC/USDT swaps with no bridge and no custodian.",

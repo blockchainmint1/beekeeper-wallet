@@ -26,7 +26,7 @@ const searchSchema = z.object({ asset: z.enum(["txc", "tsd"]).optional() });
 
 export const Route = createFileRoute("/wallet/receive")({
   validateSearch: (s) => searchSchema.parse(s),
-  head: () => ({ meta: [{ title: "Receive — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Receive — BeeKeeper Wallet" }] }),
   component: ReceivePage,
 });
 

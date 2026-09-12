@@ -60,7 +60,7 @@ import {
 import { disableBiometric } from "@/lib/native/biometric";
 
 export const Route = createFileRoute("/wallet/settings")({
-  head: () => ({ meta: [{ title: "Settings — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Settings — BeeKeeper Wallet" }] }),
   component: SettingsPage,
 });
 

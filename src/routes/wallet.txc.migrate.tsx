@@ -44,13 +44,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export const Route = createFileRoute("/wallet/txc/migrate")({
   head: () => ({
     meta: [
-      { title: "Migrate old TXC addresses — HME Wallet" },
+      { title: "Migrate old TXC addresses — BeeKeeper Wallet" },
       {
         name: "description",
         content:
           "Sweep TEXITcoin held on old wallet derivation paths into your main address, and keep the old addresses for mining payouts.",
       },
-      { property: "og:title", content: "Migrate old TXC addresses — HME Wallet" },
+      { property: "og:title", content: "Migrate old TXC addresses — BeeKeeper Wallet" },
       {
         property: "og:description",
         content:

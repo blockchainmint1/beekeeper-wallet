@@ -15,7 +15,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
 
 export const Route = createFileRoute("/wallet/btc/receive")({
-  head: () => ({ meta: [{ title: "Receive BTC — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Receive BTC — BeeKeeper Wallet" }] }),
   component: ReceiveBtcPage,
 });
 

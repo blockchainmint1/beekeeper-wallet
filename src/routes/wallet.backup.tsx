@@ -9,7 +9,7 @@ import { AlertTriangle, EyeOff, Eye } from "lucide-react";
 import { isNative } from "@/lib/native/platform";
 
 export const Route = createFileRoute("/wallet/backup")({
-  head: () => ({ meta: [{ title: "Backup — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Backup — BeeKeeper Wallet" }] }),
   component: BackupPage,
 });
 

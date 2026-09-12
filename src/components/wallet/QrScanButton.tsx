@@ -109,7 +109,7 @@ export function QrScanDialog({
       } catch (e) {
         setError(
           e instanceof Error && e.name === "NotAllowedError"
-            ? "Camera access denied. Enable it in Settings → HME Wallet."
+            ? "Camera access denied. Enable it in Settings → BeeKeeper Wallet."
             : e instanceof Error
               ? e.message
               : "Camera unavailable",

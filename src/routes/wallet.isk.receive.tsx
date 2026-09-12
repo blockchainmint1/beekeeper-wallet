@@ -21,7 +21,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
 
 export const Route = createFileRoute("/wallet/isk/receive")({
-  head: () => ({ meta: [{ title: "Receive ISK — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Receive ISK — BeeKeeper Wallet" }] }),
   component: ReceiveIskPage,
 });
 

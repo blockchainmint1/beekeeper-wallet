@@ -11,7 +11,7 @@ import { useCopyFeedback } from "@/hooks/use-copy-feedback";
 import { getWifWallet } from "@/lib/wif/store";
 
 export const Route = createFileRoute("/wallet/wif/$id/receive")({
-  head: () => ({ meta: [{ title: "Receive — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Receive — BeeKeeper Wallet" }] }),
   component: WifReceivePage,
 });
 
