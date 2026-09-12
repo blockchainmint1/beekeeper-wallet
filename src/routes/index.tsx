@@ -216,7 +216,7 @@ function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <a href="/import" data-native-route="/import" onClick={goImport} className={buttonVariants({ className: "w-full" })}>Import seed phrase</a>
+                <a href="/onboarding" data-native-route="/onboarding" onClick={goOnboarding} className={buttonVariants({ className: "w-full" })}>Import seed phrase</a>
               </CardContent>
             </Card>
 
