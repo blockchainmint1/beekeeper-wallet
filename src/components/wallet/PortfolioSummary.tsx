@@ -2,7 +2,9 @@
  * Portfolio summary shown at the top of the wallet home screen.
  *
  * This is the "dashboard" the earlier BeeKeeper wallet showed right after
- * unlocking: one big total in fiat plus an expandable per-wallet breakdown.
+ * unlocking: one big total in fiat. The per-wallet breakdown has been removed
+ * in favor of a single headline number; the cross-chain history lives below
+ * it on the wallet home page.
  *
  * Every query here reuses the exact query keys the home tiles already use, so
  * React Query serves it from the same cache — the summary adds no extra
@@ -11,7 +13,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { getEnabledChains, CHAIN_META, type ChainId } from "@/lib/chain-prefs";
 import { getChainLabel, CHAIN_LABEL_EVENT } from "@/lib/chain-labels";
@@ -19,23 +21,23 @@ import { EVM_CHAINS, deriveEvmAccount, evmClient, type EvmChainId } from "@/lib/
 import { getAllPricesUsd } from "@/lib/chains/prices.functions";
 import { scanAccount } from "@/lib/txc/scan";
 import { getTxcPriceUsd } from "@/lib/txc/price.functions";
-import { formatFiat, satsToTxc, formatTxcCompact } from "@/lib/txc/units";
+import { formatFiat, satsToTxc } from "@/lib/txc/units";
 import { scanIskAccount } from "@/lib/isk/scan";
 import { ISK_DEFAULT_KIND } from "@/lib/isk/network";
 import { getIskPriceUsd } from "@/lib/isk/price.functions";
-import { satsToIsk, formatIskCompact } from "@/lib/isk/units";
+import { satsToIsk } from "@/lib/isk/units";
 import { scanBtcAccount } from "@/lib/btc/scan";
 import { BTC_DEFAULT_KIND } from "@/lib/btc/network";
 import { getBtcPriceUsd } from "@/lib/btc/price.functions";
-import { satsToBtc, formatBtcCompact } from "@/lib/btc/units";
+import { satsToBtc } from "@/lib/btc/units";
 import { scanLtcAccount } from "@/lib/ltc/scan";
 import { LTC_DEFAULT_KIND } from "@/lib/ltc/network";
 import { getLtcPriceUsd } from "@/lib/ltc/price.functions";
-import { satsToLtc, formatLtcCompact } from "@/lib/ltc/units";
+import { satsToLtc } from "@/lib/ltc/units";
 import { scanDogeAccount } from "@/lib/doge/scan";
 import { DOGE_DEFAULT_KIND } from "@/lib/doge/network";
 import { getDogePriceUsd } from "@/lib/doge/price.functions";
-import { satsToDoge, formatDogeCompact } from "@/lib/doge/units";
+import { satsToDoge } from "@/lib/doge/units";
 import { deriveTronAccount } from "@/lib/tron/address";
 import { useTronData } from "@/components/wallet/TronTile";
 import { sunToTrx } from "@/lib/tron/units";
@@ -50,17 +52,6 @@ import {
 import { WATCH_CHAIN_META, watchApi } from "@/lib/watch/chain-io";
 import { listWifWallets, WIF_CHANGED_EVENT, type WifWalletEntry } from "@/lib/wif/store";
 import { api as wifApi } from "@/lib/wif/chain-io";
-
-type Row = {
-  key: string;
-  label: string;
-  accent: string;
-  ticker: string;
-  /** Native amount, already formatted (compact). */
-  amountText: string;
-  usd: number | null;
-  loading: boolean;
-};
 
 type AddressStats = {
   chain_stats: { funded_txo_sum: number; spent_txo_sum: number };
@@ -80,7 +71,6 @@ function statsSats(s: AddressStats | undefined): number | null {
 export function PortfolioSummary() {
   const { root, unlocked, seed } = useWallet();
   const [hidden] = useHideBalances();
-  const [expanded, setExpanded] = useState(false);
 
   const [enabled, setEnabled] = useState<ChainId[]>(() => getEnabledChains());
   useEffect(() => {
@@ -221,29 +211,23 @@ export function PortfolioSummary() {
             ? ltcPrice.data?.usd
             : dogePrice.data?.usd) ?? null;
 
-  const rows: Row[] = useMemo(() => {
-    const out: Row[] = [];
+  const rows = useMemo(() => {
+    const out: { usd: number | null; loading: boolean }[] = [];
     const utxo = {
-      txc: { q: account, toCoin: satsToTxc, fmt: formatTxcCompact },
-      isk: { q: iskAccount, toCoin: satsToIsk, fmt: formatIskCompact },
-      btc: { q: btcAccount, toCoin: satsToBtc, fmt: formatBtcCompact },
-      ltc: { q: ltcAccount, toCoin: satsToLtc, fmt: formatLtcCompact },
-      doge: { q: dogeAccount, toCoin: satsToDoge, fmt: formatDogeCompact },
+      txc: { q: account, toCoin: satsToTxc },
+      isk: { q: iskAccount, toCoin: satsToIsk },
+      btc: { q: btcAccount, toCoin: satsToBtc },
+      ltc: { q: ltcAccount, toCoin: satsToLtc },
+      doge: { q: dogeAccount, toCoin: satsToDoge },
     } as const;
 
     for (const id of enabled) {
-      const meta = CHAIN_META[id];
-      if (!meta) continue;
+      if (!CHAIN_META[id]) continue;
       if (id in utxo) {
         const u = utxo[id as keyof typeof utxo];
         const sats = u.q.data?.balanceSats;
         const px = utxoPrice(id as keyof typeof utxo);
         out.push({
-          key: id,
-          label: getChainLabel(id) ?? meta.name,
-          accent: meta.accent,
-          ticker: meta.shortName,
-          amountText: sats != null ? u.fmt(sats) : "—",
           usd: sats != null && px != null ? u.toCoin(sats) * px : null,
           loading: u.q.isLoading,
         });
@@ -256,11 +240,6 @@ export function PortfolioSummary() {
         const amount = wei != null ? Number(wei) / 1e18 : null;
         const px = allPrices.data?.prices?.[EVM_CHAINS[id as EvmChainId].priceSymbol] ?? null;
         out.push({
-          key: id,
-          label: getChainLabel(id) ?? meta.name,
-          accent: meta.accent,
-          ticker: meta.shortName,
-          amountText: amount != null ? amount.toLocaleString(undefined, { maximumFractionDigits: 6 }) : "—",
           usd: amount != null && px != null ? amount * px : null,
           loading: !!q?.isLoading,
         });
@@ -271,11 +250,6 @@ export function PortfolioSummary() {
         const amount = sun != null ? sunToTrx(sun) : null;
         const px = tron.price.data?.usd ?? null;
         out.push({
-          key: id,
-          label: getChainLabel(id) ?? meta.name,
-          accent: meta.accent,
-          ticker: meta.shortName,
-          amountText: amount != null ? amount.toLocaleString(undefined, { maximumFractionDigits: 6 }) : "—",
           usd: amount != null && px != null ? amount * px : null,
           loading: tron.balance.isLoading,
         });
@@ -286,11 +260,6 @@ export function PortfolioSummary() {
         const amount = lam != null ? lamportsToSol(lam) : null;
         const px = allPrices.data?.prices?.SOL ?? null;
         out.push({
-          key: id,
-          label: getChainLabel(id) ?? meta.name,
-          accent: meta.accent,
-          ticker: meta.shortName,
-          amountText: amount != null ? amount.toLocaleString(undefined, { maximumFractionDigits: 6 }) : "—",
           usd: amount != null && px != null ? amount * px : null,
           loading: solana.balance.isLoading,
         });
@@ -302,11 +271,6 @@ export function PortfolioSummary() {
       const sats = statsSats(watchStats[i]?.data as AddressStats | undefined);
       const px = utxoPrice(w.chain);
       out.push({
-        key: `w:${w.id}`,
-        label: `${w.label} · watch-only`,
-        accent: CHAIN_META[w.chain].accent,
-        ticker: m.ticker,
-        amountText: sats != null ? m.formatCompact(sats) : "—",
         usd: sats != null && px != null ? m.toCoin(sats) * px : null,
         loading: !!watchStats[i]?.isLoading,
       });
@@ -317,11 +281,6 @@ export function PortfolioSummary() {
       const sats = statsSats(wifStats[i]?.data as AddressStats | undefined);
       const px = utxoPrice(w.chain);
       out.push({
-        key: `k:${w.id}`,
-        label: `${w.label} · imported key`,
-        accent: CHAIN_META[w.chain].accent,
-        ticker: m.ticker,
-        amountText: sats != null ? m.formatCompact(sats) : "—",
         usd: sats != null && px != null ? m.toCoin(sats) * px : null,
         loading: !!wifStats[i]?.isLoading,
       });
@@ -357,16 +316,15 @@ export function PortfolioSummary() {
   const total = priced.reduce((s, r) => s + (r.usd ?? 0), 0);
   const stillLoading = rows.some((r) => r.loading);
   const totalText = priced.length === 0 ? "—" : formatFiat(total);
-  const sorted = [...rows].sort((a, b) => (b.usd ?? -1) - (a.usd ?? -1));
 
   return (
     <section className="px-4 pt-5">
-      <div className="rounded-2xl border border-border/60 bg-card/50 backdrop-blur px-4 py-5">
+      <div className="rounded-2xl border border-border/60 bg-card/50 backdrop-blur px-4 py-6">
         <div className="text-center">
           <div className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
             Total balance
           </div>
-          <div className="mt-1.5 flex items-baseline justify-center gap-2">
+          <div className="mt-2 flex items-baseline justify-center gap-2">
             <span className="text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">
               {hidden ? maskAmount(totalText) : totalText}
             </span>
@@ -374,62 +332,11 @@ export function PortfolioSummary() {
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             )}
           </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
+          <div className="mt-1.5 text-[11px] text-muted-foreground">
             {rows.length} {rows.length === 1 ? "wallet" : "wallets"}
             {stillLoading ? " · updating…" : ""}
           </div>
         </div>
-
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          className="mt-4 w-full flex items-center justify-between rounded-xl border border-border/50 px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted/40"
-        >
-          <span>{expanded ? "Hide breakdown" : "Show breakdown"}</span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
-        </button>
-
-        {expanded && (
-          <div className="mt-2 space-y-1.5">
-            {sorted.map((r) => (
-              <div key={r.key} className="flex items-center gap-3 rounded-xl px-2 py-2">
-                <div
-                  className="h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[10px] font-semibold"
-                  style={{
-                    background: `color-mix(in oklab, ${r.accent} 22%, transparent)`,
-                    color: r.accent,
-                  }}
-                >
-                  {r.ticker.slice(0, 4)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-medium">{r.label}</span>
-                    <span className="text-sm font-semibold tabular-nums">
-                      {r.usd != null
-                        ? hidden
-                          ? maskAmount(formatFiat(r.usd))
-                          : formatFiat(r.usd)
-                        : r.loading
-                          ? "…"
-                          : "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                    <span className="truncate">{r.ticker}</span>
-                    <span className="tabular-nums">
-                      {hidden ? maskAmount(r.amountText) : r.amountText}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {rows.length === 0 && (
-              <div className="py-3 text-center text-xs text-muted-foreground">
-                No wallets to summarize yet.
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </section>
   );
