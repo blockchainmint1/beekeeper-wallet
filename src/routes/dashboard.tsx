@@ -666,7 +666,12 @@ function WalletHome() {
           selected,
           onSelect: select,
           onDetails: () => setTileOpen(c),
+          chain: c,
+          usd,
+          coinAmount: meta.toCoin(sats),
+          ticker: meta.ticker,
         };
+
       }
       if (c in EVM_CHAINS) {
         const idx = evmEnabled.indexOf(c as EvmChainId);
