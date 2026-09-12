@@ -1,45 +1,100 @@
+/**
+ * Cash out to a bank account, in two parts:
+ *
+ *   Part 1 (here)      total up every wallet the merchant wants to cash out,
+ *                      then send each one to the cash-out deposit address,
+ *                      one authorised transfer at a time.
+ *   Part 2 (VectorPay) identity verification, bank linking through Plaid and
+ *                      the dollar payout.
+ *
+ * The order is registered with VectorPay *after* the transfers, for the amount
+ * that actually went out — a partial run still produces a valid order.
+ *
+ * NectarPay merchants pay no service fee; everyone else pays 1%.
+ *
+ * Exchange/off-ramp feature — gated by `useExchangeFeaturesAllowed()` and
+ * therefore absent from the iOS build. See AGENTS.md.
+ */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowDownToLine, ArrowUpFromLine, Check, ExternalLink, Landmark, Loader2, Wallet } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Check,
+  ExternalLink,
+  Landmark,
+  Loader2,
+  Send,
+  Wallet,
+} from "lucide-react";
 import type { Address } from "viem";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { BreakdownRow } from "@/components/wallet/BalanceHero";
 import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
-import {
-  getTxcTokenBalancesForAddresses,
-  getTxcTokenBalancesPerAddress,
-} from "@/lib/txc/tokens.functions";
+import { getTxcTokenBalancesForAddresses } from "@/lib/txc/tokens.functions";
 import { readErc20Balance, tokenAmountFromRaw, USDC_BY_CHAIN } from "@/lib/chains/erc20";
+import { listLinks } from "@/lib/nectar/link";
 import {
-  CASHOUT_ASSETS,
   CASHOUT_DISCLOSURES,
+  MERCHANT_FEE_BPS,
+  ORDER_FEE_BPS,
   ORDER_MAX_USD,
   ORDER_MIN_USD,
   quoteCashout,
   saveLocalVectorPayOrder,
   openVectorPayCheckout,
-  type CashoutAsset,
 } from "@/lib/vectorpay";
 import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.functions";
 
-const QUICK_AMOUNTS = [50, 100, 250, 1000];
+type Step = "intro" | "holdings" | "details" | "review" | "transfers" | "done";
+const STEPS: Step[] = ["intro", "holdings", "details", "review", "transfers", "done"];
 
-type Step = "intro" | "amount" | "sources" | "details" | "review" | "handoff";
-const STEPS: Step[] = ["intro", "amount", "sources", "details", "review", "handoff"];
+/** Deposit chain that accepts each wallet's coin. */
+const DEPOSIT_CHAIN: Record<string, "txc" | "base"> = { txc: "txc", base: "base" };
 
-export function CashoutActions({ txcAddresses, evmAddress }: { txcAddresses: string[]; evmAddress: string | null }) {
+interface Holding {
+  key: string;
+  /** Wallet's own chain id. */
+  chain: string;
+  /** Which cash-out deposit address receives it. */
+  depositChain: "txc" | "base";
+  label: string;
+  asset: string;
+  coinAmount: number;
+  usd: number;
+  /** Omni property id, for TSD. */
+  propertyId?: number;
+}
+
+function fmt(value: number, digits = 6) {
+  return value.toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+
+export function CashoutActions({
+  txcAddresses,
+  evmAddress,
+  holdings: rows = [],
+}: {
+  txcAddresses: string[];
+  evmAddress: string | null;
+  holdings?: BreakdownRow[];
+}) {
   const allowed = useExchangeFeaturesAllowed();
   const configFn = useServerFn(getVectorPayConfig);
   const startCashout = useServerFn(startVectorPayCashout);
   const fetchTsd = useServerFn(getTxcTokenBalancesForAddresses);
-  const fetchTsdPerAddress = useServerFn(getTxcTokenBalancesPerAddress);
-  const config = useQuery({ queryKey: ["vectorpay-config"], queryFn: () => configFn(), staleTime: 60_000, enabled: allowed });
+  const config = useQuery({
+    queryKey: ["vectorpay-config"],
+    queryFn: () => configFn(),
+    staleTime: 60_000,
+    enabled: allowed,
+  });
   const addressKey = txcAddresses.slice().sort().join(",");
   const tsd = useQuery({
     queryKey: ["cashout-tsd", addressKey],
@@ -53,120 +108,163 @@ export function CashoutActions({ txcAddresses, evmAddress }: { txcAddresses: str
     queryFn: () => readErc20Balance("base", USDC_BY_CHAIN.base, evmAddress as Address),
     staleTime: 15_000,
   });
+
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("intro");
-  const [asset, setAsset] = useState<CashoutAsset>("TSD");
-  const [amount, setAmount] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [accepted, setAccepted] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  const [sent, setSent] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ orderId: string; checkoutUrl: string | null; detail: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState("");
 
-  // Per-address TSD, so merchants can see exactly which of their wallets the
-  // money will be pulled from before anything moves on chain.
-  const tsdPerAddress = useQuery({
-    queryKey: ["cashout-tsd-per-address", addressKey],
-    enabled: allowed && open && asset === "TSD" && txcAddresses.length > 0,
-    queryFn: () => fetchTsdPerAddress({ data: { addresses: txcAddresses, propertyIds: [39] } }),
-    staleTime: 15_000,
-  });
-
-  const available = asset === "TSD"
-    ? Number(BigInt(tsd.data?.[39] ?? "0")) / 1e8
-    : Number(tokenAmountFromRaw(usdc.data ?? 0n, USDC_BY_CHAIN.base.decimals));
-  const numeric = Number(amount);
-  const quote = quoteCashout(Number.isFinite(numeric) ? numeric : 0);
-  const allAccepted = accepted.length === CASHOUT_DISCLOSURES.length;
-  const detailsValid = /^[\p{L}\p{M}.' -]{2,120}$/u.test(name.trim()) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const amountError = useMemo(() => {
-    if (!Number.isFinite(numeric) || numeric < ORDER_MIN_USD) return `Minimum cash out is $${ORDER_MIN_USD}.`;
-    if (numeric > ORDER_MAX_USD) return `Maximum cash out is $${ORDER_MAX_USD}.`;
-    if (numeric > available) return `Available balance is ${available.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${asset}.`;
-    return null;
-  }, [numeric, available, asset]);
-
-  const sources = useMemo(() => {
-    if (asset === "USDC") {
-      return evmAddress && available > 0 ? [{ address: evmAddress, amount: available, network: "Base" }] : [];
-    }
-    const rows = Object.entries(tsdPerAddress.data ?? {})
-      .map(([address, byProperty]) => ({
-        address,
-        amount: Number(BigInt(byProperty[39] ?? "0")) / 1e8,
-        network: "TEXITcoin",
-      }))
-      .filter((row) => row.amount > 0);
-    rows.sort((a, b) => b.amount - a.amount);
-    return rows;
-  }, [asset, tsdPerAddress.data, evmAddress, available]);
-
-  // Preselect the fewest wallets that cover the amount — the merchant can
-  // still change the selection before confirming.
+  // NectarPay merchants cash out with no service fee.
+  const [merchantId, setMerchantId] = useState<string | null>(null);
   useEffect(() => {
-    if (step !== "sources" || sources.length === 0) return;
-    setSelected((current) => {
-      if (current.length > 0) return current;
-      const picked: string[] = [];
-      let running = 0;
-      for (const row of sources) {
-        if (running >= numeric) break;
-        picked.push(row.address);
-        running += row.amount;
-      }
-      return picked;
-    });
-  }, [step, sources, numeric]);
+    if (!open) return;
+    setMerchantId(listLinks()[0]?.merchantId ?? null);
+  }, [open]);
+  const feeBps = merchantId ? MERCHANT_FEE_BPS : ORDER_FEE_BPS;
 
-  const selectedTotal = useMemo(
-    () => sources.filter((row) => selected.includes(row.address)).reduce((sum, row) => sum + row.amount, 0),
-    [sources, selected],
+  const destinations = config.data?.destinations ?? { txc: null, base: null };
+
+  /** Everything the merchant holds that a cash-out deposit address can accept. */
+  const cashable = useMemo<Holding[]>(() => {
+    const list: Holding[] = [];
+
+    const tsdAmount = Number(BigInt(tsd.data?.[39] ?? "0")) / 1e8;
+    if (tsdAmount > 0) {
+      list.push({
+        key: "t:tsd",
+        chain: "txc",
+        depositChain: "txc",
+        label: "TSD on TEXITcoin",
+        asset: "TSD",
+        coinAmount: tsdAmount,
+        usd: tsdAmount,
+        propertyId: 39,
+      });
+    }
+
+    const usdcAmount = Number(tokenAmountFromRaw(usdc.data ?? 0n, USDC_BY_CHAIN.base.decimals));
+    if (usdcAmount > 0) {
+      list.push({
+        key: "t:usdc-base",
+        chain: "base",
+        depositChain: "base",
+        label: "USDC on Base",
+        asset: "USDC",
+        coinAmount: usdcAmount,
+        usd: usdcAmount,
+      });
+    }
+
+    for (const row of rows) {
+      const chain = row.chain;
+      const depositChain = chain ? DEPOSIT_CHAIN[chain] : undefined;
+      if (!chain || !depositChain) continue;
+      const usd = row.usd ?? 0;
+      const coinAmount = row.coinAmount ?? 0;
+      if (usd <= 0 || coinAmount <= 0) continue;
+      list.push({
+        key: row.key,
+        chain,
+        depositChain,
+        label: row.label,
+        asset: row.ticker ?? chain.toUpperCase(),
+        coinAmount,
+        usd,
+      });
+    }
+
+    list.sort((a, b) => b.usd - a.usd);
+    return list;
+  }, [rows, tsd.data, usdc.data]);
+
+  /** Held on chains no cash-out deposit address accepts yet. */
+  const notAccepted = useMemo(
+    () => rows.filter((row) => row.chain && !DEPOSIT_CHAIN[row.chain] && (row.usd ?? 0) > 0),
+    [rows],
   );
-  const consolidationCount = selected.length;
-  const sourcesValid = selectedTotal + 1e-8 >= numeric && consolidationCount > 0;
+
+  const chosen = useMemo(() => cashable.filter((row) => selected.includes(row.key)), [cashable, selected]);
+  const chosenTotal = chosen.reduce((sum, row) => sum + row.usd, 0);
+  const sentRows = chosen.filter((row) => sent.includes(row.key));
+  const sentTotal = sentRows.reduce((sum, row) => sum + row.usd, 0);
+
+  const quote = quoteCashout(chosenTotal, feeBps);
+  const finalQuote = quoteCashout(Math.min(sentTotal, ORDER_MAX_USD), feeBps);
+  const allAccepted = accepted.length === CASHOUT_DISCLOSURES.length;
+  const detailsValid =
+    /^[\p{L}\p{M}.' -]{2,120}$/u.test(name.trim()) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const totalError =
+    chosenTotal < ORDER_MIN_USD
+      ? `Select at least $${ORDER_MIN_USD} to cash out.`
+      : chosenTotal > ORDER_MAX_USD
+        ? `Orders top out at $${ORDER_MAX_USD}. Uncheck a wallet or two.`
+        : null;
+
+  // Default to everything that can be cashed out — merchants usually sweep the lot.
+  useEffect(() => {
+    if (step !== "holdings" || cashable.length === 0) return;
+    setSelected((current) => (current.length > 0 ? current : cashable.map((row) => row.key)));
+  }, [step, cashable]);
 
   if (!allowed) return null;
 
   function reset() {
-    setStep("intro"); setAmount(""); setName(""); setEmail(""); setAccepted([]); setSelected([]); setError(null); setResult(null);
+    setStep("intro");
+    setName("");
+    setEmail("");
+    setAccepted([]);
+    setSelected([]);
+    setSent([]);
+    setError(null);
+    setResult(null);
     const bytes = crypto.getRandomValues(new Uint8Array(12));
     const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
     setReference(`BK-${Date.now().toString(36).toUpperCase()}-${suffix}`);
   }
 
   async function placeOrder() {
-    if (amountError || !sourcesValid || !detailsValid || !allAccepted) return;
-    setSubmitting(true); setError(null);
+    if (!detailsValid || !allAccepted || sentRows.length === 0) return;
+    setSubmitting(true);
+    setError(null);
     try {
-      const chain = asset === "TSD" ? "txc" : "base";
-      const response = await startCashout({ data: {
-        reference,
-        usd: numeric,
-        asset,
-        chain,
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        acceptedDisclaimers: accepted,
-      } });
+      const response = await startCashout({
+        data: {
+          reference,
+          usd: Math.round(Math.min(sentTotal, ORDER_MAX_USD) * 100) / 100,
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          acceptedDisclaimers: accepted,
+          ...(merchantId ? { merchantId } : {}),
+          transfers: sentRows.map((row) => ({
+            chain: row.depositChain,
+            asset: row.asset,
+            usd: Math.round(row.usd * 100) / 100,
+          })),
+        },
+      });
       saveLocalVectorPayOrder({
         id: response.orderId,
         side: "sell",
         createdAt: Date.now(),
         status: response.registered ? "ready" : "registration_failed",
-        usd: quote.usd,
+        usd: finalQuote.usd,
         feeUsd: response.feeUsd,
-        settlementUsd: quote.settlementUsd,
-        assetAmount: quote.assetAmount,
-        asset,
-        chain,
+        settlementUsd: finalQuote.settlementUsd,
+        assetAmount: finalQuote.assetAmount,
+        asset: response.asset ?? "TSD",
+        chain: response.chain ?? "txc",
         checkoutUrl: response.handoffUrl,
         detail: response.detail,
       });
       setResult({ orderId: response.orderId, checkoutUrl: response.handoffUrl, detail: response.detail });
-      setStep("handoff");
+      setStep("done");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create the order.");
     } finally {
@@ -191,115 +289,310 @@ export function CashoutActions({ txcAddresses, evmAddress }: { txcAddresses: str
       <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <p className="text-xs font-semibold uppercase text-primary">Cash out · {STEPS.indexOf(step) + 1} of {STEPS.length}</p>
-            <DialogTitle>{step === "handoff" ? "Link your bank and get paid" : "Cash out to your bank"}</DialogTitle>
-            <DialogDescription>Sell TSD or Base USDC through VectorPay.</DialogDescription>
+            <p className="text-xs font-semibold uppercase text-primary">
+              Cash out · {STEPS.indexOf(step) + 1} of {STEPS.length}
+            </p>
+            <DialogTitle>{step === "done" ? "Link your bank and get paid" : "Cash out to your bank"}</DialogTitle>
+            <DialogDescription>Turn your balances into dollars in your bank account.</DialogDescription>
           </DialogHeader>
 
-          {step === "intro" && <div className="space-y-4 text-sm text-muted-foreground">
-            <p>Two parts: BeeKeeper gathers the money from your wallets, then VectorPay verifies your identity, links your bank and sends the dollars.</p>
-            <div className="rounded-md border border-border/60 bg-muted/40 p-3">
-              <p className="font-medium text-foreground">1% service fee · 1–3 business days</p>
-              <p className="mt-1">Orders are available from $25 to $1,000. BeeKeeper never sees your bank credentials.</p>
-            </div>
-            <Button className="w-full" onClick={() => setStep("amount")}>Get started</Button>
-          </div>}
-
-          {step === "amount" && <div className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="cashout-asset">Asset</Label>
-              <Select value={asset} onValueChange={(value) => { setAsset(value as CashoutAsset); setSelected([]); }}>
-                <SelectTrigger id="cashout-asset"><SelectValue /></SelectTrigger>
-                <SelectContent>{CASHOUT_ASSETS.map((row) => <SelectItem key={row.asset} value={row.asset}>{row.label}</SelectItem>)}</SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Available: {available.toLocaleString(undefined, { maximumFractionDigits: 6 })} {asset}</p>
-            </div>
-            <div className="space-y-2"><Label htmlFor="cashout-amount">Amount</Label>
-              <Input id="cashout-amount" type="number" inputMode="decimal" min={ORDER_MIN_USD} max={ORDER_MAX_USD} step="0.01" value={amount} onChange={(event) => { setAmount(event.target.value.slice(0, 12)); setSelected([]); }} placeholder="100.00" />
-              <div className="grid grid-cols-4 gap-2">{QUICK_AMOUNTS.map((value) => <Button key={value} type="button" size="sm" variant="outline" onClick={() => { setAmount(String(value)); setSelected([]); }}>${value}</Button>)}</div>
-            </div>
-            {numeric > 0 && <QuoteRows amount={quote.usd} fee={quote.feeUsd} payout={quote.settlementUsd} asset={asset} />}
-            {amount && amountError && <p className="text-sm text-destructive">{amountError}</p>}
-            <div className="flex gap-2"><Button variant="outline" onClick={() => setStep("intro")}>Back</Button><Button className="flex-1" disabled={Boolean(amountError)} onClick={() => setStep("sources")}>Continue</Button></div>
-          </div>}
-
-          {step === "sources" && <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium">Where the {asset} comes from</p>
-              <p className="text-xs text-muted-foreground">Pick the wallets to pull from. Anything outside your main address is moved first, which costs a small network fee.</p>
-            </div>
-
-            {tsdPerAddress.isLoading && asset === "TSD" && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking your wallets…</p>}
-
-            {!tsdPerAddress.isLoading && sources.length === 0 && <p className="text-sm text-destructive">No {asset} found in this wallet.</p>}
-
-            <div className="space-y-2">
-              {sources.map((row) => {
-                const checked = selected.includes(row.address);
-                return <label key={row.address} className="flex items-start gap-3 rounded-md border border-border/60 bg-muted/30 p-3">
-                  <Checkbox className="mt-0.5" checked={checked} onCheckedChange={(next) => setSelected((current) => next ? [...current, row.address] : current.filter((value) => value !== row.address))} />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                      <span className="flex items-center gap-1.5"><Wallet className="h-3.5 w-3.5 text-primary" /> {row.network}</span>
-                      <span>{row.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} {asset}</span>
-                    </span>
-                    <span className="mt-0.5 block break-all font-mono text-xs text-muted-foreground">{row.address}</span>
-                  </span>
-                </label>;
-              })}
-            </div>
-
-            <div className="space-y-2 rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
-              <Row label="Selected" value={`${selectedTotal.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${asset}`} />
-              <Row label="Needed for this order" value={`${(Number.isFinite(numeric) ? numeric : 0).toFixed(2)} ${asset}`} strong />
-              <p className="pt-1 text-xs text-muted-foreground">
-                {consolidationCount > 1
-                  ? `${consolidationCount} wallets will be combined into one transfer before the payout.`
-                  : "One wallet covers this order, so nothing needs to be combined first."}
+          {step === "intro" && (
+            <div className="space-y-4 text-sm text-muted-foreground">
+              <p>
+                First BeeKeeper adds up what you hold and you approve a transfer out of each wallet. Then VectorPay
+                verifies your identity, links your bank and sends the dollars.
               </p>
+              <div className="rounded-md border border-border/60 bg-muted/40 p-3">
+                <p className="font-medium text-foreground">
+                  {merchantId ? "No service fee · 1–3 business days" : "1% service fee · 1–3 business days"}
+                </p>
+                <p className="mt-1">
+                  {merchantId
+                    ? "NectarPay merchants cash out free. Any amount up to $1,000 per order."
+                    : "Any amount up to $1,000 per order. NectarPay merchants pay no fee."}
+                </p>
+              </div>
+              <Button className="w-full" onClick={() => setStep("holdings")}>Get started</Button>
             </div>
+          )}
 
-            {!sourcesValid && sources.length > 0 && <p className="text-sm text-destructive">Select enough wallets to cover {(Number.isFinite(numeric) ? numeric : 0).toFixed(2)} {asset}.</p>}
+          {step === "holdings" && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium">What you can cash out</p>
+                <p className="text-xs text-muted-foreground">
+                  Everything is selected by default. Uncheck anything you want to keep.
+                </p>
+              </div>
 
-            <div className="flex gap-2"><Button variant="outline" onClick={() => setStep("amount")}>Back</Button><Button className="flex-1" disabled={!sourcesValid} onClick={() => setStep("details")}>Confirm sources</Button></div>
-          </div>}
+              {(tsd.isLoading || usdc.isLoading) && (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Checking your wallets…
+                </p>
+              )}
 
-          {step === "details" && <div className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="cashout-name">Full legal name</Label><Input id="cashout-name" autoComplete="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} /></div>
-            <div className="space-y-2"><Label htmlFor="cashout-email">Email</Label><Input id="cashout-email" type="email" autoComplete="email" maxLength={200} value={email} onChange={(event) => setEmail(event.target.value)} /></div>
-            <p className="text-xs text-muted-foreground">VectorPay uses these details to match your order and your bank account. BeeKeeper does not store them in your order history.</p>
-            <div className="flex gap-2"><Button variant="outline" onClick={() => setStep("sources")}>Back</Button><Button className="flex-1" disabled={!detailsValid} onClick={() => setStep("review")}>Review</Button></div>
-          </div>}
+              {cashable.length === 0 && !tsd.isLoading && (
+                <p className="text-sm text-destructive">Nothing here can be cashed out yet.</p>
+              )}
 
-          {step === "review" && <div className="space-y-4">
-            <QuoteRows amount={quote.usd} fee={quote.feeUsd} payout={quote.settlementUsd} asset={asset} />
-            <p className="text-xs text-muted-foreground">Pulling from {consolidationCount} {consolidationCount === 1 ? "wallet" : "wallets"}.</p>
-            <div className="space-y-3">{CASHOUT_DISCLOSURES.map((item) => <label key={item.id} className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground">
-              <Checkbox checked={accepted.includes(item.id)} onCheckedChange={(checked) => setAccepted((current) => checked ? [...current, item.id] : current.filter((id) => id !== item.id))} />
-              <span>{item.text}{item.id === "terms" && <> <Link to="/legal/terms" target="_blank" className="text-primary underline">Terms</Link> · <Link to="/legal/privacy" target="_blank" className="text-primary underline">Privacy</Link></>}</span>
-            </label>)}</div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <div className="flex gap-2"><Button variant="outline" onClick={() => setStep("details")}>Back</Button><Button className="flex-1" disabled={!allAccepted || submitting} onClick={() => void placeOrder()}>{submitting ? <><Loader2 className="animate-spin" /> Creating order</> : "Place order"}</Button></div>
-          </div>}
+              <div className="space-y-2">
+                {cashable.map((row) => {
+                  const checked = selected.includes(row.key);
+                  return (
+                    <label
+                      key={row.key}
+                      className="flex items-start gap-3 rounded-md border border-border/60 bg-muted/30 p-3"
+                    >
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={checked}
+                        onCheckedChange={(next) =>
+                          setSelected((current) =>
+                            next ? [...current, row.key] : current.filter((value) => value !== row.key),
+                          )
+                        }
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                          <span className="flex items-center gap-1.5">
+                            <Wallet className="h-3.5 w-3.5 text-primary" /> {row.label}
+                          </span>
+                          <span>${fmt(row.usd, 2)}</span>
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {fmt(row.coinAmount)} {row.asset}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
 
-          {step === "handoff" && result && <div className="space-y-4 text-sm">
-            <div className="rounded-md border border-border/60 bg-muted/40 p-4 text-center"><Check className="mx-auto mb-2 h-7 w-7 text-primary" /><p className="font-semibold">{result.detail}</p><p className="mt-1 font-mono text-xs text-muted-foreground">{result.orderId}</p></div>
-            <p className="flex items-start gap-2 text-xs text-muted-foreground"><Landmark className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Next, VectorPay verifies your identity and links your bank account. That happens on their secure pages — BeeKeeper never sees your bank login.</p>
-            {result.checkoutUrl ? <Button className="w-full" onClick={() => void openVectorPayCheckout(result.checkoutUrl ?? "")}>Link my bank at VectorPay <ExternalLink /></Button> : <p className="text-destructive">Keep your reference and try again later.</p>}
-            <Button asChild variant="outline" className="w-full"><Link to="/wallet/order/$id" params={{ id: result.orderId }} onClick={() => setOpen(false)}>View order</Link></Button>
-          </div>}
+              <div className="space-y-2 rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
+                <Row label="Total to cash out" value={`$${fmt(chosenTotal, 2)}`} strong />
+                <Row label={feeBps === 0 ? "Service fee (merchant)" : "Service fee (1%)"} value={`$${quote.feeUsd.toFixed(2)}`} />
+                <Row label="Estimated to your bank" value={`$${quote.settlementUsd.toFixed(2)}`} strong />
+              </div>
+
+              {notAccepted.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Not accepted yet: {notAccepted.map((row) => row.label).join(", ")}. Swap those to TSD or Base USDC
+                  first if you want them in this payout.
+                </p>
+              )}
+
+              {totalError && <p className="text-sm text-destructive">{totalError}</p>}
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep("intro")}>Back</Button>
+                <Button className="flex-1" disabled={Boolean(totalError)} onClick={() => setStep("details")}>
+                  Continue
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === "details" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="cashout-name">Full legal name</Label>
+                <Input id="cashout-name" autoComplete="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cashout-email">Email</Label>
+                <Input id="cashout-email" type="email" autoComplete="email" maxLength={200} value={email} onChange={(event) => setEmail(event.target.value)} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                VectorPay emails you the bank-linking step and uses these details to match your order. BeeKeeper does
+                not store them in your order history.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep("holdings")}>Back</Button>
+                <Button className="flex-1" disabled={!detailsValid} onClick={() => setStep("review")}>Review</Button>
+              </div>
+            </div>
+          )}
+
+          {step === "review" && (
+            <div className="space-y-4">
+              <div className="space-y-2 rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
+                <Row label="You send" value={`$${fmt(chosenTotal, 2)} from ${chosen.length} ${chosen.length === 1 ? "wallet" : "wallets"}`} />
+                <Row label={feeBps === 0 ? "Service fee (merchant)" : "Service fee (1%)"} value={`$${quote.feeUsd.toFixed(2)}`} />
+                <Row label="Estimated to your bank" value={`$${quote.settlementUsd.toFixed(2)}`} strong />
+              </div>
+              <div className="space-y-3">
+                {CASHOUT_DISCLOSURES.map((item) => (
+                  <label key={item.id} className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground">
+                    <Checkbox
+                      checked={accepted.includes(item.id)}
+                      onCheckedChange={(checked) =>
+                        setAccepted((current) => (checked ? [...current, item.id] : current.filter((id) => id !== item.id)))
+                      }
+                    />
+                    <span>
+                      {item.text}
+                      {item.id === "terms" && (
+                        <>
+                          {" "}
+                          <Link to="/legal/terms" target="_blank" className="text-primary underline">Terms</Link> ·{" "}
+                          <Link to="/legal/privacy" target="_blank" className="text-primary underline">Privacy</Link>
+                        </>
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep("details")}>Back</Button>
+                <Button className="flex-1" disabled={!allAccepted} onClick={() => setStep("transfers")}>
+                  Start transfers
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === "transfers" && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium">Send each wallet</p>
+                <p className="text-xs text-muted-foreground">
+                  Approve them one at a time. Each opens the normal send screen with the cash-out address already
+                  filled in. Tick one off once it's broadcast.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {chosen.map((row) => {
+                  const done = sent.includes(row.key);
+                  const to = destinations[row.depositChain] ?? "";
+                  return (
+                    <div key={row.key} className="rounded-md border border-border/60 bg-muted/30 p-3">
+                      <div className="flex items-center justify-between gap-2 text-sm font-medium">
+                        <span className="flex items-center gap-1.5">
+                          {done ? <Check className="h-3.5 w-3.5 text-primary" /> : <Wallet className="h-3.5 w-3.5 text-primary" />}
+                          {row.label}
+                        </span>
+                        <span>{fmt(row.coinAmount)} {row.asset}</span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        {to ? (
+                          <SendLink holding={row} to={to} onOpen={() => setOpen(false)} />
+                        ) : (
+                          <span className="text-xs text-destructive">Cash-out address unavailable.</span>
+                        )}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={done ? "default" : "outline"}
+                          onClick={() =>
+                            setSent((current) =>
+                              done ? current.filter((value) => value !== row.key) : [...current, row.key],
+                            )
+                          }
+                        >
+                          {done ? "Sent" : "Mark sent"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-2 rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
+                <Row label="Sent so far" value={`$${fmt(sentTotal, 2)}`} strong />
+                <Row label={feeBps === 0 ? "Service fee (merchant)" : "Service fee (1%)"} value={`$${finalQuote.feeUsd.toFixed(2)}`} />
+                <Row label="Estimated to your bank" value={`$${finalQuote.settlementUsd.toFixed(2)}`} strong />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                If one transfer fails, keep going — the order is created for what actually went out.
+              </p>
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep("review")}>Back</Button>
+                <Button className="flex-1" disabled={sentRows.length === 0 || submitting} onClick={() => void placeOrder()}>
+                  {submitting ? <><Loader2 className="animate-spin" /> Creating order</> : "Finish and get my link"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === "done" && result && (
+            <div className="space-y-4 text-sm">
+              <div className="rounded-md border border-border/60 bg-muted/40 p-4 text-center">
+                <Check className="mx-auto mb-2 h-7 w-7 text-primary" />
+                <p className="font-semibold">{result.detail}</p>
+                <p className="mt-1 font-mono text-xs text-muted-foreground">{result.orderId}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  ${fmt(sentTotal, 2)} sent from {sentRows.length} {sentRows.length === 1 ? "wallet" : "wallets"} ·
+                  {" "}estimated ${finalQuote.settlementUsd.toFixed(2)} to your bank
+                </p>
+              </div>
+              <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Next, VectorPay verifies your identity and
+                links your bank account, by email or on their secure pages. BeeKeeper never sees your bank login.
+              </p>
+              {result.checkoutUrl ? (
+                <Button className="w-full" onClick={() => void openVectorPayCheckout(result.checkoutUrl ?? "")}>
+                  Link my bank at VectorPay <ExternalLink />
+                </Button>
+              ) : (
+                <p className="text-destructive">Keep your reference and try again later.</p>
+              )}
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/wallet/order/$id" params={{ id: result.orderId }} onClick={() => setOpen(false)}>
+                  View order
+                </Link>
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </section>
   );
 }
 
-function QuoteRows({ amount, fee, payout, asset }: { amount: number; fee: number; payout: number; asset: CashoutAsset }) {
-  return <div className="space-y-2 rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
-    <Row label="You sell" value={`${amount.toFixed(2)} ${asset}`} />
-    <Row label="Service fee (1%)" value={`$${fee.toFixed(2)}`} />
-    <Row label="Estimated to your bank" value={`$${payout.toFixed(2)}`} strong />
-  </div>;
+/**
+ * Opens the ordinary send screen for this wallet, prefilled with the cash-out
+ * address — the broadcast path stays the same battle-tested code.
+ */
+function SendLink({ holding, to, onOpen }: { holding: Holding; to: string; onOpen: () => void }) {
+  const label = (
+    <>
+      <Send /> Send {holding.asset}
+    </>
+  );
+  const amount = holding.propertyId ? String(holding.coinAmount) : undefined;
+
+  if (holding.chain === "txc") {
+    return (
+      <Button asChild size="sm" className="flex-1">
+        <Link
+          to="/wallet/send"
+          search={{ to, ...(amount ? { amount } : {}), ...(holding.propertyId ? { token: String(holding.propertyId) } : {}) }}
+          onClick={onOpen}
+        >
+          {label}
+        </Link>
+      </Button>
+    );
+  }
+
+  return (
+    <Button asChild size="sm" className="flex-1">
+      <Link to="/wallet/evm/$chain/send" params={{ chain: holding.chain }} search={{ to }} onClick={onOpen}>
+        {label}
+      </Link>
+    </Button>
+  );
 }
+
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">{label}</span><span className={strong ? "font-semibold" : ""}>{value}</span></div>;
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={strong ? "font-semibold" : ""}>{value}</span>
+    </div>
+  );
 }
