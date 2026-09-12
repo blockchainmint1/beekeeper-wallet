@@ -60,6 +60,7 @@ import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 import { BalanceHero, type BreakdownRow } from "@/components/wallet/BalanceHero";
 import { UnifiedActivity, type ActivityRow } from "@/components/wallet/UnifiedActivity";
 import { getTronHistory } from "@/lib/tron/api";
+import { WalletShell } from "@/components/wallet/WalletShell";
 
 
 
@@ -89,8 +90,26 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/dashboard")({
-  component: WalletHome,
+  head: () => ({
+    meta: [
+      { title: "Dashboard — BeeKeeper Wallet" },
+      { name: "description", content: "See your total balance and recent activity across every BeeKeeper wallet." },
+      { property: "og:title", content: "Dashboard — BeeKeeper Wallet" },
+      { property: "og:description", content: "See your total balance and recent activity across every BeeKeeper wallet." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: DashboardRoute,
 });
+
+function DashboardRoute() {
+  return (
+    <WalletShell>
+      <WalletHome />
+    </WalletShell>
+  );
+}
 
 /** Net balance in sats from a mempool-style address stats object. */
 function watchStatsSats(s: unknown): number | null {
@@ -956,50 +975,22 @@ function WalletHome() {
           {/* Optional merchant linking tile */}
           <NectarLinkCard compact />
 
-          <div className="px-4 pt-2 text-center">
-            <button
-              type="button"
-              onClick={() => setReorderOpen(true)}
-              className="text-[11px] uppercase tracking-wide text-muted-foreground hover:text-foreground"
-            >
-              Rearrange wallets
-            </button>
+          <div className="px-4 pt-4">
+            <Button asChild variant="ghost" className="w-full justify-between border-y border-border/60 py-6 text-sm font-semibold">
+              <Link to="/wallet">
+                Continue to wallet
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </Button>
           </div>
-
-          {/* Coins found on old derivation paths (old app / BlueWallet import) */}
-          {enabled.includes("txc") && (
-            <OldPathBanner
-              branches={account.isFetchedAfterMount ? account.data?.branches : undefined}
-            />
-          )}
-          {enabled.includes("txc") && (
-            <div className="px-4 pt-4">
-              <TxcTokens addresses={[...ownAddresses]} pendingIn={pendingOmniIn} />
-            </div>
-          )}
 
           {/* Shared history across every supported chain */}
           <UnifiedActivity rows={activity} loading={activityLoading} />
         </div>
 
 
-        {/* Sticky bottom send/receive — routes based on the active slot.
-            Sticky (not fixed) so it stays visible inside the WKWebView frame,
-            which clips/contains fixed positioning on iOS. */}
-        <div className="sticky bottom-0 z-10 mt-auto shrink-0 border-t border-border/60 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto max-w-3xl px-4 py-3 flex gap-2">
-            {activeWatch ? (
-              <WatchOnlyBottomActions wallet={activeWatch} />
-            ) : activeWif ? (
-              <WifBottomActions entry={activeWif} />
-            ) : (
-              <BottomActions chain={activeChain} />
-            )}
-          </div>
-        </div>
       </div>
       <TxDetailSheet detail={detail} onClose={() => setDetail(null)} />
-      <ReorderTilesSheet open={reorderOpen} onClose={() => setReorderOpen(false)} />
       <WifRemoveDialog entry={wifRemove} onClose={() => setWifRemove(null)} />
       {tileOpen === "txc" && (
         <WalletDetailSheet

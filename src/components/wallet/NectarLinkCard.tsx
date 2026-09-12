@@ -211,7 +211,19 @@ export function NectarLinkCard({ compact }: { compact?: boolean }) {
     </div>
   );
 
-  if (compact) return body;
+  if (compact) {
+    return (
+      <Card className="mx-4 mt-5 border-primary/25 bg-card/70">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Link2 className="h-4 w-4 text-primary" /> Link to Nectar Pay
+          </CardTitle>
+          <CardDescription>Connect your wallet to your Nectar Pay merchant account.</CardDescription>
+        </CardHeader>
+        <CardContent>{body}</CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="mt-5">

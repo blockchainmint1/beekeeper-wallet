@@ -1,7 +1,6 @@
 /**
- * BeeKeeper-style balance hero: one big fiat total with an expandable
- * per-wallet breakdown underneath. Tapping a breakdown row selects that
- * wallet, which is what the sticky Send/Receive bar acts on.
+ * BeeKeeper dashboard balance: an unframed fiat total with an expandable
+ * per-wallet breakdown directly beneath it.
  */
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Loader2, RefreshCw } from "lucide-react";
@@ -39,14 +38,14 @@ export function BalanceHero({
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="px-4 pt-5">
-      <div className="rounded-3xl border border-amber-500/20 bg-gradient-to-b from-amber-500/[0.07] to-card/40 px-4 pt-6 pb-3 backdrop-blur">
+    <section className="px-4 pb-2 pt-8">
+      <div>
         <div className="text-center">
           <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
             Total balance
           </p>
           <div className="mt-1.5 flex items-baseline justify-center gap-2">
-            <span className="text-[2.6rem] leading-none sm:text-5xl font-semibold tracking-tight tabular-nums">
+            <span className="text-[2.75rem] leading-none sm:text-5xl font-semibold tabular-nums">
               {hidden ? maskAmount(totalText) : totalText}
             </span>
             {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -71,7 +70,7 @@ export function BalanceHero({
 
         <Button
           variant="ghost"
-          className="mt-3 w-full justify-between rounded-2xl text-sm text-muted-foreground hover:text-foreground"
+          className="mx-auto mt-4 w-full max-w-sm justify-between border-y border-border/60 text-sm text-muted-foreground hover:text-foreground"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
         >
@@ -80,11 +79,11 @@ export function BalanceHero({
         </Button>
 
         {open && (
-          <ul className="mb-2 space-y-1.5">
+          <ul className="mx-auto mb-2 mt-2 max-w-sm space-y-1.5">
             {rows.map((r) => (
               <li key={r.key}>
                 <div
-                  className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 transition-colors ${
+                  className={`flex items-center gap-2 rounded-md border px-3 py-2.5 transition-colors ${
                     r.selected
                       ? "border-amber-500/50 bg-amber-500/10"
                       : "border-border/60 bg-card/50"
@@ -128,7 +127,7 @@ export function BalanceHero({
               </li>
             ))}
             {rows.length === 0 && (
-              <li className="rounded-2xl border border-border/60 bg-card/50 px-3 py-4 text-center text-sm text-muted-foreground">
+              <li className="rounded-md border border-border/60 bg-card/50 px-3 py-4 text-center text-sm text-muted-foreground">
                 No wallets yet.
               </li>
             )}

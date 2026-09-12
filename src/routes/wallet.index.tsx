@@ -57,7 +57,6 @@ import { TxDetailSheet, type TxDetail } from "@/components/wallet/TxDetailSheet"
 import { WalletDetailSheet } from "@/components/wallet/WalletDetailSheet";
 import { ReorderTilesSheet } from "@/components/wallet/ReorderTilesSheet";
 import { PortfolioSummary } from "@/components/wallet/PortfolioSummary";
-import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 
 
 import { useHideBalances, maskAmount } from "@/lib/hide-balances";
@@ -578,10 +577,6 @@ function WalletHome() {
     <main className="flex-1 flex flex-col min-h-0">
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         <div className="mx-auto max-w-3xl w-full flex-1">
-          {/* Post-login summary: total value + per-wallet breakdown */}
-          <PortfolioSummary />
-          {/* Optional merchant linking tile */}
-          <NectarLinkCard compact />
           {/* Swipeable chain tiles */}
 
           <div className="relative">

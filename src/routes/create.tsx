@@ -138,7 +138,7 @@ function CreatePage() {
       }
       await loadFromMemory(u);
       clearDraftMnemonic();
-      navigate({ to: "/wallet" });
+      navigate({ to: "/dashboard" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save wallet");
     } finally {

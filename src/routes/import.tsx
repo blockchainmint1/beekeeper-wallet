@@ -234,7 +234,7 @@ function ImportPage() {
         await saveWallet(u, password);
       }
       await loadFromMemory(u);
-      navigate({ to: "/wallet" });
+      navigate({ to: "/dashboard" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import failed");
       setBusy(false);
