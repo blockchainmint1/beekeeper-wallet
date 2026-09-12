@@ -29,7 +29,7 @@ const DISCLAIMERS = [
   "I understand my copper coin is my only backup. If I lose it, my wallet is gone forever.",
   "I will keep my copper coin safe. Anyone who finds it has unlimited access to my funds. I will store it in a safe or safe deposit box.",
   "I will never share my copper coin. No support agent, app, or website will ever ask me to scan it elsewhere. It is for me only.",
-  "I understand this wallet is self-custodial. Neither honest.money nor BeeKeeper can recover my funds or reverse a transaction.",
+  "I understand this wallet is self-custodial. No one — not BeeKeeper, not the hive — can recover my funds or reverse a transaction.",
 ] as const;
 
 function looksLikePublicAddressOrKey(value: string): boolean {
