@@ -215,28 +215,8 @@ function WalletHome() {
     [enabled, watchList, wifList],
   );
 
-  // Active tile tracked via scroll position
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  // Selected wallet — drives the sticky Send/Receive bar.
   const [activeIdx, setActiveIdx] = useState(0);
-  const scrollTo = useCallback((idx: number) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const w = el.clientWidth;
-    if (!w) return;
-    const clamped = Math.max(0, Math.min(idx, slots.length - 1));
-    el.scrollTo({ left: clamped * w, behavior: "smooth" });
-  }, [slots.length]);
-  useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      const w = el.clientWidth;
-      if (!w) return;
-      setActiveIdx(Math.round(el.scrollLeft / w));
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [slots.length]);
 
   const activeSlot: Slot = slots[activeIdx] ?? { kind: "chain", chain: "txc" };
   const activeChain: ChainId = activeSlot.kind === "chain" ? activeSlot.chain : "txc";
@@ -245,26 +225,10 @@ function WalletHome() {
 
   // Selected transaction (opens in-page detail sheet)
   const [detail, setDetail] = useState<TxDetail | null>(null);
-  // Which wallet tile's details are open
+  // Which wallet's details sheet is open
   const [tileOpen, setTileOpen] = useState<ChainId | null>(null);
-  // Long-press to rearrange
   const [reorderOpen, setReorderOpen] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFired = useRef(false);
-  const startLongPress = (action?: () => void) => {
-    longPressFired.current = false;
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = setTimeout(() => {
-      longPressFired.current = true;
-      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(15);
-      if (action) action();
-      else setReorderOpen(true);
-    }, 550);
-  };
-  const cancelLongPress = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = null;
-  };
+
 
 
   // TXC data — balance/frontier scan runs always so the portfolio total is
