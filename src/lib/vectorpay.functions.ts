@@ -10,8 +10,9 @@ const assetChain = z.discriminatedUnion("asset", [
 
 const startSchema = z
   .object({
+    reference: z.string().regex(/^BK-[A-Z0-9]+-[A-F0-9]{20,32}$/).max(64),
     usd: z.number().finite().min(ORDER_MIN_USD).max(ORDER_MAX_USD),
-    name: z.string().trim().min(2).max(120),
+    name: z.string().trim().min(2).max(120).regex(/^[\p{L}\p{M}.' -]+$/u, "Enter a valid legal name."),
     email: z.string().trim().email().max(200),
     acceptedDisclaimers: z.array(z.string().min(1).max(64)).length(CASHOUT_DISCLOSURES.length),
   })
@@ -32,7 +33,7 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => startSchema.parse(raw))
   .handler(async ({ data }) => {
     const { cashoutDepositAddress, postVectorPayOrder, vectorPayConfigured } = await import("./vectorpay.server");
-    const orderId = `BK-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
+    const orderId = data.reference;
     const feeUsd = Math.round(data.usd * (ORDER_FEE_BPS / 10_000) * 100) / 100;
     if (!vectorPayConfigured()) {
       return { orderId, feeUsd, registered: false, handoffUrl: null, detail: "Cash out is not configured yet." };

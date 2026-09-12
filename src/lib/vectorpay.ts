@@ -75,3 +75,27 @@ export function saveLocalVectorPayOrder(order: LocalVectorPayOrder): void {
 export function getLocalVectorPayOrder(id: string): LocalVectorPayOrder | null {
   return readOrders().find((row) => row.id === id) ?? null;
 }
+
+export async function openVectorPayCheckout(value: string): Promise<boolean> {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:" || !["vector-pay.com", "www.vector-pay.com"].includes(url.hostname.toLowerCase())) {
+    return false;
+  }
+  try {
+    const { isNative } = await import("@/lib/native/platform");
+    if (isNative()) {
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url: url.toString() });
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  window.location.assign(url.toString());
+  return true;
+}

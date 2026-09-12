@@ -20,6 +20,7 @@ import {
   ORDER_MIN_USD,
   quoteCashout,
   saveLocalVectorPayOrder,
+  openVectorPayCheckout,
   type CashoutAsset,
 } from "@/lib/vectorpay";
 import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.functions";
@@ -56,6 +57,7 @@ export function CashoutActions({ txcAddresses, evmAddress }: { txcAddresses: str
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ orderId: string; checkoutUrl: string | null; detail: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reference, setReference] = useState("");
 
   const available = asset === "TSD"
     ? Number(BigInt(tsd.data?.[39] ?? "0")) / 1e8
@@ -63,7 +65,7 @@ export function CashoutActions({ txcAddresses, evmAddress }: { txcAddresses: str
   const numeric = Number(amount);
   const quote = quoteCashout(Number.isFinite(numeric) ? numeric : 0);
   const allAccepted = accepted.length === CASHOUT_DISCLOSURES.length;
-  const detailsValid = name.trim().length >= 2 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const detailsValid = /^[\p{L}\p{M}.' -]{2,120}$/u.test(name.trim()) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const amountError = useMemo(() => {
     if (!Number.isFinite(numeric) || numeric < ORDER_MIN_USD) return `Minimum cash out is $${ORDER_MIN_USD}.`;
     if (numeric > ORDER_MAX_USD) return `Maximum cash out is $${ORDER_MAX_USD}.`;
@@ -75,6 +77,9 @@ export function CashoutActions({ txcAddresses, evmAddress }: { txcAddresses: str
 
   function reset() {
     setStep("intro"); setAmount(""); setName(""); setEmail(""); setAccepted([]); setError(null); setResult(null);
+    const bytes = crypto.getRandomValues(new Uint8Array(12));
+    const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
+    setReference(`BK-${Date.now().toString(36).toUpperCase()}-${suffix}`);
   }
 
   async function placeOrder() {
@@ -83,6 +88,7 @@ export function CashoutActions({ txcAddresses, evmAddress }: { txcAddresses: str
     try {
       const chain = asset === "TSD" ? "txc" : "base";
       const response = await startCashout({ data: {
+        reference,
         usd: numeric,
         asset,
         chain,
@@ -180,7 +186,7 @@ export function CashoutActions({ txcAddresses, evmAddress }: { txcAddresses: str
 
           {step === "handoff" && result && <div className="space-y-4 text-sm">
             <div className="rounded-md border border-border/60 bg-muted/40 p-4 text-center"><Check className="mx-auto mb-2 h-7 w-7 text-primary" /><p className="font-semibold">{result.detail}</p><p className="mt-1 font-mono text-xs text-muted-foreground">{result.orderId}</p></div>
-            {result.checkoutUrl ? <Button asChild className="w-full"><a href={result.checkoutUrl} rel="noopener noreferrer">Continue at VectorPay <ExternalLink /></a></Button> : <p className="text-destructive">Keep your reference and try again later.</p>}
+            {result.checkoutUrl ? <Button className="w-full" onClick={() => void openVectorPayCheckout(result.checkoutUrl ?? "")}>Continue at VectorPay <ExternalLink /></Button> : <p className="text-destructive">Keep your reference and try again later.</p>}
             <Button asChild variant="outline" className="w-full"><Link to="/wallet/order/$id" params={{ id: result.orderId }} onClick={() => setOpen(false)}>View order</Link></Button>
           </div>}
         </DialogContent>

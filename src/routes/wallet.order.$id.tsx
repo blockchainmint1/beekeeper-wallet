@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ExchangeUnavailable } from "@/components/wallet/ExchangeUnavailable";
 import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
-import { getLocalVectorPayOrder, type LocalVectorPayOrder } from "@/lib/vectorpay";
+import { getLocalVectorPayOrder, openVectorPayCheckout, type LocalVectorPayOrder } from "@/lib/vectorpay";
 
 export const Route = createFileRoute("/wallet/order/$id")({
   head: () => ({ meta: [
@@ -36,7 +36,7 @@ function CashoutOrderRoute() {
         <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-md bg-primary/15 text-primary"><Landmark /></div><div><p className="font-semibold">{order.asset} on {order.chain === "txc" ? "TEXITcoin" : "Base"}</p><p className="font-mono text-xs text-muted-foreground">{order.id}</p></div></div>
         <div className="space-y-2 border-y border-border/60 py-4 text-sm"><Row label="You sell" value={`${order.assetAmount.toFixed(2)} ${order.asset}`} /><Row label="Service fee" value={`$${order.feeUsd.toFixed(2)}`} /><Row label="Estimated bank payout" value={`$${order.settlementUsd.toFixed(2)}`} strong /></div>
         <p className="text-sm text-muted-foreground">{order.detail} Settlement usually takes 1–3 business days after funds clear.</p>
-        {order.checkoutUrl && <Button asChild className="w-full"><a href={order.checkoutUrl} rel="noopener noreferrer">Continue at VectorPay <ExternalLink /></a></Button>}
+        {order.checkoutUrl && <Button className="w-full" onClick={() => void openVectorPayCheckout(order.checkoutUrl ?? "")}>Continue at VectorPay <ExternalLink /></Button>}
         <Button asChild variant="outline" className="w-full"><Link to="/dashboard">Back to dashboard</Link></Button>
       </CardContent></Card>}
   </main>;
