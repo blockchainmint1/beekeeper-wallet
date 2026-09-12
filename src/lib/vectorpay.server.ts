@@ -47,6 +47,12 @@ export function cashoutDepositAddress(chain: CashoutChain): string | null {
   }
 }
 
+/** Deposit addresses the wallet may send to. Safe for the owner's device. */
+export function cashoutDestinations(): Record<CashoutChain, string | null> {
+  return { txc: cashoutDepositAddress("txc"), base: cashoutDepositAddress("base") };
+}
+
+
 async function signatureFor(body: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
