@@ -200,7 +200,11 @@ export function BeeKeeperOnboarding() {
         label: "BeeKeeper wallet",
         mode: "seed" as const,
       };
-      await saveWallet(wallet, password);
+      if (hasWallet()) {
+        await saveWalletToNewProfile(wallet, password);
+      } else {
+        await saveWallet(wallet, password);
+      }
       if (biometricAvailable && useBiometrics) {
         try {
           await enableBiometric(password);
