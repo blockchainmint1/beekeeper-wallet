@@ -78,7 +78,7 @@ function hexPoints(cx: number, cy: number, r: number): string {
 export function BeeKeeperOnboarding() {
   const navigate = useNavigate();
   const { loadFromMemory } = useWallet();
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [legacyMode, setLegacyMode] = useState(false);
   const [legacyWallets, setLegacyWallets] = useState<LegacyBeeKeeperWallet[]>([]);
   const [legacyPasswords, setLegacyPasswords] = useState<Record<string, string>>({});
@@ -152,7 +152,7 @@ export function BeeKeeperOnboarding() {
       setConfirmPassword("");
       toast.success(`${unlockedWallets.length} BeeKeeper wallet${unlockedWallets.length === 1 ? "" : "s"} imported.`);
       setLegacyMode(false);
-      setStep(4);
+      void navigate({ to: "/wallet" });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not import the old BeeKeeper wallet.");
     } finally {
@@ -240,9 +240,8 @@ export function BeeKeeperOnboarding() {
       setMnemonic("");
       setPassword("");
       setConfirmPassword("");
-      setStep(4);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not activate this wallet.");
+      toast.success("Wallet ready — the hive is live.");
+      void navigate({ to: "/wallet" });
     } finally {
       setBusy(false);
     }
@@ -258,7 +257,7 @@ export function BeeKeeperOnboarding() {
       </header>
 
       <ol className="mt-7 flex items-center gap-1.5 text-[10px]" aria-label="Activation progress">
-        {["Scan", "Rules", "Password", "Merchant"].map((label, index) => {
+        {["Scan", "Rules", "Password"].map((label, index) => {
           const number = index + 1;
           const active = number === step;
           const complete = number < step;
