@@ -93,6 +93,63 @@ export const Route = createFileRoute("/wallet/")({
   component: WalletHome,
 });
 
+/** Net balance in sats from a mempool-style address stats object. */
+function watchStatsSats(s: unknown): number | null {
+  const st = s as
+    | {
+        chain_stats: { funded_txo_sum: number; spent_txo_sum: number };
+        mempool_stats: { funded_txo_sum: number; spent_txo_sum: number };
+      }
+    | undefined;
+  if (!st) return null;
+  return (
+    st.chain_stats.funded_txo_sum -
+    st.chain_stats.spent_txo_sum +
+    st.mempool_stats.funded_txo_sum -
+    st.mempool_stats.spent_txo_sum
+  );
+}
+
+type UtxoTxLike = {
+  txid: string;
+  status: { confirmed: boolean; block_time?: number };
+  vin: { prevout?: { scriptpubkey_address?: string; value?: number } | null }[];
+  vout: { scriptpubkey_address?: string; value: number }[];
+};
+
+/** Normalise a UTXO-chain tx list into merged-activity rows. */
+function utxoActivityRows<T extends UtxoTxLike>(opts: {
+  prefix: string;
+  chainLabel: string;
+  ticker: string;
+  format: (sats: number) => string;
+  txs: T[] | null;
+  own: Set<string>;
+  onOpen?: (tx: T, net: number, incoming: boolean) => void;
+}): ActivityRow[] {
+  return (opts.txs ?? []).slice(0, 50).map((tx) => {
+    const inSum = tx.vin
+      .filter((v) => v.prevout?.scriptpubkey_address && opts.own.has(v.prevout.scriptpubkey_address))
+      .reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
+    const outToOwn = tx.vout
+      .filter((v) => v.scriptpubkey_address && opts.own.has(v.scriptpubkey_address))
+      .reduce((s, v) => s + v.value, 0);
+    const net = outToOwn - inSum;
+    const incoming = net > 0;
+    return {
+      id: `${opts.prefix}:${tx.txid}`,
+      chainLabel: opts.chainLabel,
+      title: incoming ? "Received" : "Sent",
+      timeMs: tx.status.block_time ? tx.status.block_time * 1000 : null,
+      pending: !tx.status.confirmed,
+      amountText: `${opts.format(Math.abs(net))} ${opts.ticker}`,
+      incoming,
+      onOpen: opts.onOpen ? () => opts.onOpen!(tx, net, incoming) : undefined,
+    };
+  });
+}
+
+
 function WalletHome() {
   const { root, unlocked, seed } = useWallet();
   const fetchPrice = useServerFn(getTxcPriceUsd);
