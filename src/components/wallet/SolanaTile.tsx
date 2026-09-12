@@ -91,8 +91,7 @@ export function SolanaActivity({ address, rows }: { address: string | null; rows
   const [hidden] = useHideBalances();
   if (!address) return null;
   return (
-    <section className="mt-8 px-4">
-      <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-semibold">Recent activity</h2></div>
+    <section>
       {!rows ? (
         <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-16 rounded-lg bg-muted/40 animate-pulse" />)}</div>
       ) : rows.length === 0 ? (

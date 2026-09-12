@@ -222,7 +222,7 @@ function WalletHome() {
   // TXC tile is actually being viewed; cached data still renders on swipe-in.
   const txs = useQuery({
     queryKey: ["txs", account.data?.external.map((a) => a.address).join(",")],
-    enabled: !!account.data && activeChain === "txc",
+    enabled: !!account.data && enabled.includes("txc"),
     queryFn: async () => {
       const all = await Promise.all(
         [...(account.data?.external ?? []), ...(account.data?.internal ?? [])].map((a) =>
@@ -238,12 +238,12 @@ function WalletHome() {
         return (b.status.block_time ?? 0) - (a.status.block_time ?? 0);
       });
     },
-    // TXC blocks are slow, so watch the mempool closely while the tile is
-    // open: 5s while anything is unconfirmed, 12s otherwise, plus an immediate
-    // refetch whenever the app comes back to the foreground. An inbound
-    // payment shows up as "Pending" within seconds without pulling refresh.
+    // TXC blocks are slow, so watch the mempool closely while the chain is
+    // enabled: 5s while anything is unconfirmed, 12s otherwise, plus an
+    // immediate refetch whenever the app comes back to the foreground. An
+    // inbound payment shows up as "Pending" within seconds without pull refresh.
     refetchInterval: (q) => {
-      if (activeChain !== "txc") return false;
+      if (!enabled.includes("txc")) return false;
       const data = q.state.data as MempoolTx[] | undefined;
       return data?.some((t) => !t.status.confirmed) ? 5_000 : 12_000;
     },
@@ -358,7 +358,7 @@ function WalletHome() {
   });
   const iskTxs = useQuery({
     queryKey: ["isk-txs", iskAccount.data?.external.map((a) => a.address).join(",")],
-    enabled: !!iskAccount.data && activeChain === "isk",
+    enabled: !!iskAccount.data && iskEnabled,
     queryFn: async () => {
       const all = await Promise.all(
         [...(iskAccount.data?.external ?? []), ...(iskAccount.data?.internal ?? [])].map((a) =>
@@ -393,7 +393,7 @@ function WalletHome() {
   });
   const btcTxs = useQuery({
     queryKey: ["btc-txs", btcAccount.data?.external.map((a) => a.address).join(",")],
-    enabled: !!btcAccount.data && activeChain === "btc",
+    enabled: !!btcAccount.data && btcEnabled,
     queryFn: async () => {
       const all = await Promise.all(
         [...(btcAccount.data?.external ?? []), ...(btcAccount.data?.internal ?? [])].map((a) =>
@@ -428,7 +428,7 @@ function WalletHome() {
   });
   const ltcTxs = useQuery({
     queryKey: ["ltc-txs", ltcAccount.data?.external.map((a) => a.address).join(",")],
-    enabled: !!ltcAccount.data && activeChain === "ltc",
+    enabled: !!ltcAccount.data && ltcEnabled,
     queryFn: async () => {
       const all = await Promise.all(
         [...(ltcAccount.data?.external ?? []), ...(ltcAccount.data?.internal ?? [])].map((a) =>
@@ -463,7 +463,7 @@ function WalletHome() {
   });
   const dogeTxs = useQuery({
     queryKey: ["doge-txs", dogeAccount.data?.external.map((a) => a.address).join(",")],
-    enabled: !!dogeAccount.data && activeChain === "doge",
+    enabled: !!dogeAccount.data && dogeEnabled,
     queryFn: async () => {
       const all = await Promise.all(
         [...(dogeAccount.data?.external ?? []), ...(dogeAccount.data?.internal ?? [])].map((a) =>
@@ -533,10 +533,12 @@ function WalletHome() {
       queryFn: () => watchApi(w.chain).getAddressStats(w.address),
     })),
   });
-  const activeWatchTxs = useQuery({
-    queryKey: ["watch-txs", activeWatch?.chain, activeWatch?.address],
-    enabled: !!activeWatch,
-    queryFn: () => watchApi(activeWatch!.chain).getAddressTxs(activeWatch!.address),
+  const watchTxs = useQueries({
+    queries: watchList.map((w) => ({
+      queryKey: ["watch-txs", w.chain, w.address],
+      enabled: !!w.address,
+      queryFn: () => watchApi(w.chain).getAddressTxs(w.address),
+    })),
   });
 
   /** Latest USD price for a watch-only tile's chain (null when unknown). */
@@ -563,10 +565,12 @@ function WalletHome() {
       staleTime: 30_000,
     })),
   });
-  const activeWifTxs = useQuery({
-    queryKey: ["wif-txs", activeWif?.chain, activeWif?.address],
-    enabled: !!activeWif,
-    queryFn: () => wifApi(activeWif!.chain).getAddressTxs(activeWif!.address),
+  const wifTxs = useQueries({
+    queries: wifList.map((w) => ({
+      queryKey: ["wif-txs", w.chain, w.address],
+      enabled: !!w.address,
+      queryFn: () => wifApi(w.chain).getAddressTxs(w.address),
+    })),
   });
 
   return (
@@ -846,220 +850,263 @@ function WalletHome() {
             <TxcTokens addresses={[activeWatch.address]} readOnly />
           )}
 
-          {/* Recent activity (TXC only for now) */}
-          {activeChain === "txc" && !activeWatch && !activeWif && (
-            <section className="mt-8 px-4">
-              <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
-              {account.isLoading || txs.isLoading ? (
-                <div className="space-y-2">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="h-16 rounded-lg bg-muted/40 animate-pulse" />
-                  ))}
-                </div>
-              ) : account.isError ? (
-                <Card>
-                  <CardContent className="pt-6 text-sm text-muted-foreground">
-                    Couldn't reach mempool.texitcoin.org.{" "}
-                    <button className="underline" onClick={() => account.refetch()}>
-                      try again
-                    </button>
-                    .
-                  </CardContent>
-                </Card>
-              ) : (txs.data?.length ?? 0) === 0 ? (
-                <Card>
-                  <CardContent className="pt-6 text-sm text-muted-foreground">
-                    No transactions yet.
-                  </CardContent>
-                </Card>
-              ) : (
-                <ul className="space-y-2">
-                  {txs.data!.slice(0, 50).map((tx) => {
-                    const inSum = tx.vin
-                      .filter((v) => v.prevout?.scriptpubkey_address && ownAddresses.has(v.prevout?.scriptpubkey_address))
-                      .reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
-                    const outToOwn = tx.vout
-                      .filter((v) => v.scriptpubkey_address && ownAddresses.has(v.scriptpubkey_address))
-                      .reduce((s, v) => s + v.value, 0);
-                    const net = outToOwn - inSum;
-                    const omni = decodeOmniSend(tx);
-                    const omniMine =
-                      omni &&
-                      ((omni.sender && ownAddresses.has(omni.sender)) ||
-                        (omni.reference && ownAddresses.has(omni.reference)));
-                    const omniIncoming =
-                      !!omni && !!omni.reference && ownAddresses.has(omni.reference) &&
-                      !(omni.sender && ownAddresses.has(omni.sender));
-                    const meta = omni && omniMine ? omniMetaFor(omni.propertyId) : null;
-                    const incoming = meta ? omniIncoming : net > 0;
-                    const pending = !tx.status.confirmed;
-                    const omniInvalid =
-                      !!meta && omniValidity.data?.[tx.txid]?.valid === false
-                        ? omniValidity.data[tx.txid].reason ?? "Rejected by Omni Layer"
-                        : null;
-                    return (
-                      <li key={tx.txid}>
-                        <button
-                          type="button"
-                          onClick={() => setDetail({ kind: "txc", tx, net, incoming })}
-                          className="w-full flex items-center gap-3 rounded-lg border border-border/60 bg-card/40 px-4 py-3 hover:bg-card transition-colors text-left"
-                        >
-                          <div
-                            className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                              meta
-                                ? "bg-amber-500/15 text-amber-300 text-xs font-bold"
-                                : incoming
-                                  ? "bg-emerald-500/15 text-emerald-400"
-                                  : "bg-rose-500/15 text-rose-400"
-                            }`}
+          {/* Cross-chain recent activity — every enabled wallet's history is
+              shown on the landing page, not just the currently selected tile. */}
+          <section className="mt-8 px-4">
+            <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
+
+            {enabled.includes("txc") && (
+              <div className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  TEXITcoin
+                </h3>
+                {account.isLoading || txs.isLoading ? (
+                  <div className="space-y-2">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="h-16 rounded-lg bg-muted/40 animate-pulse" />
+                    ))}
+                  </div>
+                ) : account.isError ? (
+                  <Card>
+                    <CardContent className="pt-6 text-sm text-muted-foreground">
+                      Couldn't reach mempool.texitcoin.org.{" "}
+                      <button className="underline" onClick={() => account.refetch()}>
+                        try again
+                      </button>
+                      .
+                    </CardContent>
+                  </Card>
+                ) : (txs.data?.length ?? 0) === 0 ? (
+                  <Card>
+                    <CardContent className="pt-6 text-sm text-muted-foreground">
+                      No TEXITcoin transactions yet.
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <ul className="space-y-2">
+                    {txs.data!.slice(0, 50).map((tx) => {
+                      const inSum = tx.vin
+                        .filter((v) => v.prevout?.scriptpubkey_address && ownAddresses.has(v.prevout?.scriptpubkey_address))
+                        .reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
+                      const outToOwn = tx.vout
+                        .filter((v) => v.scriptpubkey_address && ownAddresses.has(v.scriptpubkey_address))
+                        .reduce((s, v) => s + v.value, 0);
+                      const net = outToOwn - inSum;
+                      const omni = decodeOmniSend(tx);
+                      const omniMine =
+                        omni &&
+                        ((omni.sender && ownAddresses.has(omni.sender)) ||
+                          (omni.reference && ownAddresses.has(omni.reference)));
+                      const omniIncoming =
+                        !!omni && !!omni.reference && ownAddresses.has(omni.reference) &&
+                        !(omni.sender && ownAddresses.has(omni.sender));
+                      const meta = omni && omniMine ? omniMetaFor(omni.propertyId) : null;
+                      const incoming = meta ? omniIncoming : net > 0;
+                      const pending = !tx.status.confirmed;
+                      const omniInvalid =
+                        !!meta && omniValidity.data?.[tx.txid]?.valid === false
+                          ? omniValidity.data[tx.txid].reason ?? "Rejected by Omni Layer"
+                          : null;
+                      return (
+                        <li key={tx.txid}>
+                          <button
+                            type="button"
+                            onClick={() => setDetail({ kind: "txc", tx, net, incoming })}
+                            className="w-full flex items-center gap-3 rounded-lg border border-border/60 bg-card/40 px-4 py-3 hover:bg-card transition-colors text-left"
                           >
-                            {meta ? (
-                              meta.symbol.slice(0, 2)
-                            ) : incoming ? (
-                              <ArrowDown className="h-4 w-4" />
-                            ) : (
-                              <ArrowUp className="h-4 w-4" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">
-                              {incoming ? "Received" : "Sent"}
-                              {meta ? ` ${meta.symbol}` : ""}
-                              {omniInvalid && (
-                                <span className="ml-2 rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-destructive">
-                                  not applied
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {pending ? (
-                                <span className="inline-flex items-center gap-1 text-amber-400">
-                                  <Loader2 className="h-3 w-3 animate-spin" /> In mempool · unconfirmed
-                                </span>
-                              ) : omniInvalid ? (
-                                <span className="text-destructive">{omniInvalid}</span>
-                              ) : (
-                                new Date((tx.status.block_time ?? 0) * 1000).toLocaleString()
-                              )}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p
-                              className={`text-sm font-semibold ${
-                                omniInvalid
-                                  ? "text-muted-foreground line-through"
+                            <div
+                              className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                                meta
+                                  ? "bg-amber-500/15 text-amber-300 text-xs font-bold"
                                   : incoming
-                                    ? "text-emerald-400"
-                                    : ""
+                                    ? "bg-emerald-500/15 text-emerald-400"
+                                    : "bg-rose-500/15 text-rose-400"
                               }`}
                             >
-                              {incoming ? "+" : "−"}
-                              {meta && omni
-                                ? `${formatTokenAmount(omni.amount, meta.divisible)} ${meta.symbol}`
-                                : formatTxc(Math.abs(net))}
-                            </p>
-                            {meta && net !== 0 && (
-                              <p className="text-[11px] text-muted-foreground">
-                                {net > 0 ? "+" : "−"}
-                                {formatTxc(Math.abs(net))}
+                              {meta ? (
+                                meta.symbol.slice(0, 2)
+                              ) : incoming ? (
+                                <ArrowDown className="h-4 w-4" />
+                              ) : (
+                                <ArrowUp className="h-4 w-4" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium">
+                                {incoming ? "Received" : "Sent"}
+                                {meta ? ` ${meta.symbol}` : ""}
+                                {omniInvalid && (
+                                  <span className="ml-2 rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-destructive">
+                                    not applied
+                                  </span>
+                                )}
                               </p>
-                            )}
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                      </li>
-                    );
+                              <p className="text-xs text-muted-foreground truncate">
+                                {pending ? (
+                                  <span className="inline-flex items-center gap-1 text-amber-400">
+                                    <Loader2 className="h-3 w-3 animate-spin" /> In mempool · unconfirmed
+                                  </span>
+                                ) : omniInvalid ? (
+                                  <span className="text-destructive">{omniInvalid}</span>
+                                ) : (
+                                  new Date((tx.status.block_time ?? 0) * 1000).toLocaleString()
+                                )}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p
+                                className={`text-sm font-semibold ${
+                                  omniInvalid
+                                    ? "text-muted-foreground line-through"
+                                    : incoming
+                                      ? "text-emerald-400"
+                                      : ""
+                                }`}
+                              >
+                                {incoming ? "+" : "−"}
+                                {meta && omni
+                                  ? `${formatTokenAmount(omni.amount, meta.divisible)} ${meta.symbol}`
+                                  : formatTxc(Math.abs(net))}
+                              </p>
+                              {meta && net !== 0 && (
+                                <p className="text-[11px] text-muted-foreground">
+                                  {net > 0 ? "+" : "−"}
+                                  {formatTxc(Math.abs(net))}
+                                </p>
+                              )}
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
 
-                  })}
-                </ul>
-              )}
-            </section>
-          )}
-          {activeChain === "isk" && !activeWatch && !activeWif && (
-            <BtcForkActivity
-              variant="isk"
-              loading={iskAccount.isLoading || iskTxs.isLoading}
-              error={iskAccount.isError}
-              txs={iskTxs.data ?? null}
-              ownAddresses={iskOwnAddresses}
-              onRefresh={() => iskAccount.refetch()}
-              onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("isk", tx, net, incoming))}
-            />
-          )}
-          {activeChain === "btc" && !activeWatch && !activeWif && (
-            <BtcForkActivity
-              variant="btc"
-              loading={btcAccount.isLoading || btcTxs.isLoading}
-              error={btcAccount.isError}
-              txs={btcTxs.data ?? null}
-              ownAddresses={btcOwnAddresses}
-              onRefresh={() => btcAccount.refetch()}
-              onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("btc", tx, net, incoming))}
-            />
-          )}
-          {activeChain === "ltc" && !activeWatch && !activeWif && (
-            <BtcForkActivity
-              variant="ltc"
-              loading={ltcAccount.isLoading || ltcTxs.isLoading}
-              error={ltcAccount.isError}
-              txs={ltcTxs.data ?? null}
-              ownAddresses={ltcOwnAddresses}
-              onRefresh={() => ltcAccount.refetch()}
-              onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("ltc", tx, net, incoming))}
-            />
-          )}
-          {activeChain === "doge" && !activeWatch && !activeWif && (
-            <BtcForkActivity
-              variant="doge"
-              loading={dogeAccount.isLoading || dogeTxs.isLoading}
-              error={dogeAccount.isError}
-              txs={dogeTxs.data ?? null}
-              ownAddresses={dogeOwnAddresses}
-              onRefresh={() => dogeAccount.refetch()}
-              onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("doge", tx, net, incoming))}
-            />
-          )}
-          {activeChain === "tron" && !activeWatch && !activeWif && (
-            <TronActivity address={tronAddress} />
-          )}
-          {activeChain === "solana" && !activeWatch && !activeWif && (
-            <SolanaActivity address={solanaAccount?.address ?? null} rows={solana.history.data ?? null} />
-          )}
-          {activeChain !== "txc" && activeChain !== "btc" && activeChain !== "isk" && activeChain !== "ltc" && activeChain !== "doge" && activeChain !== "tron" && activeChain !== "solana" && activeChain in EVM_CHAINS && !activeWatch && !activeWif && (
-            <EvmActivity
-              chainId={activeChain as EvmChainId}
-              address={evmAddress}
-              onOpen={(t) => setDetail({ kind: "evm", chain: activeChain as EvmChainId, transfer: t })}
-            />
-          )}
-          {activeChain !== "txc" && activeChain !== "btc" && activeChain !== "isk" && activeChain !== "ltc" && activeChain !== "doge" && activeChain !== "tron" && activeChain !== "solana" && !(activeChain in EVM_CHAINS) && !activeWatch && !activeWif && (
-            <section className="mt-8 px-4">
-              <Card>
-                <CardContent className="pt-6 text-sm text-muted-foreground">
-                  {CHAIN_META[activeChain].name} support is coming soon.
-                </CardContent>
-              </Card>
-            </section>
-          )}
-          {activeWatch && (
-            <WatchOnlyActivity
-              wallet={activeWatch}
-              txs={activeWatchTxs.data ?? null}
-              loading={activeWatchTxs.isLoading}
-              error={activeWatchTxs.isError}
-              onRefresh={() => activeWatchTxs.refetch()}
-              onOpen={(tx, net, incoming) => setDetail({ kind: "txc", tx, net, incoming })}
-            />
-          )}
-          {activeWif && (
-            <WifActivity
-              entry={activeWif}
-              txs={activeWifTxs.data ?? null}
-              loading={activeWifTxs.isLoading}
-              error={activeWifTxs.isError}
-              onRefresh={() => activeWifTxs.refetch()}
-            />
-          )}
+            {enabled.includes("isk") && (
+              <div className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  IskanderCoin
+                </h3>
+                <BtcForkActivity
+                  variant="isk"
+                  loading={iskAccount.isLoading || iskTxs.isLoading}
+                  error={iskAccount.isError}
+                  txs={iskTxs.data ?? null}
+                  ownAddresses={iskOwnAddresses}
+                  onRefresh={() => iskAccount.refetch()}
+                  onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("isk", tx, net, incoming))}
+                />
+              </div>
+            )}
+            {enabled.includes("btc") && (
+              <div className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  Bitcoin
+                </h3>
+                <BtcForkActivity
+                  variant="btc"
+                  loading={btcAccount.isLoading || btcTxs.isLoading}
+                  error={btcAccount.isError}
+                  txs={btcTxs.data ?? null}
+                  ownAddresses={btcOwnAddresses}
+                  onRefresh={() => btcAccount.refetch()}
+                  onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("btc", tx, net, incoming))}
+                />
+              </div>
+            )}
+            {enabled.includes("ltc") && (
+              <div className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  Litecoin
+                </h3>
+                <BtcForkActivity
+                  variant="ltc"
+                  loading={ltcAccount.isLoading || ltcTxs.isLoading}
+                  error={ltcAccount.isError}
+                  txs={ltcTxs.data ?? null}
+                  ownAddresses={ltcOwnAddresses}
+                  onRefresh={() => ltcAccount.refetch()}
+                  onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("ltc", tx, net, incoming))}
+                />
+              </div>
+            )}
+            {enabled.includes("doge") && (
+              <div className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  Dogecoin
+                </h3>
+                <BtcForkActivity
+                  variant="doge"
+                  loading={dogeAccount.isLoading || dogeTxs.isLoading}
+                  error={dogeAccount.isError}
+                  txs={dogeTxs.data ?? null}
+                  ownAddresses={dogeOwnAddresses}
+                  onRefresh={() => dogeAccount.refetch()}
+                  onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("doge", tx, net, incoming))}
+                />
+              </div>
+            )}
+            {enabled.includes("tron") && (
+              <div className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  Tron
+                </h3>
+                <TronActivity address={tronAddress} />
+              </div>
+            )}
+            {enabled.includes("solana") && (
+              <div className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  Solana
+                </h3>
+                <SolanaActivity address={solanaAccount?.address ?? null} rows={solana.history.data ?? null} />
+              </div>
+            )}
+            {evmEnabled.map((evmId) => (
+              <div key={evmId} className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  {CHAIN_META[evmId].name}
+                </h3>
+                <EvmActivity
+                  chainId={evmId}
+                  address={evmAddress}
+                  onOpen={(t) => setDetail({ kind: "evm", chain: evmId, transfer: t })}
+                />
+              </div>
+            ))}
+            {watchList.map((w, i) => (
+              <div key={w.id} className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  {w.label} · watch-only
+                </h3>
+                <WatchOnlyActivity
+                  wallet={w}
+                  txs={watchTxs[i]?.data ?? null}
+                  loading={watchTxs[i]?.isLoading ?? false}
+                  error={watchTxs[i]?.isError ?? false}
+                  onRefresh={() => watchTxs[i]?.refetch()}
+                  onOpen={(tx, net, incoming) => setDetail({ kind: "txc", tx, net, incoming })}
+                />
+              </div>
+            ))}
+            {wifList.map((w, i) => (
+              <div key={w.id} className="mb-6">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                  {w.label} · imported key
+                </h3>
+                <WifActivity
+                  entry={w}
+                  txs={wifTxs[i]?.data ?? null}
+                  loading={wifTxs[i]?.isLoading ?? false}
+                  error={wifTxs[i]?.isError ?? false}
+                  onRefresh={() => wifTxs[i]?.refetch()}
+                />
+              </div>
+            ))}
+          </section>
         </div>
 
         {/* Sticky bottom send/receive — routes based on the active slot.
@@ -1800,16 +1847,7 @@ function BtcForkActivity({
 }) {
   const v = BTC_FORK_VARIANTS[variant];
   return (
-    <section className="mt-8 px-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Recent activity</h2>
-        <button
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-          onClick={onRefresh}
-        >
-          <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
-      </div>
+    <section>
       {loading && !txs ? (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
@@ -2079,8 +2117,8 @@ function EvmActivity({
 
   return (
     <>
-      <section className="mt-8 px-4">
-        <h2 className="text-lg font-semibold mb-3">Tokens</h2>
+      <section>
+        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-2">Tokens</h2>
         <ul className="space-y-2">
           {visibleTokens.map(({ token: t, index: i }) => {
             const q = tokenBalances[i];
@@ -2130,16 +2168,7 @@ function EvmActivity({
       </section>
 
 
-      <section className="mt-6 px-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Recent activity</h2>
-          <button
-            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-            onClick={() => history.refetch()}
-          >
-            <RefreshCw className={`h-3 w-3 ${history.isFetching ? "animate-spin" : ""}`} /> Refresh
-          </button>
-        </div>
+      <section className="mt-4">
         {pending.length > 0 && (
           <ul className="space-y-2 mb-2">
             {pending.map((p) => {
@@ -2408,16 +2437,7 @@ function WatchOnlyActivity({
   const own = wallet.address;
   const meta = WATCH_CHAIN_META[wallet.chain];
   return (
-    <section className="mt-8 px-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Recent activity</h2>
-        <button
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-          onClick={onRefresh}
-        >
-          <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
-      </div>
+    <section>
       {loading && !txs ? (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
@@ -2688,16 +2708,7 @@ function WifActivity({
   const isIsk = entry.chain === "isk";
   const fmt = (n: number) => (isIsk ? formatIsk(n) : formatTxc(n));
   return (
-    <section className="mt-8 px-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Recent activity</h2>
-        <button
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-          onClick={onRefresh}
-        >
-          <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
-      </div>
+    <section>
       {loading && !txs ? (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
