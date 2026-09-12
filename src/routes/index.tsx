@@ -155,6 +155,15 @@ function Home() {
       </header>
 
       {exists ? (
+        <>
+        {listLegacyBeeKeeperWallets().length > 0 && (
+          <Card className="mb-4 border-primary/30 bg-primary/5">
+            <CardContent className="pt-6 text-sm text-muted-foreground">
+              We found an old BeeKeeper wallet saved in this browser. Unlock your wallet and
+              you&apos;ll get the option to import it — your current wallet won&apos;t be changed.
+            </CardContent>
+          </Card>
+        )}
         <Card className="border-border/60">
           <CardHeader>
             <CardTitle>Unlock your wallet</CardTitle>
