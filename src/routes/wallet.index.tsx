@@ -857,6 +857,16 @@ function WalletHome() {
             <TxcTokens addresses={[activeWatch.address]} readOnly />
           )}
 
+          {/* Extra derived addresses for the currently selected EVM wallet only. */}
+          {!activeWatch && !activeWif && activeSlot.kind === "chain" && (
+            activeChain === "eth" || activeChain === "base" || activeChain === "bsc"
+          ) && (
+            <div className="px-4">
+              <EvmDerivedAddresses chainId={activeChain as EvmChainId} />
+            </div>
+          )}
+
+
           {/* Cross-chain recent activity — every enabled wallet's history is
               shown on the landing page, not just the currently selected tile. */}
           <section className="mt-8 px-4">
