@@ -994,7 +994,9 @@ function WalletHome() {
           <CashoutActions
             txcAddresses={[...ownAddresses]}
             evmAddress={evmAddress}
+            holdings={breakdown}
           />
+
 
           {/* Optional merchant linking tile */}
           <NectarLinkCard compact hideWhenLinked />
