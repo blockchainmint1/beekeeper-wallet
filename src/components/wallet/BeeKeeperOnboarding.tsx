@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { QrScanDialog } from "@/components/wallet/QrScanButton";
 
 import { enableBiometric, isBiometricAvailable } from "@/lib/native/biometric";
@@ -83,7 +82,6 @@ export function BeeKeeperOnboarding() {
   const [legacyWallets, setLegacyWallets] = useState<LegacyBeeKeeperWallet[]>([]);
   const [legacyPasswords, setLegacyPasswords] = useState<Record<string, string>>({});
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [manualPhrase, setManualPhrase] = useState("");
   const [mnemonic, setMnemonic] = useState("");
   const [acks, setAcks] = useState<boolean[]>(DISCLAIMERS.map(() => false));
   const [password, setPassword] = useState("");
@@ -317,10 +315,7 @@ export function BeeKeeperOnboarding() {
             <Button className="mt-6 h-14 w-full text-base" onClick={() => setScannerOpen(true)}>
               <Camera className="mr-2 h-5 w-5" /> Scan my copper coin
             </Button>
-            <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />or enter the words<span className="h-px flex-1 bg-border" /></div>
-            <Textarea value={manualPhrase} onChange={(event) => setManualPhrase(event.target.value.slice(0, 1000))} rows={4} placeholder="Enter 12 or 24 recovery words" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} className="font-mono" />
             {error && <ErrorMessage>{error}</ErrorMessage>}
-            <Button variant="secondary" className="mt-3 w-full" disabled={!manualPhrase.trim()} onClick={() => acceptPhrase(manualPhrase)}>Continue with these words</Button>
             <div className="mt-6 rounded-md border border-border bg-muted/30 p-4">
                 <div className="flex items-start gap-3">
                   <WalletCards className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
