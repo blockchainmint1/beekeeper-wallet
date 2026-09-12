@@ -53,6 +53,7 @@ import { Route as WalletBtcSendRouteImport } from './routes/wallet.btc.send'
 import { Route as WalletBtcReceiveRouteImport } from './routes/wallet.btc.receive'
 import { Route as ApiTsdLinkRouteImport } from './routes/api/tsd.link'
 import { Route as ApiTronSplatRouteImport } from './routes/api/tron.$'
+import { Route as ApiPublicVectorpayOrderStatusRouteImport } from './routes/api/public/vectorpay-order-status'
 import { Route as ApiPublicLatestReleaseRouteImport } from './routes/api/public/latest-release'
 import { Route as ApiPublicBuildIdRouteImport } from './routes/api/public/build-id'
 import { Route as ApiPublicApkRouteImport } from './routes/api/public/apk'
@@ -286,6 +287,12 @@ const ApiTronSplatRoute = ApiTronSplatRouteImport.update({
   path: '/api/tron/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicVectorpayOrderStatusRoute =
+  ApiPublicVectorpayOrderStatusRouteImport.update({
+    id: '/api/public/vectorpay-order-status',
+    path: '/api/public/vectorpay-order-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicLatestReleaseRoute = ApiPublicLatestReleaseRouteImport.update({
   id: '/api/public/latest-release',
   path: '/api/public/latest-release',
@@ -375,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/api/public/apk': typeof ApiPublicApkRoute
   '/api/public/build-id': typeof ApiPublicBuildIdRoute
   '/api/public/latest-release': typeof ApiPublicLatestReleaseRoute
+  '/api/public/vectorpay-order-status': typeof ApiPublicVectorpayOrderStatusRoute
   '/api/tron/$': typeof ApiTronSplatRoute
   '/api/tsd/link': typeof ApiTsdLinkRoute
   '/wallet/btc/receive': typeof WalletBtcReceiveRoute
@@ -432,6 +440,7 @@ export interface FileRoutesByTo {
   '/api/public/apk': typeof ApiPublicApkRoute
   '/api/public/build-id': typeof ApiPublicBuildIdRoute
   '/api/public/latest-release': typeof ApiPublicLatestReleaseRoute
+  '/api/public/vectorpay-order-status': typeof ApiPublicVectorpayOrderStatusRoute
   '/api/tron/$': typeof ApiTronSplatRoute
   '/api/tsd/link': typeof ApiTsdLinkRoute
   '/wallet/btc/receive': typeof WalletBtcReceiveRoute
@@ -491,6 +500,7 @@ export interface FileRoutesById {
   '/api/public/apk': typeof ApiPublicApkRoute
   '/api/public/build-id': typeof ApiPublicBuildIdRoute
   '/api/public/latest-release': typeof ApiPublicLatestReleaseRoute
+  '/api/public/vectorpay-order-status': typeof ApiPublicVectorpayOrderStatusRoute
   '/api/tron/$': typeof ApiTronSplatRoute
   '/api/tsd/link': typeof ApiTsdLinkRoute
   '/wallet/btc/receive': typeof WalletBtcReceiveRoute
@@ -551,6 +561,7 @@ export interface FileRouteTypes {
     | '/api/public/apk'
     | '/api/public/build-id'
     | '/api/public/latest-release'
+    | '/api/public/vectorpay-order-status'
     | '/api/tron/$'
     | '/api/tsd/link'
     | '/wallet/btc/receive'
@@ -608,6 +619,7 @@ export interface FileRouteTypes {
     | '/api/public/apk'
     | '/api/public/build-id'
     | '/api/public/latest-release'
+    | '/api/public/vectorpay-order-status'
     | '/api/tron/$'
     | '/api/tsd/link'
     | '/wallet/btc/receive'
@@ -666,6 +678,7 @@ export interface FileRouteTypes {
     | '/api/public/apk'
     | '/api/public/build-id'
     | '/api/public/latest-release'
+    | '/api/public/vectorpay-order-status'
     | '/api/tron/$'
     | '/api/tsd/link'
     | '/wallet/btc/receive'
@@ -716,6 +729,7 @@ export interface RootRouteChildren {
   ApiPublicApkRoute: typeof ApiPublicApkRoute
   ApiPublicBuildIdRoute: typeof ApiPublicBuildIdRoute
   ApiPublicLatestReleaseRoute: typeof ApiPublicLatestReleaseRoute
+  ApiPublicVectorpayOrderStatusRoute: typeof ApiPublicVectorpayOrderStatusRoute
   ApiTronSplatRoute: typeof ApiTronSplatRoute
   ApiTsdLinkRoute: typeof ApiTsdLinkRoute
   ApiNectarPayInvoiceIdRoute: typeof ApiNectarPayInvoiceIdRoute
@@ -1032,6 +1046,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTronSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/vectorpay-order-status': {
+      id: '/api/public/vectorpay-order-status'
+      path: '/api/public/vectorpay-order-status'
+      fullPath: '/api/public/vectorpay-order-status'
+      preLoaderRoute: typeof ApiPublicVectorpayOrderStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/latest-release': {
       id: '/api/public/latest-release'
       path: '/api/public/latest-release'
@@ -1225,6 +1246,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicApkRoute: ApiPublicApkRoute,
   ApiPublicBuildIdRoute: ApiPublicBuildIdRoute,
   ApiPublicLatestReleaseRoute: ApiPublicLatestReleaseRoute,
+  ApiPublicVectorpayOrderStatusRoute: ApiPublicVectorpayOrderStatusRoute,
   ApiTronSplatRoute: ApiTronSplatRoute,
   ApiTsdLinkRoute: ApiTsdLinkRoute,
   ApiNectarPayInvoiceIdRoute: ApiNectarPayInvoiceIdRoute,

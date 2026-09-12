@@ -29,6 +29,31 @@ export const getVectorPayConfig = createServerFn({ method: "GET" }).handler(asyn
   return { configured: vectorPayConfigured() };
 });
 
+/**
+ * Latest known status for one order reference, as reported by VectorPay's
+ * webhook. References carry ~96 bits of entropy and the row holds no personal
+ * or bank data, so a reference-scoped lookup is safe without a session.
+ */
+export const getCashoutOrderStatus = createServerFn({ method: "POST" })
+  .inputValidator((raw: unknown) =>
+    z.object({ reference: z.string().trim().min(6).max(64).regex(/^BK-[A-Z0-9-]+$/i) }).parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("cashout_order_status")
+      .select("status, detail, payout_usd, updated_at")
+      .eq("reference", data.reference.toUpperCase())
+      .maybeSingle();
+    if (!row) return null;
+    return {
+      status: row.status,
+      detail: row.detail,
+      payoutUsd: row.payout_usd === null ? null : Number(row.payout_usd),
+      updatedAt: row.updated_at,
+    };
+  });
+
 export const startVectorPayCashout = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => startSchema.parse(raw))
   .handler(async ({ data }) => {
