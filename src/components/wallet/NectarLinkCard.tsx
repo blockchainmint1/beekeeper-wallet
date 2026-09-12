@@ -25,7 +25,7 @@ import {
   type NectarManifest,
 } from "@/lib/nectar/link";
 
-export function NectarLinkCard({ compact }: { compact?: boolean }) {
+export function NectarLinkCard({ compact, hideWhenLinked }: { compact?: boolean; hideWhenLinked?: boolean }) {
   const { unlocked } = useWallet();
   const seedless = !unlocked || unlocked.mode === "keyonly" || !unlocked.mnemonic;
 
