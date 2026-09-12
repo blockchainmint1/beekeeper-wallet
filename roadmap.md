@@ -9,3 +9,5 @@
 - [x] Add Solana chain support with seed-derived address, balance, activity, send, receive, and chain settings
 - [x] Replace first-time wallet choices with BeeKeeper Coin Scan → Rules → Password onboarding
 - [x] Add non-destructive import of old BeeKeeper encrypted wallets to onboarding
+- [x] Make old BeeKeeper migration visible before activation even when browser storage is unavailable
+- [x] Add encrypted old BeeKeeper backup-file import without overwriting legacy data

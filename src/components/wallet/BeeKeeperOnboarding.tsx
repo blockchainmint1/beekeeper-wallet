@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Camera, Check, ChevronLeft, KeyRound, ShieldCheck, WalletCards } from "lucide-react";
+import { AlertTriangle, Camera, Check, ChevronLeft, KeyRound, ShieldCheck, Upload, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,13 @@ import { enableBiometric, isBiometricAvailable } from "@/lib/native/biometric";
 import { assessPassword } from "@/lib/security/password-strength";
 import { saveWallet, saveWalletToNewProfile } from "@/lib/txc/storage";
 import { DEFAULT_PROFILE_ID, setActiveProfileId } from "@/lib/profiles";
-import { listLegacyBeeKeeperWallets, unlockLegacyBeeKeeperWallet, type LegacyBeeKeeperWallet } from "@/lib/legacy-beekeeper";
+import {
+  isSupportedLegacyBackupFile,
+  listLegacyBeeKeeperWallets,
+  parseLegacyBeeKeeperBackup,
+  unlockLegacyBeeKeeperWallet,
+  type LegacyBeeKeeperWallet,
+} from "@/lib/legacy-beekeeper";
 import { normalizeMnemonic, validateMnemonic } from "@/lib/txc/wallet";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { toast } from "sonner";
@@ -120,6 +126,23 @@ export function BeeKeeperOnboarding() {
     }
   }
 
+  async function loadLegacyBackup(file: File | undefined) {
+    setError(null);
+    if (!file) return;
+    if (!isSupportedLegacyBackupFile(file)) {
+      setError("Choose the encrypted JSON backup downloaded from the old BeeKeeper wallet.");
+      return;
+    }
+    try {
+      const imported = parseLegacyBeeKeeperBackup(await file.text(), file.name);
+      setLegacyWallets(imported);
+      setLegacyPasswords({});
+      toast.success(`${imported.length} encrypted BeeKeeper wallet${imported.length === 1 ? "" : "s"} found in the backup.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not read that BeeKeeper backup.");
+    }
+  }
+
   function acceptPhrase(raw: string) {
     setError(null);
     const normalized = normalizeMnemonic(raw);
@@ -213,17 +236,30 @@ export function BeeKeeperOnboarding() {
         {legacyMode ? (
           <form onSubmit={(event) => { event.preventDefault(); void importLegacyWallets(); }}>
             <Button type="button" variant="ghost" className="mb-4 px-0" disabled={busy} onClick={() => { setLegacyMode(false); setError(null); }}><ChevronLeft className="mr-1 h-4 w-4" />Back to activation</Button>
-            <h2 className="text-xl font-semibold">Bring over your old BeeKeeper wallets</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Unlock each wallet with its old password. We&apos;ll copy every seed into the new wallet format and leave the old encrypted data untouched.</p>
-            <div className="mt-6 space-y-3">
-              {legacyWallets.map((wallet) => (
-                <div key={wallet.id} className="rounded-md border border-border p-4">
-                  <Label htmlFor={`legacy-${wallet.id}`}>{wallet.label} old password</Label>
-                  <Input id={`legacy-${wallet.id}`} className="mt-2" type="password" autoComplete="current-password" value={legacyPasswords[wallet.id] ?? ""} onChange={(event) => setLegacyPasswords((current) => ({ ...current, [wallet.id]: event.target.value }))} disabled={busy} />
+            <h2 className="text-xl font-semibold">Import your old BeeKeeper wallet</h2>
+            {legacyWallets.length > 0 ? (
+              <>
+                <p className="mt-2 text-sm text-muted-foreground">We found your encrypted wallet data. Unlock each wallet with its old password. The old copy will remain untouched.</p>
+                <div className="mt-6 space-y-3">
+                  {legacyWallets.map((wallet) => (
+                    <div key={wallet.id} className="rounded-md border border-border p-4">
+                      <Label htmlFor={`legacy-${wallet.id}`}>{wallet.label} old password</Label>
+                      <Input id={`legacy-${wallet.id}`} className="mt-2" type="password" autoComplete="current-password" value={legacyPasswords[wallet.id] ?? ""} onChange={(event) => setLegacyPasswords((current) => ({ ...current, [wallet.id]: event.target.value }))} disabled={busy} />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="my-6 h-px bg-border" />
+              </>
+            ) : (
+              <div className="mt-5 rounded-md border border-border p-4">
+                <p className="text-sm font-medium">The old saved wallet is not available to this page</p>
+                <p className="mt-1 text-sm text-muted-foreground">This happens when it was used in another browser, app, or website address. Choose its encrypted backup file, or go back and enter the recovery words.</p>
+                <Label htmlFor="legacy-backup-file" className="mt-4 inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+                  <Upload className="h-4 w-4" /> Choose encrypted backup
+                </Label>
+                <Input id="legacy-backup-file" type="file" accept=".json,application/json,text/plain" className="sr-only" onChange={(event) => void loadLegacyBackup(event.target.files?.[0])} />
+              </div>
+            )}
+            {legacyWallets.length > 0 && <><div className="my-6 h-px bg-border" />
             <p className="text-sm font-medium">Choose one new password</p>
             <p className="mt-1 text-xs text-muted-foreground">This new password will unlock all imported wallets on this device.</p>
             <div className="mt-4 space-y-4">
@@ -233,7 +269,8 @@ export function BeeKeeperOnboarding() {
               {biometricAvailable && <div className="flex items-center justify-between gap-4 rounded-md border border-border p-4"><div><p className="text-sm font-medium">Biometric unlock</p><p className="mt-1 text-xs text-muted-foreground">Use Face ID or fingerprint after import.</p></div><Switch checked={useBiometrics} onCheckedChange={setUseBiometrics} aria-label="Use biometric unlock" /></div>}
               {error && <ErrorMessage>{error}</ErrorMessage>}
               <Button type="submit" className="w-full" disabled={busy}>{busy ? "Importing…" : `Import ${legacyWallets.length} wallet${legacyWallets.length === 1 ? "" : "s"}`}</Button>
-            </div>
+            </div></>}
+            {error && legacyWallets.length === 0 && <ErrorMessage>{error}</ErrorMessage>}
           </form>
         ) : step === 1 && (
           <div>
@@ -246,18 +283,16 @@ export function BeeKeeperOnboarding() {
             <Textarea value={manualPhrase} onChange={(event) => setManualPhrase(event.target.value.slice(0, 1000))} rows={4} placeholder="Enter 12 or 24 recovery words" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} className="font-mono" />
             {error && <ErrorMessage>{error}</ErrorMessage>}
             <Button variant="secondary" className="mt-3 w-full" disabled={!manualPhrase.trim()} onClick={() => acceptPhrase(manualPhrase)}>Continue with these words</Button>
-            {legacyWallets.length > 0 && (
-              <div className="mt-6 rounded-md border border-border bg-muted/30 p-4">
+            <div className="mt-6 rounded-md border border-border bg-muted/30 p-4">
                 <div className="flex items-start gap-3">
                   <WalletCards className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
                     <h3 className="font-semibold">Already used the old BeeKeeper wallet?</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">We found {legacyWallets.length} encrypted wallet{legacyWallets.length === 1 ? "" : "s"} on this device. Bring them over without scanning your coin again.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{legacyWallets.length > 0 ? `We found ${legacyWallets.length} encrypted wallet${legacyWallets.length === 1 ? "" : "s"} on this device.` : "Use the old saved wallet, an encrypted backup file, or your recovery words."}</p>
                     <Button type="button" variant="outline" className="mt-3 w-full" onClick={() => { setLegacyMode(true); setError(null); }}>Import old BeeKeeper wallet{legacyWallets.length === 1 ? "" : "s"}</Button>
                   </div>
                 </div>
               </div>
-            )}
             <div className="mt-8 flex flex-col items-center gap-2 text-sm text-muted-foreground">
               <a href="https://coldstoragecoins.com" target="_blank" rel="noreferrer" className="underline underline-offset-4">Don&apos;t have a Copper Coin yet?</a>
               <a href="https://words.honest.money" target="_blank" rel="noreferrer" className="underline underline-offset-4">Really know what you&apos;re doing? Get some words</a>
