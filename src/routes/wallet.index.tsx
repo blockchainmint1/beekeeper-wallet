@@ -533,10 +533,12 @@ function WalletHome() {
       queryFn: () => watchApi(w.chain).getAddressStats(w.address),
     })),
   });
-  const activeWatchTxs = useQuery({
-    queryKey: ["watch-txs", activeWatch?.chain, activeWatch?.address],
-    enabled: !!activeWatch,
-    queryFn: () => watchApi(activeWatch!.chain).getAddressTxs(activeWatch!.address),
+  const watchTxs = useQueries({
+    queries: watchList.map((w) => ({
+      queryKey: ["watch-txs", w.chain, w.address],
+      enabled: !!w.address,
+      queryFn: () => watchApi(w.chain).getAddressTxs(w.address),
+    })),
   });
 
   /** Latest USD price for a watch-only tile's chain (null when unknown). */
@@ -563,10 +565,12 @@ function WalletHome() {
       staleTime: 30_000,
     })),
   });
-  const activeWifTxs = useQuery({
-    queryKey: ["wif-txs", activeWif?.chain, activeWif?.address],
-    enabled: !!activeWif,
-    queryFn: () => wifApi(activeWif!.chain).getAddressTxs(activeWif!.address),
+  const wifTxs = useQueries({
+    queries: wifList.map((w) => ({
+      queryKey: ["wif-txs", w.chain, w.address],
+      enabled: !!w.address,
+      queryFn: () => wifApi(w.chain).getAddressTxs(w.address),
+    })),
   });
 
   return (
