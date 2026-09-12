@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { CASHOUT_DISCLOSURES, MERCHANT_FEE_BPS, ORDER_FEE_BPS, ORDER_MAX_USD, ORDER_MIN_USD } from "./vectorpay";
+import { CASHOUT_DISCLOSURES, MERCHANT_FEE_BPS, ORDER_FEE_BPS, ORDER_MAX_USD, ORDER_MIN_USD, type CashoutAsset, type CashoutChain } from "./vectorpay";
 
 const allowedDisclosureIds = new Set(CASHOUT_DISCLOSURES.map((item) => item.id));
+const CASHOUT_CHAINS: CashoutChain[] = ["txc", "base", "eth", "bsc", "tron"];
+const CASHOUT_ASSET_SYMBOLS: CashoutAsset[] = ["TSD", "USDC", "USDT"];
 
 const startSchema = z
   .object({
@@ -17,8 +19,8 @@ const startSchema = z
     transfers: z
       .array(
         z.object({
-          chain: z.string().trim().min(2).max(16).regex(/^[a-z0-9-]+$/),
-          asset: z.string().trim().min(1).max(12).regex(/^[A-Za-z0-9]+$/),
+          chain: z.enum(["txc", "base", "eth", "bsc", "tron"]),
+          asset: z.enum(["TSD", "USDC", "USDT"]),
           usd: z.number().finite().min(0).max(ORDER_MAX_USD),
         }),
       )
@@ -71,15 +73,21 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
     const feeBps = data.merchantId ? MERCHANT_FEE_BPS : ORDER_FEE_BPS;
     const feeUsd = Math.round(data.usd * (feeBps / 10_000) * 100) / 100;
     if (!vectorPayConfigured()) {
-      return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: "Cash out is not configured yet." };
+      return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: "Cash out is not configured yet.", transfers: data.transfers };
     }
-    // Settlement leg: Base USDC when everything came from Base, otherwise TSD.
-    const chain = data.transfers.every((row) => row.chain === "base") ? "base" : "txc";
-    const asset = chain === "base" ? "USDC" : "TSD";
-    const destination = cashoutDepositAddress(chain);
-    if (!destination) {
-      return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: `The ${chain === "txc" ? "TEXITcoin" : "Base"} cash-out address is not configured.` };
+
+    // Every selected chain needs a treasury deposit address.
+    for (const t of data.transfers) {
+      if (!cashoutDepositAddress(t.chain)) {
+        return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: `The ${t.chain} cash-out address is not configured.`, transfers: data.transfers };
+      }
     }
+
+    // Use the largest transfer as the order's headline asset/chain.
+    const primary = [...data.transfers].sort((a, b) => b.usd - a.usd)[0];
+    const chain = primary.chain;
+    const asset = primary.asset;
+    const destination = cashoutDepositAddress(chain)!;
 
     const returnOrigin = "https://beekeeper.money";
     const returnUrl = `${returnOrigin}/wallet/order/${encodeURIComponent(orderId)}`;
@@ -100,9 +108,14 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
       return_url: returnUrl,
       cancel_url: returnUrl,
       accepted_disclaimers: data.acceptedDisclaimers,
-      transfers: data.transfers.map((row) => ({ chain: row.chain, asset: row.asset, usd: row.usd.toFixed(2) })),
+      transfers: data.transfers.map((row) => ({
+        chain: row.chain,
+        asset: row.asset,
+        usd: row.usd.toFixed(2),
+        destination_address: cashoutDepositAddress(row.chain)!,
+      })),
       ...(data.merchantId ? { merchant_ref: data.merchantId } : {}),
     });
-    return { orderId, feeUsd, feeBps, chain, asset, registered: relay.ok, handoffUrl: relay.checkoutUrl, detail: relay.detail };
+    return { orderId, feeUsd, feeBps, chain, asset, registered: relay.ok, handoffUrl: relay.checkoutUrl, detail: relay.detail, transfers: data.transfers };
 
   });
