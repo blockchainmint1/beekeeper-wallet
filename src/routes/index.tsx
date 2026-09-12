@@ -141,17 +141,20 @@ function Home() {
       <header className="text-center mb-12">
         <img
           src="/icon-512.webp"
-          alt="Honest Money Ecosystem"
+          alt="BeeKeeper Wallet"
           width={64}
           height={64}
           className="mx-auto mb-5 h-16 w-16 rounded-2xl shadow-lg shadow-amber-900/40"
         />
 
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">honest.money</h1>
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">BeeKeeper</h1>
+        <p className="mt-2 text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          beekeeper.money
+        </p>
         <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
           A self-custodial wallet for TEXITcoin (TXC), Iskander Coin (ISK), Zero
-          Chill Units (ZCU), and EVM Stablecoins. Your seed phrase stays on your
-          device, encrypted with your password.
+          Chill Units (ZCU), Bitcoin, and EVM Stablecoins. Your seed phrase stays
+          on your device, encrypted with your password.
         </p>
       </header>
 
