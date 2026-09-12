@@ -56,6 +56,8 @@ import { EVM_CHAINS, deriveEvmAccount, evmClient, formatEth, setZcuExplorerBase,
 import { TxDetailSheet, type TxDetail } from "@/components/wallet/TxDetailSheet";
 import { WalletDetailSheet } from "@/components/wallet/WalletDetailSheet";
 import { ReorderTilesSheet } from "@/components/wallet/ReorderTilesSheet";
+import { PortfolioSummary } from "@/components/wallet/PortfolioSummary";
+
 import { useHideBalances, maskAmount } from "@/lib/hide-balances";
 import { QrCode as QrCodeSvg } from "@/components/wallet/QrCode";
 import {
@@ -570,7 +572,10 @@ function WalletHome() {
     <main className="flex-1 flex flex-col min-h-0">
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         <div className="mx-auto max-w-3xl w-full flex-1">
+          {/* Post-login summary: total value + per-wallet breakdown */}
+          <PortfolioSummary />
           {/* Swipeable chain tiles */}
+
           <div className="relative">
             <Button
               variant="ghost"
