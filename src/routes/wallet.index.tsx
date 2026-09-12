@@ -58,7 +58,7 @@ import { WalletDetailSheet } from "@/components/wallet/WalletDetailSheet";
 import { ReorderTilesSheet } from "@/components/wallet/ReorderTilesSheet";
 import { PortfolioSummary } from "@/components/wallet/PortfolioSummary";
 import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
-import { LegacyBeeKeeperImportCard } from "@/components/wallet/LegacyBeeKeeperImportCard";
+
 
 import { useHideBalances, maskAmount } from "@/lib/hide-balances";
 import { QrCode as QrCodeSvg } from "@/components/wallet/QrCode";
@@ -578,8 +578,6 @@ function WalletHome() {
     <main className="flex-1 flex flex-col min-h-0">
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         <div className="mx-auto max-w-3xl w-full flex-1">
-          {/* Old BeeKeeper wallet detected in this browser? Offer to import it. */}
-          <LegacyBeeKeeperImportCard />
           {/* Post-login summary: total value + per-wallet breakdown */}
           <PortfolioSummary />
           {/* Optional merchant linking tile */}
