@@ -25,7 +25,7 @@ import {
   type NectarManifest,
 } from "@/lib/nectar/link";
 
-export function NectarLinkCard({ compact }: { compact?: boolean }) {
+export function NectarLinkCard({ compact, hideWhenLinked }: { compact?: boolean; hideWhenLinked?: boolean }) {
   const { unlocked } = useWallet();
   const seedless = !unlocked || unlocked.mode === "keyonly" || !unlocked.mnemonic;
 
@@ -41,6 +41,8 @@ export function NectarLinkCard({ compact }: { compact?: boolean }) {
   useEffect(() => {
     setLinks(listLinks());
   }, [unlocked]);
+
+  if (hideWhenLinked && links.length > 0) return null;
 
   async function onLoad(raw: string) {
     setError(null);

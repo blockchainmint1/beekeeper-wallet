@@ -973,7 +973,7 @@ function WalletHome() {
           />
 
           {/* Optional merchant linking tile */}
-          <NectarLinkCard compact />
+          <NectarLinkCard compact hideWhenLinked />
 
           <div className="px-4 pt-4">
             <Button asChild variant="ghost" className="w-full justify-between border-y border-border/60 py-6 text-sm font-semibold">
