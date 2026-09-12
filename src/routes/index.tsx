@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Fingerprint } from "lucide-react";
+import { Fingerprint, X } from "lucide-react";
 import { hasWallet } from "@/lib/txc/storage";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -49,6 +49,26 @@ function Home() {
     enabled: false,
   });
   const [postUpdate, setPostUpdate] = useState(false);
+  // Matches DISMISS_KEY in LegacyBeeKeeperImportCard — set there when the user
+  // taps "Not now" or completes an import, so this notice follows suit.
+  const LEGACY_DISMISS_KEY = "hme.legacy-beekeeper-dismissed.v2";
+  const [legacyNotice, setLegacyNotice] = useState(false);
+  useEffect(() => {
+    try {
+      setLegacyNotice(
+        listLegacyBeeKeeperWallets().length > 0 &&
+          !window.localStorage.getItem(LEGACY_DISMISS_KEY),
+      );
+    } catch {
+      setLegacyNotice(false);
+    }
+  }, []);
+  const dismissLegacyNotice = () => {
+    try {
+      window.localStorage.setItem(LEGACY_DISMISS_KEY, "1");
+    } catch { /* ignore */ }
+    setLegacyNotice(false);
+  };
 
   useEffect(() => {
     // Set by applyWebUpdate() right before the hard reload: the reload wipes
