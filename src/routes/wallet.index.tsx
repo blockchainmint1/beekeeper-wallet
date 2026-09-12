@@ -855,7 +855,7 @@ function WalletHome() {
           <section className="mt-8 px-4">
             <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
 
-            {enabled.includes("txc") && !activeWatch && !activeWif && (
+            {enabled.includes("txc") && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   TEXITcoin
@@ -985,7 +985,7 @@ function WalletHome() {
               </div>
             )}
 
-            {enabled.includes("isk") && !activeWatch && !activeWif && (
+            {enabled.includes("isk") && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   IskanderCoin
@@ -1001,7 +1001,7 @@ function WalletHome() {
                 />
               </div>
             )}
-            {enabled.includes("btc") && !activeWatch && !activeWif && (
+            {enabled.includes("btc") && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Bitcoin
@@ -1017,7 +1017,7 @@ function WalletHome() {
                 />
               </div>
             )}
-            {enabled.includes("ltc") && !activeWatch && !activeWif && (
+            {enabled.includes("ltc") && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Litecoin
@@ -1033,7 +1033,7 @@ function WalletHome() {
                 />
               </div>
             )}
-            {enabled.includes("doge") && !activeWatch && !activeWif && (
+            {enabled.includes("doge") && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Dogecoin
@@ -1049,7 +1049,7 @@ function WalletHome() {
                 />
               </div>
             )}
-            {enabled.includes("tron") && !activeWatch && !activeWif && (
+            {enabled.includes("tron") && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Tron
@@ -1057,7 +1057,7 @@ function WalletHome() {
                 <TronActivity address={tronAddress} />
               </div>
             )}
-            {enabled.includes("solana") && !activeWatch && !activeWif && (
+            {enabled.includes("solana") && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Solana
