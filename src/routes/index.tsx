@@ -188,11 +188,21 @@ function Home() {
 
       {exists ? (
         <>
-        {listLegacyBeeKeeperWallets().length > 0 && (
+        {legacyNotice && (
           <Card className="mb-4 border-primary/30 bg-primary/5">
-            <CardContent className="pt-6 text-sm text-muted-foreground">
-              We found an old BeeKeeper wallet saved in this browser. Unlock your wallet and
-              you&apos;ll get the option to import it — your current wallet won&apos;t be changed.
+            <CardContent className="pt-6 text-sm text-muted-foreground flex items-start gap-3">
+              <p className="flex-1">
+                We found an old BeeKeeper wallet saved in this browser. Unlock your wallet and
+                you&apos;ll get the option to import it — your current wallet won&apos;t be changed.
+              </p>
+              <button
+                type="button"
+                onClick={dismissLegacyNotice}
+                aria-label="Dismiss"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </CardContent>
           </Card>
         )}
@@ -283,16 +293,6 @@ function Home() {
         </>
       )}
 
-
-      <section className="mt-12 rounded-xl border border-border/60 bg-card/40 p-5 text-sm text-muted-foreground">
-        <h2 className="font-semibold text-foreground mb-2">Moving from the old BeeKeeper app?</h2>
-        <p>
-          This is the new BeeKeeper. It <strong>cannot</strong> change anything saved by the old
-          app, so nothing in your existing wallet is overwritten. If the old wallet is saved in
-          this browser, unlock here and you&apos;ll be offered a one-tap import. Otherwise, back up
-          your seed phrase in the old app and choose <em>Import a different wallet</em> here.
-        </p>
-      </section>
     </main>
   );
 }
