@@ -42,13 +42,37 @@ function looksLikePublicAddressOrKey(value: string): boolean {
 
 function HoneycombMark() {
   return (
-    <div className="mx-auto grid h-20 w-20 place-items-center rounded-lg border border-primary/30 bg-primary/10 text-primary" aria-hidden="true">
-      <svg viewBox="0 0 64 64" className="h-14 w-14" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M20 8 30 14v12l-10 6-10-6V14l10-6Zm24 0 10 6v12l-10 6-10-6V14l10-6ZM32 30l10 6v12L32 54l-10-6V36l10-6Z" />
-        <path d="M23 22c6-8 13-8 18 0M27 23c-4 7 1 15 5 17 4-2 9-10 5-17M24 29h16" />
+    <div className="relative mx-auto flex h-20 w-20 items-center justify-center" aria-hidden="true">
+      <div className="absolute inset-0 rounded-full opacity-60 blur-xl" style={{ background: "radial-gradient(circle, oklch(0.769 0.188 70.08) 0%, transparent 70%)" }} />
+      <svg viewBox="0 0 64 64" className="relative h-20 w-20">
+        <defs>
+          <linearGradient id="combFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="oklch(0.88 0.16 88)" />
+            <stop offset="100%" stopColor="oklch(0.62 0.17 60)" />
+          </linearGradient>
+        </defs>
+        {[[32, 14], [20, 21], [44, 21], [32, 28], [20, 35], [44, 35], [32, 42]].map(([cx, cy], i) => (
+          <polygon key={i} points={hexPoints(cx, cy, 6.5)} fill="url(#combFill)" stroke="oklch(0.4 0.08 70)" strokeWidth="0.8" opacity={0.95} />
+        ))}
+        <g transform="translate(40 46) rotate(20)">
+          <ellipse cx="0" cy="0" rx="7" ry="4.5" fill="oklch(0.88 0.18 92)" stroke="oklch(0.2 0.02 80)" strokeWidth="0.9" />
+          <rect x="-4" y="-4.5" width="2" height="9" fill="oklch(0.2 0.02 80)" />
+          <rect x="0" y="-4.5" width="2" height="9" fill="oklch(0.2 0.02 80)" />
+          <ellipse cx="-3" cy="-3" rx="4" ry="2.2" fill="#ffffff" opacity="0.85" transform="rotate(-25 -3 -3)" />
+          <ellipse cx="3" cy="-3" rx="4" ry="2.2" fill="#ffffff" opacity="0.85" transform="rotate(25 3 -3)" />
+        </g>
       </svg>
     </div>
   );
+}
+
+function hexPoints(cx: number, cy: number, r: number): string {
+  const pts: string[] = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 2;
+    pts.push(`${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`);
+  }
+  return pts.join(" ");
 }
 
 export function BeeKeeperOnboarding() {
