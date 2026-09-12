@@ -2437,16 +2437,7 @@ function WatchOnlyActivity({
   const own = wallet.address;
   const meta = WATCH_CHAIN_META[wallet.chain];
   return (
-    <section className="mt-8 px-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Recent activity</h2>
-        <button
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-          onClick={onRefresh}
-        >
-          <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
-      </div>
+    <section>
       {loading && !txs ? (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
