@@ -56,7 +56,6 @@ import { EVM_CHAINS, deriveEvmAccount, evmClient, formatEth, setZcuExplorerBase,
 import { TxDetailSheet, type TxDetail } from "@/components/wallet/TxDetailSheet";
 import { WalletDetailSheet } from "@/components/wallet/WalletDetailSheet";
 import { ReorderTilesSheet } from "@/components/wallet/ReorderTilesSheet";
-import { PortfolioSummary } from "@/components/wallet/PortfolioSummary";
 import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 import { BalanceHero, type BreakdownRow } from "@/components/wallet/BalanceHero";
 import { UnifiedActivity, type ActivityRow } from "@/components/wallet/UnifiedActivity";
