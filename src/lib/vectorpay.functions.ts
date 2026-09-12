@@ -1,12 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { CASHOUT_DISCLOSURES, ORDER_FEE_BPS, ORDER_MAX_USD, ORDER_MIN_USD } from "./vectorpay";
+import { CASHOUT_DISCLOSURES, MERCHANT_FEE_BPS, ORDER_FEE_BPS, ORDER_MAX_USD, ORDER_MIN_USD } from "./vectorpay";
 
 const allowedDisclosureIds = new Set(CASHOUT_DISCLOSURES.map((item) => item.id));
-const assetChain = z.discriminatedUnion("asset", [
-  z.object({ asset: z.literal("TSD"), chain: z.literal("txc") }),
-  z.object({ asset: z.literal("USDC"), chain: z.literal("base") }),
-]);
 
 const startSchema = z
   .object({
@@ -15,8 +11,20 @@ const startSchema = z
     name: z.string().trim().min(2).max(120).regex(/^[\p{L}\p{M}.' -]+$/u, "Enter a valid legal name."),
     email: z.string().trim().email().max(200),
     acceptedDisclaimers: z.array(z.string().min(1).max(64)).length(CASHOUT_DISCLOSURES.length),
+    /** NectarPay merchant id, when this wallet is linked — 0% fee tier. */
+    merchantId: z.string().trim().min(3).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
+    /** What the merchant actually sent, wallet by wallet. */
+    transfers: z
+      .array(
+        z.object({
+          chain: z.string().trim().min(2).max(16).regex(/^[a-z0-9-]+$/),
+          asset: z.string().trim().min(1).max(12).regex(/^[A-Za-z0-9]+$/),
+          usd: z.number().finite().min(0).max(ORDER_MAX_USD),
+        }),
+      )
+      .min(1)
+      .max(50),
   })
-  .and(assetChain)
   .superRefine((value, context) => {
     const unique = new Set(value.acceptedDisclaimers);
     if (unique.size !== CASHOUT_DISCLOSURES.length || [...unique].some((id) => !allowedDisclosureIds.has(id as never))) {
@@ -25,9 +33,10 @@ const startSchema = z
   });
 
 export const getVectorPayConfig = createServerFn({ method: "GET" }).handler(async () => {
-  const { vectorPayConfigured } = await import("./vectorpay.server");
-  return { configured: vectorPayConfigured() };
+  const { cashoutDestinations, vectorPayConfigured } = await import("./vectorpay.server");
+  return { configured: vectorPayConfigured(), destinations: cashoutDestinations() };
 });
+
 
 /**
  * Latest known status for one order reference, as reported by VectorPay's
