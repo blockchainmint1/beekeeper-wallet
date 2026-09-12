@@ -198,7 +198,7 @@ function Home() {
                     Use biometrics
                   </Button>
                 )}
-                <a href="/import" data-native-route="/import" onClick={goImport} className={buttonVariants({ variant: "ghost" })}>Import a different wallet</a>
+                <a href="/onboarding" data-native-route="/onboarding" onClick={goOnboarding} className={buttonVariants({ variant: "ghost" })}>Import a different wallet</a>
               </div>
             </form>
           </CardContent>
