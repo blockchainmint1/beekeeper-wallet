@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { deriveSolanaAccount, formatSol } from "@/lib/solana/network";
 import { SolanaActivity, SolanaTile, useSolanaData } from "@/components/wallet/SolanaTile";
+import { EvmDerivedAddresses } from "@/components/wallet/EvmDerivedAddresses";
 import { scanAccount } from "@/lib/txc/scan";
 import { scanIskAccount } from "@/lib/isk/scan";
 import { ISK_DEFAULT_KIND } from "@/lib/isk/network";
