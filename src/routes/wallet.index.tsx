@@ -393,7 +393,7 @@ function WalletHome() {
   });
   const btcTxs = useQuery({
     queryKey: ["btc-txs", btcAccount.data?.external.map((a) => a.address).join(",")],
-    enabled: !!btcAccount.data && activeChain === "btc",
+    enabled: !!btcAccount.data && btcEnabled,
     queryFn: async () => {
       const all = await Promise.all(
         [...(btcAccount.data?.external ?? []), ...(btcAccount.data?.internal ?? [])].map((a) =>
