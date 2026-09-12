@@ -58,6 +58,10 @@ import { WalletDetailSheet } from "@/components/wallet/WalletDetailSheet";
 import { ReorderTilesSheet } from "@/components/wallet/ReorderTilesSheet";
 import { PortfolioSummary } from "@/components/wallet/PortfolioSummary";
 import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
+import { BalanceHero, type BreakdownRow } from "@/components/wallet/BalanceHero";
+import { UnifiedActivity, type ActivityRow } from "@/components/wallet/UnifiedActivity";
+import { getTronHistory } from "@/lib/tron/api";
+
 
 
 import { useHideBalances, maskAmount } from "@/lib/hide-balances";
