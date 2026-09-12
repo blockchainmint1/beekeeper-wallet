@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ManifestoRouteImport } from './routes/manifesto'
 import { Route as ImportKeyRouteImport } from './routes/import-key'
 import { Route as ImportRouteImport } from './routes/import'
@@ -66,6 +67,11 @@ import { Route as ApiNectarPayInvoiceIdRouteImport } from './routes/api/nectar.p
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManifestoRoute = ManifestoRouteImport.update({
@@ -335,6 +341,7 @@ export interface FileRoutesByFullPath {
   '/import': typeof ImportRoute
   '/import-key': typeof ImportKeyRoute
   '/manifesto': typeof ManifestoRoute
+  '/onboarding': typeof OnboardingRoute
   '/wallet': typeof WalletRouteWithChildren
   '/api/solana': typeof ApiSolanaRoute
   '/api/zcu-explorer-base': typeof ApiZcuExplorerBaseRoute
@@ -390,6 +397,7 @@ export interface FileRoutesByTo {
   '/import': typeof ImportRoute
   '/import-key': typeof ImportKeyRoute
   '/manifesto': typeof ManifestoRoute
+  '/onboarding': typeof OnboardingRoute
   '/api/solana': typeof ApiSolanaRoute
   '/api/zcu-explorer-base': typeof ApiZcuExplorerBaseRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -445,6 +453,7 @@ export interface FileRoutesById {
   '/import': typeof ImportRoute
   '/import-key': typeof ImportKeyRoute
   '/manifesto': typeof ManifestoRoute
+  '/onboarding': typeof OnboardingRoute
   '/wallet': typeof WalletRouteWithChildren
   '/api/solana': typeof ApiSolanaRoute
   '/api/zcu-explorer-base': typeof ApiZcuExplorerBaseRoute
@@ -502,6 +511,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/import-key'
     | '/manifesto'
+    | '/onboarding'
     | '/wallet'
     | '/api/solana'
     | '/api/zcu-explorer-base'
@@ -557,6 +567,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/import-key'
     | '/manifesto'
+    | '/onboarding'
     | '/api/solana'
     | '/api/zcu-explorer-base'
     | '/legal/privacy'
@@ -611,6 +622,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/import-key'
     | '/manifesto'
+    | '/onboarding'
     | '/wallet'
     | '/api/solana'
     | '/api/zcu-explorer-base'
@@ -667,6 +679,7 @@ export interface RootRouteChildren {
   ImportRoute: typeof ImportRoute
   ImportKeyRoute: typeof ImportKeyRoute
   ManifestoRoute: typeof ManifestoRoute
+  OnboardingRoute: typeof OnboardingRoute
   WalletRoute: typeof WalletRouteWithChildren
   ApiSolanaRoute: typeof ApiSolanaRoute
   ApiZcuExplorerBaseRoute: typeof ApiZcuExplorerBaseRoute
@@ -691,6 +704,13 @@ declare module '@tanstack/react-router' {
       path: '/wallet'
       fullPath: '/wallet'
       preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manifesto': {
@@ -1151,6 +1171,7 @@ const rootRouteChildren: RootRouteChildren = {
   ImportRoute: ImportRoute,
   ImportKeyRoute: ImportKeyRoute,
   ManifestoRoute: ManifestoRoute,
+  OnboardingRoute: OnboardingRoute,
   WalletRoute: WalletRouteWithChildren,
   ApiSolanaRoute: ApiSolanaRoute,
   ApiZcuExplorerBaseRoute: ApiZcuExplorerBaseRoute,

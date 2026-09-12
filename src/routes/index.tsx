@@ -110,10 +110,10 @@ function Home() {
   // Belt-and-suspenders navigation. Prefer the router once React is hydrated;
   // the native static shell also has a tiny fallback script for pre-hydration
   // taps. Do not bypass the router on Capacitor when React is alive.
-  const goImport = useCallback(
+  const goOnboarding = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      void navigate({ to: "/import" }).catch(() => window.location.assign("/import"));
+      void navigate({ to: "/onboarding" }).catch(() => window.location.assign("/onboarding"));
     },
     [navigate],
   );
