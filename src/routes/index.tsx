@@ -16,16 +16,16 @@ import { listLegacyBeeKeeperWallets } from "@/lib/legacy-beekeeper";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HME Wallet — self-custodial multi-chain" },
+      { title: "BeeKeeper Wallet — self-custodial multi-chain" },
       {
         name: "description",
         content:
-          "Open an HME wallet in seconds. A self-custodial wallet for TEXITcoin (TXC), Iskander Coin (ISK), Zero Chill Units (ZCU), and EVM Stablecoins. Your keys stay on your device.",
+          "Open a BeeKeeper wallet in seconds. A self-custodial wallet for TEXITcoin (TXC), Iskander Coin (ISK), Zero Chill Units (ZCU), Bitcoin, and EVM Stablecoins. Your keys stay on your device.",
       },
-      { property: "og:title", content: "HME Wallet — self-custodial multi-chain" },
+      { property: "og:title", content: "BeeKeeper Wallet — self-custodial multi-chain" },
       {
         property: "og:description",
-        content: "A self-custodial wallet for TEXITcoin (TXC), Iskander Coin (ISK), Zero Chill Units (ZCU), and EVM Stablecoins.",
+        content: "A self-custodial wallet for TEXITcoin (TXC), Iskander Coin (ISK), Zero Chill Units (ZCU), Bitcoin, and EVM Stablecoins.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -141,17 +141,20 @@ function Home() {
       <header className="text-center mb-12">
         <img
           src="/icon-512.webp"
-          alt="Honest Money Ecosystem"
+          alt="BeeKeeper Wallet"
           width={64}
           height={64}
           className="mx-auto mb-5 h-16 w-16 rounded-2xl shadow-lg shadow-amber-900/40"
         />
 
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">honest.money</h1>
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">BeeKeeper</h1>
+        <p className="mt-2 text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          beekeeper.money
+        </p>
         <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
           A self-custodial wallet for TEXITcoin (TXC), Iskander Coin (ISK), Zero
-          Chill Units (ZCU), and EVM Stablecoins. Your seed phrase stays on your
-          device, encrypted with your password.
+          Chill Units (ZCU), Bitcoin, and EVM Stablecoins. Your seed phrase stays
+          on your device, encrypted with your password.
         </p>
       </header>
 
@@ -254,12 +257,12 @@ function Home() {
 
 
       <section className="mt-12 rounded-xl border border-border/60 bg-card/40 p-5 text-sm text-muted-foreground">
-        <h2 className="font-semibold text-foreground mb-2">Moving from the old TXC Wallet app?</h2>
+        <h2 className="font-semibold text-foreground mb-2">Moving from the old BeeKeeper app?</h2>
         <p>
-          This is a brand-new app. It <strong>cannot</strong> read the old app's storage, so
-          installing it will <strong>not</strong> overwrite or change anything in your existing
-          wallet. To move funds: open the old app, back up your seed phrase, then choose
-          <em> Import seed phrase</em> here. Better yet, setup a fresh wallet here and transfer your digital assets. You can bring the old wallet over later.
+          This is the new BeeKeeper. It <strong>cannot</strong> change anything saved by the old
+          app, so nothing in your existing wallet is overwritten. If the old wallet is saved in
+          this browser, unlock here and you&apos;ll be offered a one-tap import. Otherwise, back up
+          your seed phrase in the old app and choose <em>Import a different wallet</em> here.
         </p>
       </section>
     </main>

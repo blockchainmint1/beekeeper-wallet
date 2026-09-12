@@ -31,7 +31,7 @@ export const Route = createFileRoute("/import")({
   }),
   head: () => ({
     meta: [
-      { title: "Import wallet — HME Wallet" },
+      { title: "Import wallet — BeeKeeper Wallet" },
       {
         name: "description",
         content: "Import your existing TEXITcoin seed phrase from the old TXC Wallet app.",

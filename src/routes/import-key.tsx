@@ -17,16 +17,16 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/import-key")({
   head: () => ({
     meta: [
-      { title: "Import a private key — HME Wallet" },
+      { title: "Import a private key — BeeKeeper Wallet" },
       {
         name: "description",
         content:
-          "Set up an HME wallet from a single WIF private key — no seed phrase required. The key is encrypted on your device with your password.",
+          "Set up an BeeKeeper wallet from a single WIF private key — no seed phrase required. The key is encrypted on your device with your password.",
       },
-      { property: "og:title", content: "Import a private key — HME Wallet" },
+      { property: "og:title", content: "Import a private key — BeeKeeper Wallet" },
       {
         property: "og:description",
-        content: "Set up an HME wallet from a WIF private key. No seed phrase required.",
+        content: "Set up an BeeKeeper wallet from a WIF private key. No seed phrase required.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

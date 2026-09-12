@@ -13,7 +13,7 @@ import { QrScanButton } from "@/components/wallet/QrScanButton";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wallet/wif-add")({
-  head: () => ({ meta: [{ title: "Import Private Key — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Import Private Key — BeeKeeper Wallet" }] }),
   component: WifAddPage,
 });
 

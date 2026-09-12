@@ -9,7 +9,7 @@ import { AlertTriangle, EyeOff, Eye } from "lucide-react";
 import { isNative } from "@/lib/native/platform";
 
 export const Route = createFileRoute("/wallet/backup")({
-  head: () => ({ meta: [{ title: "Backup — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Backup — BeeKeeper Wallet" }] }),
   component: BackupPage,
 });
 
@@ -100,7 +100,7 @@ function BackupPage() {
         <div className="space-y-2">
           <p>
             <strong>If you lose this phrase, your funds are gone forever.</strong> No one — not
-            HME, not Honest Money, not Apple — can recover it for you.
+            BeeKeeper, not honest.money, not Apple — can recover it for you.
           </p>
           <p>
             Anyone with these words controls your wallet. Make sure no one is looking over your

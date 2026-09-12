@@ -18,7 +18,7 @@ import {
 } from "@/lib/address-book";
 
 export const Route = createFileRoute("/wallet/contacts")({
-  head: () => ({ meta: [{ title: "Address Book — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Address Book — BeeKeeper Wallet" }] }),
   component: ContactsPage,
 });
 

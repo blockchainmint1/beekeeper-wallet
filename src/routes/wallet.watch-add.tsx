@@ -28,7 +28,7 @@ import { validateAddress } from "@/lib/address-book";
 import { lookupColdStorageCoin } from "@/lib/csc/coin-lookup.functions";
 
 export const Route = createFileRoute("/wallet/watch-add")({
-  head: () => ({ meta: [{ title: "Add watch-only wallet — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Add watch-only wallet — BeeKeeper Wallet" }] }),
   component: WatchAddPage,
 });
 

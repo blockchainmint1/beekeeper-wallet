@@ -49,7 +49,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/wallet/isk/send")({
-  head: () => ({ meta: [{ title: "Send ISK — HME Wallet" }] }),
+  head: () => ({ meta: [{ title: "Send ISK — BeeKeeper Wallet" }] }),
   validateSearch: (raw) => searchSchema.parse(raw),
   component: SendIskPage,
 });

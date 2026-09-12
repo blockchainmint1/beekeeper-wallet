@@ -193,7 +193,7 @@ export function FeaturesCard({ compact }: { compact?: boolean }) {
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Adds a Swap button on Ethereum, Base, and BSC tiles. Quotes and routing
                   are powered by LI.FI; transactions are signed on this device and
-                  broadcast through HME Wallet — no external wallet connect required.
+                  broadcast through BeeKeeper Wallet — no external wallet connect required.
                 </p>
               </div>
               <Switch

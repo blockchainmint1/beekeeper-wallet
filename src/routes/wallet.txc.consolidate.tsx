@@ -55,13 +55,13 @@ const searchSchema = z.object({ token: z.string().optional() });
 export const Route = createFileRoute("/wallet/txc/consolidate")({
   head: () => ({
     meta: [
-      { title: "Consolidate tokens — HME Wallet" },
+      { title: "Consolidate tokens — BeeKeeper Wallet" },
       {
         name: "description",
         content:
           "Sweep an Omni Layer token scattered across your TEXITcoin HD addresses into a single address.",
       },
-      { property: "og:title", content: "Consolidate tokens — HME Wallet" },
+      { property: "og:title", content: "Consolidate tokens — BeeKeeper Wallet" },
       {
         property: "og:description",
         content: "Sweep Omni Layer tokens across TEXITcoin HD addresses into one address.",
