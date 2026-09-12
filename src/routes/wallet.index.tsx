@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { deriveSolanaAccount, formatSol } from "@/lib/solana/network";
 import { SolanaActivity, SolanaTile, useSolanaData } from "@/components/wallet/SolanaTile";
