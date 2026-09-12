@@ -313,8 +313,8 @@ export function BeeKeeperOnboarding() {
           </form>
         ) : step === 1 && (
           <div>
-            <h2 className="text-xl font-semibold">Wake up your wallet</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Remove the security seal, then scan the recovery words etched into your Copper Coin.</p>
+            <h2 className="text-xl font-semibold">Scan your copper Cold Storage Coin</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Your Cold Storage Coin is the only way to activate this wallet. No phrase, no wallet. Peel off the security seal, then scan the recovery words etched underneath.</p>
             <Button className="mt-6 h-14 w-full text-base" onClick={() => setScannerOpen(true)}>
               <Camera className="mr-2 h-5 w-5" /> Scan my copper coin
             </Button>
@@ -332,17 +332,17 @@ export function BeeKeeperOnboarding() {
                   </div>
                 </div>
               </div>
-            <div className="mt-8 flex flex-col items-center gap-2 text-sm text-muted-foreground">
-              <a href="https://coldstoragecoins.com" target="_blank" rel="noreferrer" className="underline underline-offset-4">Don&apos;t have a Copper Coin yet?</a>
-              <a href="https://words.honest.money" target="_blank" rel="noreferrer" className="underline underline-offset-4">Really know what you&apos;re doing? Get some words</a>
+            <div className="mt-8 flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
+              <p>Don&apos;t have one yet? <a href="https://coldstoragecoins.com" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">Get a Cold Storage Coin</a></p>
+              <p>Really know what you&apos;re doing? <a href="https://words.honest.money" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">Get some words</a></p>
             </div>
           </div>
         )}
 
         {step === 2 && (
           <div>
-            <h2 className="text-xl font-semibold">Protect the keys to your hive</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Confirm each rule before your wallet can be activated.</p>
+            <h2 className="text-xl font-semibold">Acknowledge the rules</h2>
+            <p className="mt-2 text-sm text-muted-foreground">These four rules keep your funds yours. Please read each one.</p>
             <div className="mt-6 space-y-3">
               {DISCLAIMERS.map((text, index) => (
                 <label key={text} className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-4 text-sm leading-relaxed">
@@ -360,8 +360,8 @@ export function BeeKeeperOnboarding() {
 
         {step === 3 && (
           <form onSubmit={(event) => { event.preventDefault(); void activate(); }}>
-            <h2 className="text-xl font-semibold">Secure this device</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Choose a password that encrypts your wallet on this device.</p>
+            <h2 className="text-xl font-semibold">Set a device password</h2>
+            <p className="mt-2 text-sm text-muted-foreground">This password encrypts your wallet on this device. It can't recover your funds — only your Copper Coin can do that.</p>
             <div className="mt-6 space-y-4">
               <div><Label htmlFor="onboard-password">Wallet password</Label><Input id="onboard-password" className="mt-1" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></div>
               {password && <div><div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>Password strength</span><span>{passwordVerdict.label}</span></div><Progress value={passwordVerdict.score * 25} /></div>}
