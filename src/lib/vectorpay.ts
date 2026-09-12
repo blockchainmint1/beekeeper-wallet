@@ -86,7 +86,7 @@ export function saveLocalVectorPayOrder(order: LocalVectorPayOrder): void {
 }
 
 export function getLocalVectorPayOrder(id: string): LocalVectorPayOrder | null {
-  return readOrders().find((row) => row.id === order.id) ?? null;
+  return readOrders().find((row) => row.id === id) ?? null;
 }
 
 export async function openVectorPayCheckout(value: string): Promise<boolean> {
