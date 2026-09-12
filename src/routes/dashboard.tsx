@@ -61,6 +61,7 @@ import { BalanceHero, type BreakdownRow } from "@/components/wallet/BalanceHero"
 import { UnifiedActivity, type ActivityRow } from "@/components/wallet/UnifiedActivity";
 import { getTronHistory } from "@/lib/tron/api";
 import { WalletShell } from "@/components/wallet/WalletShell";
+import { CashoutActions } from "@/components/wallet/CashoutActions";
 
 
 
@@ -970,6 +971,11 @@ function WalletHome() {
             loading={totals.loading}
             rows={breakdown}
             onRefresh={refreshAll}
+          />
+
+          <CashoutActions
+            txcAddresses={[...ownAddresses]}
+            evmAddress={evmAddress}
           />
 
           {/* Optional merchant linking tile */}
