@@ -12,3 +12,4 @@
 - [x] Make old BeeKeeper migration visible before activation even when browser storage is unavailable
 - [x] Add encrypted old BeeKeeper backup-file import without overwriting legacy data
 - [x] Removed NectarPay merchant step from onboarding; kept it as a tile on the balance dashboard
+- [x] Split the post-unlock dashboard from the full wallet and restored the detailed wallet experience

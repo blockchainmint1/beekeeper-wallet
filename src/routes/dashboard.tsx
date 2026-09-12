@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { deriveSolanaAccount, formatSol } from "@/lib/solana/network";
 import { SolanaActivity, SolanaTile, useSolanaData } from "@/components/wallet/SolanaTile";
@@ -42,7 +42,7 @@ import { useTokenHolderTopUp } from "@/lib/txc/topup";
 import { getTxcTokenBalancesForAddresses, getOmniTxValidity } from "@/lib/txc/tokens.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowDown, ArrowUp, ArrowLeftRight, ChevronLeft, ChevronRight, RefreshCw, Send, QrCode, Eye, Trash2, Lock, Key, Loader2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowLeftRight, ChevronRight, RefreshCw, Send, QrCode, Eye, Trash2, Lock, Key, Loader2 } from "lucide-react";
 import { useFeature } from "@/lib/feature-prefs";
 import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { usePendingTxs, removePendingTx } from "@/lib/pending-tx";
@@ -56,7 +56,12 @@ import { EVM_CHAINS, deriveEvmAccount, evmClient, formatEth, setZcuExplorerBase,
 import { TxDetailSheet, type TxDetail } from "@/components/wallet/TxDetailSheet";
 import { WalletDetailSheet } from "@/components/wallet/WalletDetailSheet";
 import { ReorderTilesSheet } from "@/components/wallet/ReorderTilesSheet";
-import { PortfolioSummary } from "@/components/wallet/PortfolioSummary";
+import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
+import { BalanceHero, type BreakdownRow } from "@/components/wallet/BalanceHero";
+import { UnifiedActivity, type ActivityRow } from "@/components/wallet/UnifiedActivity";
+import { getTronHistory } from "@/lib/tron/api";
+import { WalletShell } from "@/components/wallet/WalletShell";
+
 
 
 import { useHideBalances, maskAmount } from "@/lib/hide-balances";
@@ -84,19 +89,84 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export const Route = createFileRoute("/wallet/")({
+export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "Full Wallet — BeeKeeper Wallet" },
-      { name: "description", content: "Use the complete BeeKeeper wallet experience across every enabled blockchain." },
-      { property: "og:title", content: "Full Wallet — BeeKeeper Wallet" },
-      { property: "og:description", content: "Use the complete BeeKeeper wallet experience across every enabled blockchain." },
+      { title: "Dashboard — BeeKeeper Wallet" },
+      { name: "description", content: "See your total balance and recent activity across every BeeKeeper wallet." },
+      { property: "og:title", content: "Dashboard — BeeKeeper Wallet" },
+      { property: "og:description", content: "See your total balance and recent activity across every BeeKeeper wallet." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: WalletHome,
+  component: DashboardRoute,
 });
+
+function DashboardRoute() {
+  return (
+    <WalletShell>
+      <WalletHome />
+    </WalletShell>
+  );
+}
+
+/** Net balance in sats from a mempool-style address stats object. */
+function watchStatsSats(s: unknown): number | null {
+  const st = s as
+    | {
+        chain_stats: { funded_txo_sum: number; spent_txo_sum: number };
+        mempool_stats: { funded_txo_sum: number; spent_txo_sum: number };
+      }
+    | undefined;
+  if (!st) return null;
+  return (
+    st.chain_stats.funded_txo_sum -
+    st.chain_stats.spent_txo_sum +
+    st.mempool_stats.funded_txo_sum -
+    st.mempool_stats.spent_txo_sum
+  );
+}
+
+type UtxoTxLike = {
+  txid: string;
+  status: { confirmed: boolean; block_time?: number };
+  vin: { prevout?: { scriptpubkey_address?: string; value?: number } | null }[];
+  vout: { scriptpubkey_address?: string; value: number }[];
+};
+
+/** Normalise a UTXO-chain tx list into merged-activity rows. */
+function utxoActivityRows<T extends UtxoTxLike>(opts: {
+  prefix: string;
+  chainLabel: string;
+  ticker: string;
+  format: (sats: number) => string;
+  txs: T[] | null;
+  own: Set<string>;
+  onOpen?: (tx: T, net: number, incoming: boolean) => void;
+}): ActivityRow[] {
+  return (opts.txs ?? []).slice(0, 50).map((tx) => {
+    const inSum = tx.vin
+      .filter((v) => v.prevout?.scriptpubkey_address && opts.own.has(v.prevout.scriptpubkey_address))
+      .reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
+    const outToOwn = tx.vout
+      .filter((v) => v.scriptpubkey_address && opts.own.has(v.scriptpubkey_address))
+      .reduce((s, v) => s + v.value, 0);
+    const net = outToOwn - inSum;
+    const incoming = net > 0;
+    return {
+      id: `${opts.prefix}:${tx.txid}`,
+      chainLabel: opts.chainLabel,
+      title: incoming ? "Received" : "Sent",
+      timeMs: tx.status.block_time ? tx.status.block_time * 1000 : null,
+      pending: !tx.status.confirmed,
+      amountText: `${opts.format(Math.abs(net))} ${opts.ticker}`,
+      incoming,
+      onOpen: opts.onOpen ? () => opts.onOpen!(tx, net, incoming) : undefined,
+    };
+  });
+}
+
 
 function WalletHome() {
   const { root, unlocked, seed } = useWallet();
@@ -163,28 +233,8 @@ function WalletHome() {
     [enabled, watchList, wifList],
   );
 
-  // Active tile tracked via scroll position
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  // Selected wallet — drives the sticky Send/Receive bar.
   const [activeIdx, setActiveIdx] = useState(0);
-  const scrollTo = useCallback((idx: number) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const w = el.clientWidth;
-    if (!w) return;
-    const clamped = Math.max(0, Math.min(idx, slots.length - 1));
-    el.scrollTo({ left: clamped * w, behavior: "smooth" });
-  }, [slots.length]);
-  useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      const w = el.clientWidth;
-      if (!w) return;
-      setActiveIdx(Math.round(el.scrollLeft / w));
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [slots.length]);
 
   const activeSlot: Slot = slots[activeIdx] ?? { kind: "chain", chain: "txc" };
   const activeChain: ChainId = activeSlot.kind === "chain" ? activeSlot.chain : "txc";
@@ -193,26 +243,10 @@ function WalletHome() {
 
   // Selected transaction (opens in-page detail sheet)
   const [detail, setDetail] = useState<TxDetail | null>(null);
-  // Which wallet tile's details are open
+  // Which wallet's details sheet is open
   const [tileOpen, setTileOpen] = useState<ChainId | null>(null);
-  // Long-press to rearrange
   const [reorderOpen, setReorderOpen] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFired = useRef(false);
-  const startLongPress = (action?: () => void) => {
-    longPressFired.current = false;
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = setTimeout(() => {
-      longPressFired.current = true;
-      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(15);
-      if (action) action();
-      else setReorderOpen(true);
-    }, 550);
-  };
-  const cancelLongPress = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = null;
-  };
+
 
 
   // TXC data — balance/frontier scan runs always so the portfolio total is
@@ -583,555 +617,380 @@ function WalletHome() {
     })),
   });
 
+  // ---------- Tron / EVM history at page level (merged activity) ----------
+  const tronHistory = useQuery({
+    queryKey: ["tron-history", tronAddress],
+    enabled: !!tronAddress && tronEnabled,
+    queryFn: () => getTronHistory(tronAddress!),
+    staleTime: 20_000,
+  });
+  const fetchEvmHistory = useServerFn(getEvmHistory);
+  const evmHistories = useQueries({
+    queries: evmEnabled.map((id) => ({
+      queryKey: ["evm-history", id, evmAddress],
+      enabled: !!evmAddress,
+      queryFn: () => fetchEvmHistory({ data: { chain: id, address: evmAddress! } }),
+      staleTime: 20_000,
+      refetchInterval: 45_000,
+    })),
+  });
+  const [hideSpam] = useFeature("hideSpamTokens");
+
+  // ---------- per-wallet breakdown under the big total ----------
+  const UTXO = {
+    txc: { q: account, priceUsd: price.data?.usd ?? null },
+    isk: { q: iskAccount, priceUsd: iskPrice.data?.usd ?? null },
+    btc: { q: btcAccount, priceUsd: btcPrice.data?.usd ?? null },
+    ltc: { q: ltcAccount, priceUsd: ltcPrice.data?.usd ?? null },
+    doge: { q: dogeAccount, priceUsd: dogePrice.data?.usd ?? null },
+  } as const;
+  type UtxoChain = keyof typeof UTXO;
+
+  const breakdown: BreakdownRow[] = slots.map((slot, i) => {
+    const select = () => setActiveIdx(i);
+    const selected = i === activeIdx;
+    if (slot.kind === "chain") {
+      const c = slot.chain;
+      if (c in UTXO) {
+        const u = UTXO[c as UtxoChain];
+        const meta = WATCH_CHAIN_META[c as UtxoChain];
+        const sats = u.q.data?.balanceSats ?? 0;
+        const usd = u.priceUsd != null ? meta.toCoin(sats) * u.priceUsd : null;
+        return {
+          key: `c:${c}`,
+          label: getChainLabel(c),
+          amountText: `${meta.formatCompact(sats)} ${meta.ticker}`,
+          fiatText: usd != null ? formatFiat(usd) : null,
+          loading: u.q.isLoading,
+          selected,
+          onSelect: select,
+          onDetails: () => setTileOpen(c),
+        };
+      }
+      if (c in EVM_CHAINS) {
+        const idx = evmEnabled.indexOf(c as EvmChainId);
+        const wei = evmBalances[idx]?.data ?? null;
+        const m = EVM_CHAINS[c as EvmChainId];
+        const px = allPrices.data?.prices?.[m.priceSymbol] ?? null;
+        const usd = wei != null && px != null ? (Number(wei) / 1e18) * px : null;
+        return {
+          key: `c:${c}`,
+          label: getChainLabel(c),
+          amountText: `${wei != null ? formatEth(wei) : "0"} ${m.nativeSymbol}`,
+          fiatText: usd != null ? formatFiat(usd) : null,
+          loading: evmBalances[idx]?.isLoading ?? true,
+          selected,
+          onSelect: select,
+          onDetails: () => setTileOpen(c),
+        };
+      }
+      if (c === "tron") {
+        const sun = tron.balance.data ?? 0;
+        const px = tron.price.data?.usd ?? null;
+        return {
+          key: "c:tron",
+          label: getChainLabel("tron"),
+          amountText: formatTrx(sun),
+          fiatText: px != null ? formatFiat(sunToTrx(sun) * px) : null,
+          loading: tron.balance.isLoading,
+          selected,
+          onSelect: select,
+          onDetails: () => setTileOpen("tron"),
+        };
+      }
+      const lam = solana.balance.data ?? 0;
+      const solPx = allPrices.data?.prices?.SOL ?? null;
+      return {
+        key: "c:solana",
+        label: getChainLabel("solana"),
+        amountText: `${formatSol(lam)} SOL`,
+        fiatText: solPx != null ? formatFiat((lam / 1e9) * solPx) : null,
+        loading: solana.balance.isLoading,
+        selected,
+        onSelect: select,
+        onDetails: () => setTileOpen("solana"),
+      };
+    }
+    if (slot.kind === "watch") {
+      const w = slot.watch;
+      const idx = watchList.findIndex((x) => x.id === w.id);
+      const meta = WATCH_CHAIN_META[w.chain];
+      const sats = watchStatsSats(watchStats[idx]?.data);
+      const px = watchPriceUsd(w.chain);
+      return {
+        key: `w:${w.id}`,
+        label: w.label,
+        sub: `Watch-only · ${meta.ticker}`,
+        amountText: `${meta.formatCompact(sats ?? 0)} ${meta.ticker}`,
+        fiatText: sats != null && px != null ? formatFiat(meta.toCoin(sats) * px) : null,
+        loading: watchStats[idx]?.isLoading ?? true,
+        selected,
+        onSelect: select,
+        onDetails: () => setWatchRemove(w),
+      };
+    }
+    const w = slot.wif;
+    const idx = wifList.findIndex((x) => x.id === w.id);
+    const meta = WATCH_CHAIN_META[w.chain];
+    const sats = watchStatsSats(wifStats[idx]?.data);
+    const px = watchPriceUsd(w.chain);
+    return {
+      key: `k:${w.id}`,
+      label: w.label,
+      sub: `Imported key · ${meta.ticker}`,
+      amountText: `${meta.formatCompact(sats ?? 0)} ${meta.ticker}`,
+      fiatText: sats != null && px != null ? formatFiat(meta.toCoin(sats) * px) : null,
+      loading: wifStats[idx]?.isLoading ?? true,
+      selected,
+      onSelect: select,
+      onDetails: () => setWifRemove(w),
+    };
+  });
+
+  // Total = sum of every wallet we could price.
+  const totals = (() => {
+    let sum = 0;
+    let priced = 0;
+    let loading = false;
+    slots.forEach((slot, i) => {
+      const row = breakdown[i];
+      if (row?.loading) loading = true;
+    });
+    for (const row of breakdown) {
+      if (row.fiatText == null) continue;
+      priced += 1;
+    }
+    // Recompute numerically from the same sources (fiatText is display-only).
+    for (const slot of slots) {
+      if (slot.kind === "chain") {
+        const c = slot.chain;
+        if (c in UTXO) {
+          const u = UTXO[c as UtxoChain];
+          const meta = WATCH_CHAIN_META[c as UtxoChain];
+          if (u.priceUsd != null) sum += meta.toCoin(u.q.data?.balanceSats ?? 0) * u.priceUsd;
+          continue;
+        }
+        if (c in EVM_CHAINS) {
+          const idx = evmEnabled.indexOf(c as EvmChainId);
+          const wei = evmBalances[idx]?.data ?? null;
+          const px = allPrices.data?.prices?.[EVM_CHAINS[c as EvmChainId].priceSymbol] ?? null;
+          if (wei != null && px != null) sum += (Number(wei) / 1e18) * px;
+          continue;
+        }
+        if (c === "tron") {
+          const px = tron.price.data?.usd ?? null;
+          if (px != null) sum += sunToTrx(tron.balance.data ?? 0) * px;
+          continue;
+        }
+        const solPx = allPrices.data?.prices?.SOL ?? null;
+        if (solPx != null) sum += ((solana.balance.data ?? 0) / 1e9) * solPx;
+        continue;
+      }
+      const entry = slot.kind === "watch" ? slot.watch : slot.wif;
+      const list = slot.kind === "watch" ? watchList : wifList;
+      const stats = slot.kind === "watch" ? watchStats : wifStats;
+      const idx = list.findIndex((x) => x.id === entry.id);
+      const meta = WATCH_CHAIN_META[entry.chain];
+      const sats = watchStatsSats(stats[idx]?.data);
+      const px = watchPriceUsd(entry.chain);
+      if (sats != null && px != null) sum += meta.toCoin(sats) * px;
+    }
+    return { text: priced === 0 ? "—" : formatFiat(sum), loading };
+  })();
+
+  const refreshAll = () => {
+    void qc.invalidateQueries();
+  };
+
+  // ---------- one merged activity feed across every wallet ----------
+  const activity: ActivityRow[] = [];
+
+  if (enabled.includes("txc")) {
+    for (const tx of (txs.data ?? []).slice(0, 50)) {
+      const inSum = tx.vin
+        .filter((v) => v.prevout?.scriptpubkey_address && ownAddresses.has(v.prevout.scriptpubkey_address))
+        .reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
+      const outToOwn = tx.vout
+        .filter((v) => v.scriptpubkey_address && ownAddresses.has(v.scriptpubkey_address))
+        .reduce((s, v) => s + v.value, 0);
+      const net = outToOwn - inSum;
+      const omni = decodeOmniSend(tx);
+      const omniMine =
+        omni &&
+        ((omni.sender && ownAddresses.has(omni.sender)) ||
+          (omni.reference && ownAddresses.has(omni.reference)));
+      const omniIncoming =
+        !!omni &&
+        !!omni.reference &&
+        ownAddresses.has(omni.reference) &&
+        !(omni.sender && ownAddresses.has(omni.sender));
+      const meta = omni && omniMine ? omniMetaFor(omni.propertyId) : null;
+      const incoming = meta ? omniIncoming : net > 0;
+      const omniInvalid =
+        !!meta && omniValidity.data?.[tx.txid]?.valid === false
+          ? omniValidity.data[tx.txid].reason ?? "Rejected by Omni Layer"
+          : null;
+      activity.push({
+        id: `txc:${tx.txid}`,
+        chainLabel: "TXC",
+        title: `${incoming ? "Received" : "Sent"}${meta ? ` ${meta.symbol}` : ""}`,
+        timeMs: tx.status.block_time ? tx.status.block_time * 1000 : null,
+        pending: !tx.status.confirmed,
+        note: omniInvalid ?? undefined,
+        badge: meta?.symbol,
+        amountText:
+          meta && omni
+            ? `${formatTokenAmount(omni.amount, meta.divisible)} ${meta.symbol}`
+            : `${formatTxc(Math.abs(net))} TXC`,
+        incoming,
+        onOpen: () => setDetail({ kind: "txc", tx, net, incoming }),
+      });
+    }
+  }
+
+  const forkChains: { chain: "isk" | "btc" | "ltc" | "doge"; txs: unknown; own: Set<string> }[] = [];
+  if (enabled.includes("isk")) forkChains.push({ chain: "isk", txs: iskTxs.data, own: iskOwnAddresses });
+  if (enabled.includes("btc")) forkChains.push({ chain: "btc", txs: btcTxs.data, own: btcOwnAddresses });
+  if (enabled.includes("ltc")) forkChains.push({ chain: "ltc", txs: ltcTxs.data, own: ltcOwnAddresses });
+  if (enabled.includes("doge")) forkChains.push({ chain: "doge", txs: dogeTxs.data, own: dogeOwnAddresses });
+  for (const f of forkChains) {
+    const meta = WATCH_CHAIN_META[f.chain];
+    for (const row of utxoActivityRows({
+      prefix: f.chain,
+      chainLabel: meta.ticker,
+      ticker: meta.ticker,
+      format: meta.formatCompact,
+      txs: (f.txs as AnyBtcForkTx[] | undefined) ?? null,
+      own: f.own,
+      onOpen: (tx, net, incoming) => setDetail(utxoTxDetail(f.chain, tx, net, incoming)),
+    }))
+      activity.push(row);
+  }
+
+  watchList.forEach((w, i) => {
+    const meta = WATCH_CHAIN_META[w.chain];
+    for (const row of utxoActivityRows({
+      prefix: `watch:${w.id}`,
+      chainLabel: `${meta.ticker} · watch`,
+      ticker: meta.ticker,
+      format: meta.formatCompact,
+      txs: (watchTxs[i]?.data as AnyBtcForkTx[] | undefined) ?? null,
+      own: new Set([w.address]),
+      onOpen: (tx, net, incoming) =>
+        setDetail(
+          w.chain === "txc"
+            ? { kind: "txc", tx: tx as MempoolTx, net, incoming }
+            : utxoTxDetail(w.chain, tx, net, incoming),
+        ),
+    }))
+      activity.push(row);
+  });
+
+  wifList.forEach((w, i) => {
+    const meta = WATCH_CHAIN_META[w.chain];
+    for (const row of utxoActivityRows({
+      prefix: `wif:${w.id}`,
+      chainLabel: `${meta.ticker} · key`,
+      ticker: meta.ticker,
+      format: meta.formatCompact,
+      txs: (wifTxs[i]?.data as AnyBtcForkTx[] | undefined) ?? null,
+      own: new Set([w.address]),
+      onOpen: (tx, net, incoming) =>
+        setDetail(
+          w.chain === "txc"
+            ? { kind: "txc", tx: tx as MempoolTx, net, incoming }
+            : utxoTxDetail(w.chain, tx, net, incoming),
+        ),
+    }))
+      activity.push(row);
+  });
+
+  evmEnabled.forEach((id, i) => {
+    const transfers = evmHistories[i]?.data?.transfers ?? [];
+    for (const t of hideSpam ? transfers.filter((x) => !x.spam) : transfers) {
+      activity.push({
+        id: `evm:${id}:${t.hash}:${t.asset}:${t.value}`,
+        chainLabel: CHAIN_META[id].name,
+        title: `${t.outgoing ? "Sent" : "Received"} ${t.asset}`,
+        timeMs: t.timestamp ? Date.parse(t.timestamp) : null,
+        amountText: `${t.value} ${t.asset}`,
+        incoming: !t.outgoing,
+        onOpen: () => setDetail({ kind: "evm", chain: id, transfer: t }),
+      });
+    }
+  });
+
+  if (tronEnabled) {
+    for (const t of tronHistory.data ?? []) {
+      const incoming = t.to === tronAddress;
+      const amt = Number(t.value) / 10 ** t.decimals;
+      activity.push({
+        id: `tron:${t.txid}:${t.symbol}:${t.value}`,
+        chainLabel: "TRON",
+        title: `${incoming ? "Received" : "Sent"} ${t.symbol}`,
+        timeMs: t.timestamp,
+        pending: !t.confirmed,
+        amountText: `${amt.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${t.symbol}`,
+        incoming,
+        href: `https://tronscan.org/#/transaction/${t.txid}`,
+      });
+    }
+  }
+
+  if (solanaEnabled) {
+    for (const t of solana.history.data ?? []) {
+      activity.push({
+        id: `sol:${t.signature}`,
+        chainLabel: "SOL",
+        title: `${t.incoming ? "Received" : "Sent"} SOL`,
+        timeMs: t.blockTime ? t.blockTime * 1000 : null,
+        amountText: `${formatSol(t.lamports)} SOL`,
+        incoming: t.incoming,
+        href: `https://solscan.io/tx/${encodeURIComponent(t.signature)}`,
+      });
+    }
+  }
+
+  const activityLoading =
+    txs.isLoading ||
+    iskTxs.isLoading ||
+    btcTxs.isLoading ||
+    ltcTxs.isLoading ||
+    dogeTxs.isLoading ||
+    tronHistory.isLoading ||
+    evmHistories.some((q) => q.isLoading);
+
   return (
     <main className="flex-1 flex flex-col min-h-0">
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         <div className="mx-auto max-w-3xl w-full flex-1">
-          {/* Swipeable chain tiles */}
+          {/* Big total + expandable per-wallet breakdown */}
+          <BalanceHero
+            totalText={totals.text}
+            loading={totals.loading}
+            rows={breakdown}
+            onRefresh={refreshAll}
+          />
 
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 border border-border/60 shadow-sm disabled:opacity-30"
-              onClick={() => scrollTo(activeIdx - 1)}
-              disabled={activeIdx === 0}
-              aria-label="Previous wallet"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div
-              ref={scrollerRef}
-              className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar"
-              style={{ scrollbarWidth: "none" }}
-            >
-            {slots.map((slot, slotIdx) => {
-              const key =
-                slot.kind === "chain"
-                  ? `c:${slot.chain}`
-                  : slot.kind === "watch"
-                    ? `w:${slot.watch.id}`
-                    : `k:${slot.wif.id}`;
-              const onLongPress =
-                slot.kind === "watch"
-                  ? () => setWatchRemove(slot.watch)
-                  : slot.kind === "wif"
-                    ? () => setWifRemove(slot.wif)
-                    : undefined;
-              return (
-                <div
-                  key={key}
-                  className="snap-center shrink-0 w-full px-4 pt-6"
-                  onPointerDown={() => startLongPress(onLongPress)}
-                  onPointerUp={cancelLongPress}
-                  onPointerMove={cancelLongPress}
-                  onPointerCancel={cancelLongPress}
-                  onPointerLeave={cancelLongPress}
-                  onContextMenu={(e) => e.preventDefault()}
-                >
-                  {slot.kind === "chain" && slot.chain === "txc" && (
-                    <TxcTile
-                      balanceSats={account.data?.balanceSats ?? 0}
-                      loading={account.isLoading}
-                      priceUsd={price.data?.usd ?? null}
-                      onRefresh={() => account.refetch()}
-                      refreshing={account.isFetching}
-                      label={unlocked?.label ?? "TXC Wallet"}
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setTileOpen("txc");
-                      }}
-                    />
-                  )}
-                  {slot.kind === "chain" && slot.chain === "isk" && (
-                    <BtcForkTile
-                      variant="isk"
-                      balanceSats={iskAccount.data?.balanceSats ?? 0}
-                      loading={iskAccount.isLoading}
-                      priceUsd={iskPrice.data?.usd ?? null}
-                      onRefresh={() => iskAccount.refetch()}
-                      refreshing={iskAccount.isFetching}
-                      label={getChainLabel("isk")}
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setTileOpen("isk");
-                      }}
-                    />
-                  )}
-                  {slot.kind === "chain" && slot.chain === "btc" && (
-                    <BtcForkTile
-                      variant="btc"
-                      balanceSats={btcAccount.data?.balanceSats ?? 0}
-                      loading={btcAccount.isLoading}
-                      priceUsd={btcPrice.data?.usd ?? null}
-                      onRefresh={() => btcAccount.refetch()}
-                      refreshing={btcAccount.isFetching}
-                      label={getChainLabel("btc")}
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setTileOpen("btc");
-                      }}
-                    />
-                  )}
-                  {slot.kind === "chain" && slot.chain === "ltc" && (
-                    <BtcForkTile
-                      variant="ltc"
-                      balanceSats={ltcAccount.data?.balanceSats ?? 0}
-                      loading={ltcAccount.isLoading}
-                      priceUsd={ltcPrice.data?.usd ?? null}
-                      onRefresh={() => ltcAccount.refetch()}
-                      refreshing={ltcAccount.isFetching}
-                      label={getChainLabel("ltc")}
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setTileOpen("ltc");
-                      }}
-                    />
-                  )}
-                  {slot.kind === "chain" && slot.chain === "doge" && (
-                    <BtcForkTile
-                      variant="doge"
-                      balanceSats={dogeAccount.data?.balanceSats ?? 0}
-                      loading={dogeAccount.isLoading}
-                      priceUsd={dogePrice.data?.usd ?? null}
-                      onRefresh={() => dogeAccount.refetch()}
-                      refreshing={dogeAccount.isFetching}
-                      label={getChainLabel("doge")}
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setTileOpen("doge");
-                      }}
-                    />
-                  )}
-                  {slot.kind === "chain" && slot.chain === "tron" && (
-                    <TronTile
-                      address={tronAddress}
-                      label={getChainLabel("tron")}
-                      balanceSun={tron.balance.data ?? 0}
-                      loading={tron.balance.isLoading}
-                      priceUsd={tron.price.data?.usd ?? null}
-                      tokenRows={tronTokenRows}
-                      refreshing={tron.balance.isFetching}
-                      onRefresh={() => void tron.refetch()}
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setTileOpen("tron");
-                      }}
-                    />
-                  )}
-                  {slot.kind === "chain" && slot.chain === "solana" && (
-                    <SolanaTile
-                      address={solanaAccount?.address ?? null}
-                      label={getChainLabel("solana")}
-                      balanceLamports={solana.balance.data ?? 0}
-                      loading={solana.balance.isLoading}
-                      priceUsd={allPrices.data?.prices?.SOL ?? null}
-                      refreshing={solana.balance.isFetching}
-                      onRefresh={() => void solana.refetch()}
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setTileOpen("solana");
-                      }}
-                    />
-                  )}
-                  {slot.kind === "chain" && slot.chain !== "txc" && slot.chain !== "btc" && slot.chain !== "isk" && slot.chain !== "ltc" && slot.chain !== "doge" && slot.chain !== "tron" && slot.chain !== "solana" && (
-                    <EvmTile
-                      chainId={slot.chain as EvmChainId}
-                      address={evmAddress}
-                      label={getChainLabel(slot.chain)}
-                      balanceWei={evmBalances[evmEnabled.indexOf(slot.chain as EvmChainId)]?.data ?? null}
-                      loading={evmBalances[evmEnabled.indexOf(slot.chain as EvmChainId)]?.isLoading ?? true}
-                      priceUsd={
-                        allPrices.data?.prices?.[EVM_CHAINS[slot.chain as EvmChainId].priceSymbol] ?? null
-                      }
-                      onRefresh={async () => {
-                        const chain = slot.chain as EvmChainId;
-                        const addr = evmAddress;
-                        // Refetch native balance
-                        await evmBalances[evmEnabled.indexOf(chain)]?.refetch();
-                        // Invalidate ERC-20 balances and tx history for this chain+address
-                        await Promise.all([
-                          qc.invalidateQueries({ queryKey: ["erc20-balance", chain] }),
-                          qc.invalidateQueries({ queryKey: ["evm-history", chain, addr] }),
-                          qc.invalidateQueries({ queryKey: ["all-prices"] }),
-                        ]);
-                      }}
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setTileOpen(slot.chain);
-                      }}
-                    />
-                  )}
-                  {slot.kind === "watch" && (
-                    <WatchOnlyTile
-                      wallet={slot.watch}
-                      stats={watchStats[watchList.findIndex((w) => w.id === slot.watch.id)]?.data ?? null}
-                      loading={
-                        watchStats[watchList.findIndex((w) => w.id === slot.watch.id)]?.isLoading ?? true
-                      }
-                      priceUsd={watchPriceUsd(slot.watch.chain)}
-                      onRefresh={() =>
-                        watchStats[watchList.findIndex((w) => w.id === slot.watch.id)]?.refetch()
-                      }
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setActiveIdx(slotIdx);
-                        setWatchRemove(slot.watch);
-                      }}
-                    />
-                  )}
-                  {slot.kind === "wif" && (
-                    <WifTile
-                      entry={slot.wif}
-                      stats={wifStats[wifList.findIndex((w) => w.id === slot.wif.id)]?.data ?? null}
-                      loading={
-                        wifStats[wifList.findIndex((w) => w.id === slot.wif.id)]?.isLoading ?? true
-                      }
-                      priceUsd={
-                        slot.wif.chain === "txc"
-                          ? price.data?.usd ?? null
-                          : iskPrice.data?.usd ?? null
-                      }
-                      onRefresh={() =>
-                        wifStats[wifList.findIndex((w) => w.id === slot.wif.id)]?.refetch()
-                      }
-                      onOpenDetails={() => {
-                        if (longPressFired.current) return;
-                        setActiveIdx(slotIdx);
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
+          {/* Optional merchant linking tile */}
+          <NectarLinkCard compact />
 
-          </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 border border-border/60 shadow-sm disabled:opacity-30"
-              onClick={() => scrollTo(activeIdx + 1)}
-              disabled={activeIdx >= slots.length - 1}
-              aria-label="Next wallet"
-            >
-              <ChevronRight className="h-5 w-5" />
+          <div className="px-4 pt-4">
+            <Button asChild variant="ghost" className="w-full justify-between border-y border-border/60 py-6 text-sm font-semibold">
+              <Link to="/wallet">
+                Continue to wallet
+                <ChevronRight className="h-4 w-4" />
+              </Link>
             </Button>
           </div>
 
-          {/* Dots indicator */}
-          {slots.length > 1 && (
-            <div className="flex justify-center gap-1.5 mt-3">
-              {slots.map((s, i) => (
-                <button
-                  key={s.kind === "chain" ? `c:${s.chain}` : s.kind === "watch" ? `w:${s.watch.id}` : `k:${s.wif.id}`}
-                  type="button"
-                  onClick={() => scrollTo(i)}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === activeIdx ? "w-6 bg-foreground" : "w-1.5 bg-muted-foreground/40 hover:bg-muted-foreground/70"
-                  }`}
-                  aria-label={`Go to wallet ${i + 1}`}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Coins found on old derivation paths (old app / BlueWallet import) */}
-          {activeChain === "txc" && !activeWatch && !activeWif && (
-            <OldPathBanner
-              branches={account.isFetchedAfterMount ? account.data?.branches : undefined}
-            />
-          )}
-          {activeChain === "txc" && !activeWatch && !activeWif && (
-            <TxcTokens addresses={[...ownAddresses]} pendingIn={pendingOmniIn} />
-          )}
-          {/* Imported keys / watch-only TXC addresses can also hold Omni tokens */}
-          {activeWif?.chain === "txc" && (
-            <TxcTokens
-              addresses={[activeWif.address]}
-              readOnly
-              sendFromWifId={activeWif.kind === "bip44" ? activeWif.id : undefined}
-            />
-          )}
-          {activeWatch?.chain === "txc" && (
-            <TxcTokens addresses={[activeWatch.address]} readOnly />
-          )}
-
-          {/* Cross-chain recent activity — every enabled wallet's history is
-              shown on the landing page, not just the currently selected tile. */}
-          <section className="mt-8 px-4">
-            <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
-
-            {enabled.includes("txc") && (
-              <div className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  TEXITcoin
-                </h3>
-                {account.isLoading || txs.isLoading ? (
-                  <div className="space-y-2">
-                    {[0, 1, 2].map((i) => (
-                      <div key={i} className="h-16 rounded-lg bg-muted/40 animate-pulse" />
-                    ))}
-                  </div>
-                ) : account.isError ? (
-                  <Card>
-                    <CardContent className="pt-6 text-sm text-muted-foreground">
-                      Couldn't reach mempool.texitcoin.org.{" "}
-                      <button className="underline" onClick={() => account.refetch()}>
-                        try again
-                      </button>
-                      .
-                    </CardContent>
-                  </Card>
-                ) : (txs.data?.length ?? 0) === 0 ? (
-                  <Card>
-                    <CardContent className="pt-6 text-sm text-muted-foreground">
-                      No TEXITcoin transactions yet.
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <ul className="space-y-2">
-                    {txs.data!.slice(0, 50).map((tx) => {
-                      const inSum = tx.vin
-                        .filter((v) => v.prevout?.scriptpubkey_address && ownAddresses.has(v.prevout?.scriptpubkey_address))
-                        .reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
-                      const outToOwn = tx.vout
-                        .filter((v) => v.scriptpubkey_address && ownAddresses.has(v.scriptpubkey_address))
-                        .reduce((s, v) => s + v.value, 0);
-                      const net = outToOwn - inSum;
-                      const omni = decodeOmniSend(tx);
-                      const omniMine =
-                        omni &&
-                        ((omni.sender && ownAddresses.has(omni.sender)) ||
-                          (omni.reference && ownAddresses.has(omni.reference)));
-                      const omniIncoming =
-                        !!omni && !!omni.reference && ownAddresses.has(omni.reference) &&
-                        !(omni.sender && ownAddresses.has(omni.sender));
-                      const meta = omni && omniMine ? omniMetaFor(omni.propertyId) : null;
-                      const incoming = meta ? omniIncoming : net > 0;
-                      const pending = !tx.status.confirmed;
-                      const omniInvalid =
-                        !!meta && omniValidity.data?.[tx.txid]?.valid === false
-                          ? omniValidity.data[tx.txid].reason ?? "Rejected by Omni Layer"
-                          : null;
-                      return (
-                        <li key={tx.txid}>
-                          <button
-                            type="button"
-                            onClick={() => setDetail({ kind: "txc", tx, net, incoming })}
-                            className="w-full flex items-center gap-3 rounded-lg border border-border/60 bg-card/40 px-4 py-3 hover:bg-card transition-colors text-left"
-                          >
-                            <div
-                              className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                                meta
-                                  ? "bg-amber-500/15 text-amber-300 text-xs font-bold"
-                                  : incoming
-                                    ? "bg-emerald-500/15 text-emerald-400"
-                                    : "bg-rose-500/15 text-rose-400"
-                              }`}
-                            >
-                              {meta ? (
-                                meta.symbol.slice(0, 2)
-                              ) : incoming ? (
-                                <ArrowDown className="h-4 w-4" />
-                              ) : (
-                                <ArrowUp className="h-4 w-4" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium">
-                                {incoming ? "Received" : "Sent"}
-                                {meta ? ` ${meta.symbol}` : ""}
-                                {omniInvalid && (
-                                  <span className="ml-2 rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-destructive">
-                                    not applied
-                                  </span>
-                                )}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {pending ? (
-                                  <span className="inline-flex items-center gap-1 text-amber-400">
-                                    <Loader2 className="h-3 w-3 animate-spin" /> In mempool · unconfirmed
-                                  </span>
-                                ) : omniInvalid ? (
-                                  <span className="text-destructive">{omniInvalid}</span>
-                                ) : (
-                                  new Date((tx.status.block_time ?? 0) * 1000).toLocaleString()
-                                )}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p
-                                className={`text-sm font-semibold ${
-                                  omniInvalid
-                                    ? "text-muted-foreground line-through"
-                                    : incoming
-                                      ? "text-emerald-400"
-                                      : ""
-                                }`}
-                              >
-                                {incoming ? "+" : "−"}
-                                {meta && omni
-                                  ? `${formatTokenAmount(omni.amount, meta.divisible)} ${meta.symbol}`
-                                  : formatTxc(Math.abs(net))}
-                              </p>
-                              {meta && net !== 0 && (
-                                <p className="text-[11px] text-muted-foreground">
-                                  {net > 0 ? "+" : "−"}
-                                  {formatTxc(Math.abs(net))}
-                                </p>
-                              )}
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {enabled.includes("isk") && (
-              <div className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  IskanderCoin
-                </h3>
-                <BtcForkActivity
-                  variant="isk"
-                  loading={iskAccount.isLoading || iskTxs.isLoading}
-                  error={iskAccount.isError}
-                  txs={iskTxs.data ?? null}
-                  ownAddresses={iskOwnAddresses}
-                  onRefresh={() => iskAccount.refetch()}
-                  onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("isk", tx, net, incoming))}
-                />
-              </div>
-            )}
-            {enabled.includes("btc") && (
-              <div className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  Bitcoin
-                </h3>
-                <BtcForkActivity
-                  variant="btc"
-                  loading={btcAccount.isLoading || btcTxs.isLoading}
-                  error={btcAccount.isError}
-                  txs={btcTxs.data ?? null}
-                  ownAddresses={btcOwnAddresses}
-                  onRefresh={() => btcAccount.refetch()}
-                  onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("btc", tx, net, incoming))}
-                />
-              </div>
-            )}
-            {enabled.includes("ltc") && (
-              <div className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  Litecoin
-                </h3>
-                <BtcForkActivity
-                  variant="ltc"
-                  loading={ltcAccount.isLoading || ltcTxs.isLoading}
-                  error={ltcAccount.isError}
-                  txs={ltcTxs.data ?? null}
-                  ownAddresses={ltcOwnAddresses}
-                  onRefresh={() => ltcAccount.refetch()}
-                  onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("ltc", tx, net, incoming))}
-                />
-              </div>
-            )}
-            {enabled.includes("doge") && (
-              <div className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  Dogecoin
-                </h3>
-                <BtcForkActivity
-                  variant="doge"
-                  loading={dogeAccount.isLoading || dogeTxs.isLoading}
-                  error={dogeAccount.isError}
-                  txs={dogeTxs.data ?? null}
-                  ownAddresses={dogeOwnAddresses}
-                  onRefresh={() => dogeAccount.refetch()}
-                  onOpen={(tx, net, incoming) => setDetail(utxoTxDetail("doge", tx, net, incoming))}
-                />
-              </div>
-            )}
-            {enabled.includes("tron") && (
-              <div className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  Tron
-                </h3>
-                <TronActivity address={tronAddress} />
-              </div>
-            )}
-            {enabled.includes("solana") && (
-              <div className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  Solana
-                </h3>
-                <SolanaActivity address={solanaAccount?.address ?? null} rows={solana.history.data ?? null} />
-              </div>
-            )}
-            {evmEnabled.map((evmId) => (
-              <div key={evmId} className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  {CHAIN_META[evmId].name}
-                </h3>
-                <EvmActivity
-                  chainId={evmId}
-                  address={evmAddress}
-                  onOpen={(t) => setDetail({ kind: "evm", chain: evmId, transfer: t })}
-                />
-              </div>
-            ))}
-            {watchList.map((w, i) => (
-              <div key={w.id} className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  {w.label} · watch-only
-                </h3>
-                <WatchOnlyActivity
-                  wallet={w}
-                  txs={watchTxs[i]?.data ?? null}
-                  loading={watchTxs[i]?.isLoading ?? false}
-                  error={watchTxs[i]?.isError ?? false}
-                  onRefresh={() => watchTxs[i]?.refetch()}
-                  onOpen={(tx, net, incoming) => setDetail({ kind: "txc", tx, net, incoming })}
-                />
-              </div>
-            ))}
-            {wifList.map((w, i) => (
-              <div key={w.id} className="mb-6">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                  {w.label} · imported key
-                </h3>
-                <WifActivity
-                  entry={w}
-                  txs={wifTxs[i]?.data ?? null}
-                  loading={wifTxs[i]?.isLoading ?? false}
-                  error={wifTxs[i]?.isError ?? false}
-                  onRefresh={() => wifTxs[i]?.refetch()}
-                />
-              </div>
-            ))}
-          </section>
+          {/* Shared history across every supported chain */}
+          <UnifiedActivity rows={activity} loading={activityLoading} />
         </div>
 
-        {/* Sticky bottom send/receive — routes based on the active slot.
-            Sticky (not fixed) so it stays visible inside the WKWebView frame,
-            which clips/contains fixed positioning on iOS. */}
-        <div className="sticky bottom-0 z-10 mt-auto shrink-0 border-t border-border/60 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto max-w-3xl px-4 py-3 flex gap-2">
-            {activeWatch ? (
-              <WatchOnlyBottomActions wallet={activeWatch} />
-            ) : activeWif ? (
-              <WifBottomActions entry={activeWif} />
-            ) : (
-              <BottomActions chain={activeChain} />
-            )}
-          </div>
-        </div>
+
       </div>
       <TxDetailSheet detail={detail} onClose={() => setDetail(null)} />
-      <ReorderTilesSheet open={reorderOpen} onClose={() => setReorderOpen(false)} />
       <WifRemoveDialog entry={wifRemove} onClose={() => setWifRemove(null)} />
       {tileOpen === "txc" && (
         <WalletDetailSheet

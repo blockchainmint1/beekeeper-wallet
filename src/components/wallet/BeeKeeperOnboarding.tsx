@@ -150,7 +150,7 @@ export function BeeKeeperOnboarding() {
       setConfirmPassword("");
       toast.success(`${unlockedWallets.length} BeeKeeper wallet${unlockedWallets.length === 1 ? "" : "s"} imported.`);
       setLegacyMode(false);
-      void navigate({ to: "/wallet" });
+      void navigate({ to: "/dashboard" });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not import the old BeeKeeper wallet.");
     } finally {
@@ -238,7 +238,7 @@ export function BeeKeeperOnboarding() {
       setPassword("");
       setConfirmPassword("");
       toast.success("Wallet ready — the hive is live.");
-      void navigate({ to: "/wallet" });
+      void navigate({ to: "/dashboard" });
     } finally {
       setBusy(false);
     }

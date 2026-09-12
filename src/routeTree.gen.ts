@@ -14,6 +14,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ManifestoRouteImport } from './routes/manifesto'
 import { Route as ImportKeyRouteImport } from './routes/import-key'
 import { Route as ImportRouteImport } from './routes/import'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WalletIndexRouteImport } from './routes/wallet.index'
@@ -87,6 +88,11 @@ const ImportKeyRoute = ImportKeyRouteImport.update({
 const ImportRoute = ImportRouteImport.update({
   id: '/import',
   path: '/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateRoute = CreateRouteImport.update({
@@ -338,6 +344,7 @@ const ApiNectarPayInvoiceIdRoute = ApiNectarPayInvoiceIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/create': typeof CreateRoute
+  '/dashboard': typeof DashboardRoute
   '/import': typeof ImportRoute
   '/import-key': typeof ImportKeyRoute
   '/manifesto': typeof ManifestoRoute
@@ -394,6 +401,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/create': typeof CreateRoute
+  '/dashboard': typeof DashboardRoute
   '/import': typeof ImportRoute
   '/import-key': typeof ImportKeyRoute
   '/manifesto': typeof ManifestoRoute
@@ -450,6 +458,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/create': typeof CreateRoute
+  '/dashboard': typeof DashboardRoute
   '/import': typeof ImportRoute
   '/import-key': typeof ImportKeyRoute
   '/manifesto': typeof ManifestoRoute
@@ -508,6 +517,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/create'
+    | '/dashboard'
     | '/import'
     | '/import-key'
     | '/manifesto'
@@ -564,6 +574,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/create'
+    | '/dashboard'
     | '/import'
     | '/import-key'
     | '/manifesto'
@@ -619,6 +630,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/create'
+    | '/dashboard'
     | '/import'
     | '/import-key'
     | '/manifesto'
@@ -676,6 +688,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CreateRoute: typeof CreateRoute
+  DashboardRoute: typeof DashboardRoute
   ImportRoute: typeof ImportRoute
   ImportKeyRoute: typeof ImportKeyRoute
   ManifestoRoute: typeof ManifestoRoute
@@ -732,6 +745,13 @@ declare module '@tanstack/react-router' {
       path: '/import'
       fullPath: '/import'
       preLoaderRoute: typeof ImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create': {
@@ -1168,6 +1188,7 @@ const WalletRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CreateRoute: CreateRoute,
+  DashboardRoute: DashboardRoute,
   ImportRoute: ImportRoute,
   ImportKeyRoute: ImportKeyRoute,
   ManifestoRoute: ManifestoRoute,

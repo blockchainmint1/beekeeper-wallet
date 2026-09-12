@@ -69,7 +69,7 @@ function Home() {
   }, []);
 
   useEffect(() => {
-    if (unlocked) navigate({ to: "/wallet" });
+    if (unlocked) navigate({ to: "/dashboard" });
   }, [unlocked, navigate]);
 
   const tryBiometric = useCallback(async () => {
@@ -83,7 +83,7 @@ function Home() {
       }
       const ok = await unlock(pw);
       if (!ok) setError("Stored biometric password no longer matches. Use your password.");
-      else navigate({ to: "/wallet" });
+      else navigate({ to: "/dashboard" });
     } finally {
       setBusy(false);
     }
@@ -104,7 +104,7 @@ function Home() {
     const ok = await unlock(password);
     setBusy(false);
     if (!ok) setError("Wrong password.");
-    else navigate({ to: "/wallet" });
+    else navigate({ to: "/dashboard" });
   }
 
   // Belt-and-suspenders navigation. Prefer the router once React is hydrated;
