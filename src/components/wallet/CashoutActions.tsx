@@ -56,7 +56,7 @@ import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.funct
 
 const STABLE_EVM_CHAINS: StableEvmChainId[] = ["eth", "base", "bsc"];
 
-const STABLE_TOKEN_CATALOG: { asset: CashoutAsset; byChain: Record<StableEvmChainId, { symbol: CashoutAsset; address: Address; decimals: number }> }[] = [
+const STABLE_TOKEN_CATALOG: { asset: CashoutAsset; byChain: Record<StableEvmChainId, { symbol: string; address: Address; decimals: number }> }[] = [
   { asset: "USDC", byChain: USDC_BY_CHAIN },
   { asset: "USDT", byChain: USDT_BY_CHAIN },
 ];
