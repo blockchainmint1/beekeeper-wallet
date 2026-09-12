@@ -101,14 +101,24 @@ export function BeeKeeperOnboarding() {
       })));
       if (!unlockedWallets.length) throw new Error("No old BeeKeeper wallets were found.");
 
+      const alreadyHasWallet = hasWallet();
       const first = unlockedWallets[0];
       const primary = { mnemonic: first.mnemonic, passphrase: "", kind: "bip44" as const, label: first.legacy.label, mode: "seed" as const };
-      setActiveProfileId(DEFAULT_PROFILE_ID);
-      await saveWallet(primary, password);
-      for (const item of unlockedWallets.slice(1)) {
-        await saveWalletToNewProfile({ mnemonic: item.mnemonic, passphrase: "", kind: "bip44", label: item.legacy.label, mode: "seed" }, password);
+      if (alreadyHasWallet) {
+        const profileIds: string[] = [];
+        for (const item of unlockedWallets) {
+          const id = await saveWalletToNewProfile({ mnemonic: item.mnemonic, passphrase: "", kind: "bip44", label: item.legacy.label, mode: "seed" }, password);
+          profileIds.push(id);
+        }
+        setActiveProfileId(profileIds[0] ?? DEFAULT_PROFILE_ID);
+      } else {
+        setActiveProfileId(DEFAULT_PROFILE_ID);
+        await saveWallet(primary, password);
+        for (const item of unlockedWallets.slice(1)) {
+          await saveWalletToNewProfile({ mnemonic: item.mnemonic, passphrase: "", kind: "bip44", label: item.legacy.label, mode: "seed" }, password);
+        }
+        setActiveProfileId(DEFAULT_PROFILE_ID);
       }
-      setActiveProfileId(DEFAULT_PROFILE_ID);
       if (biometricAvailable && useBiometrics) {
         try { await enableBiometric(password); } catch { toast.info("Your wallets are imported. You can turn on biometric unlock later in Settings."); }
       }
