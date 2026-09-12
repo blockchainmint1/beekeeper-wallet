@@ -1082,7 +1082,7 @@ function WalletHome() {
                   address={evmAddress}
                   onOpen={(t) => setDetail({ kind: "evm", chain: evmId, transfer: t })}
                 />
-                <EvmDerivedAddresses chainId={evmId} />
+                {activeChain === evmId && <EvmDerivedAddresses chainId={evmId} />}
               </div>
             ))}
             {watchList.map((w, i) => (
