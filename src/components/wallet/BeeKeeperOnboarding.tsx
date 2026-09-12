@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { QrScanDialog } from "@/components/wallet/QrScanButton";
-import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
+
 import { enableBiometric, isBiometricAvailable } from "@/lib/native/biometric";
 import { assessPassword } from "@/lib/security/password-strength";
 import { hasWallet, saveWallet, saveWalletToNewProfile } from "@/lib/txc/storage";
@@ -78,7 +78,7 @@ function hexPoints(cx: number, cy: number, r: number): string {
 export function BeeKeeperOnboarding() {
   const navigate = useNavigate();
   const { loadFromMemory } = useWallet();
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [legacyMode, setLegacyMode] = useState(false);
   const [legacyWallets, setLegacyWallets] = useState<LegacyBeeKeeperWallet[]>([]);
   const [legacyPasswords, setLegacyPasswords] = useState<Record<string, string>>({});
@@ -152,7 +152,7 @@ export function BeeKeeperOnboarding() {
       setConfirmPassword("");
       toast.success(`${unlockedWallets.length} BeeKeeper wallet${unlockedWallets.length === 1 ? "" : "s"} imported.`);
       setLegacyMode(false);
-      setStep(4);
+      void navigate({ to: "/wallet" });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not import the old BeeKeeper wallet.");
     } finally {
@@ -240,9 +240,8 @@ export function BeeKeeperOnboarding() {
       setMnemonic("");
       setPassword("");
       setConfirmPassword("");
-      setStep(4);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not activate this wallet.");
+      toast.success("Wallet ready — the hive is live.");
+      void navigate({ to: "/wallet" });
     } finally {
       setBusy(false);
     }
@@ -258,7 +257,7 @@ export function BeeKeeperOnboarding() {
       </header>
 
       <ol className="mt-7 flex items-center gap-1.5 text-[10px]" aria-label="Activation progress">
-        {["Scan", "Rules", "Password", "Merchant"].map((label, index) => {
+        {["Scan", "Rules", "Password"].map((label, index) => {
           const number = index + 1;
           const active = number === step;
           const complete = number < step;
@@ -377,23 +376,6 @@ export function BeeKeeperOnboarding() {
               <div className="grid grid-cols-[auto_1fr] gap-3"><Button type="button" variant="ghost" disabled={busy} onClick={() => setStep(2)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><Button type="submit" disabled={busy}>{busy ? "Activating…" : <><KeyRound className="mr-2 h-4 w-4" />Activate wallet</>}</Button></div>
             </div>
           </form>
-        )}
-
-        {step === 4 && (
-          <div>
-            <div className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/10 p-4">
-              <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <p className="text-sm">Your wallet is active and encrypted on this device.</p>
-            </div>
-            <h2 className="mt-6 text-xl font-semibold">Link a merchant (optional)</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Shopping with a Nectar Pay store? Scan or paste their link QR and this wallet can receive their invoices. You can always do this later in Settings.</p>
-            <div className="mt-5 rounded-md border border-border p-4">
-              <NectarLinkCard compact />
-            </div>
-            <Button className="mt-6 w-full" onClick={() => void navigate({ to: "/wallet" })}>
-              <WalletCards className="mr-2 h-4 w-4" /> Go to my wallet
-            </Button>
-          </div>
         )}
       </section>
 
