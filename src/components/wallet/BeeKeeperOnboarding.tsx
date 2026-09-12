@@ -252,19 +252,20 @@ export function BeeKeeperOnboarding() {
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-5 pb-10 pt-8">
       <header className="text-center">
         <HoneycombMark />
-        <p className="mt-4 text-xs font-semibold uppercase text-muted-foreground">Pollinated money</p>
-        <h1 className="mt-1 text-3xl font-bold">Activate your BeeKeeper Wallet</h1>
+        <p className="mt-4 text-sm font-semibold uppercase tracking-[0.32em] text-primary/90">Pollinated money</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">Activate your BeeKeeper</h1>
+        <p className="mt-2 text-muted-foreground">Scan your Cold Storage Coin and the hive comes to life — Bitcoin, TEXITcoin, and EVM wallets, all from one queen seed.</p>
       </header>
 
-      <ol className="mt-7 grid grid-cols-4 gap-2" aria-label="Activation progress">
+      <ol className="mt-7 flex items-center gap-1.5 text-[10px]" aria-label="Activation progress">
         {["Scan", "Rules", "Password", "Merchant"].map((label, index) => {
           const number = index + 1;
           const active = number === step;
           const complete = number < step;
           return (
-            <li key={label} className={`flex items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-xs font-medium ${active ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground"}`} aria-current={active ? "step" : undefined}>
-              {complete ? <Check className="h-3.5 w-3.5" /> : <span>{number}</span>}
-              {label}
+            <li key={label} className={`flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-1.5 text-center font-medium uppercase tracking-wider transition-colors ${complete ? "bg-primary/30 text-primary" : active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`} aria-current={active ? "step" : undefined}>
+              {complete && <Check className="h-3 w-3" />}
+              {number}. {label}
             </li>
           );
         })}
