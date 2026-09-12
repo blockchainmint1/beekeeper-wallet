@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { QrScanDialog } from "@/components/wallet/QrScanButton";
+import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 import { enableBiometric, isBiometricAvailable } from "@/lib/native/biometric";
 import { assessPassword } from "@/lib/security/password-strength";
 import { saveWallet, saveWalletToNewProfile } from "@/lib/txc/storage";
@@ -47,7 +48,7 @@ function HoneycombMark() {
 export function BeeKeeperOnboarding() {
   const navigate = useNavigate();
   const { loadFromMemory } = useWallet();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [legacyMode, setLegacyMode] = useState(false);
   const [legacyWallets, setLegacyWallets] = useState<LegacyBeeKeeperWallet[]>([]);
   const [legacyPasswords, setLegacyPasswords] = useState<Record<string, string>>({});
@@ -110,7 +111,8 @@ export function BeeKeeperOnboarding() {
       setPassword("");
       setConfirmPassword("");
       toast.success(`${unlockedWallets.length} BeeKeeper wallet${unlockedWallets.length === 1 ? "" : "s"} imported.`);
-      await navigate({ to: "/wallet" });
+      setLegacyMode(false);
+      setStep(4);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not import the old BeeKeeper wallet.");
     } finally {
@@ -177,7 +179,7 @@ export function BeeKeeperOnboarding() {
       setMnemonic("");
       setPassword("");
       setConfirmPassword("");
-      await navigate({ to: "/wallet" });
+      setStep(4);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not activate this wallet.");
     } finally {
@@ -193,8 +195,8 @@ export function BeeKeeperOnboarding() {
         <h1 className="mt-1 text-3xl font-bold">Activate your BeeKeeper Wallet</h1>
       </header>
 
-      <ol className="mt-7 grid grid-cols-3 gap-2" aria-label="Activation progress">
-        {["Scan", "Rules", "Password"].map((label, index) => {
+      <ol className="mt-7 grid grid-cols-4 gap-2" aria-label="Activation progress">
+        {["Scan", "Rules", "Password", "Merchant"].map((label, index) => {
           const number = index + 1;
           const active = number === step;
           const complete = number < step;
