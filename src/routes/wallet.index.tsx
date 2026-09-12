@@ -358,7 +358,7 @@ function WalletHome() {
   });
   const iskTxs = useQuery({
     queryKey: ["isk-txs", iskAccount.data?.external.map((a) => a.address).join(",")],
-    enabled: !!iskAccount.data && activeChain === "isk",
+    enabled: !!iskAccount.data && iskEnabled,
     queryFn: async () => {
       const all = await Promise.all(
         [...(iskAccount.data?.external ?? []), ...(iskAccount.data?.internal ?? [])].map((a) =>
