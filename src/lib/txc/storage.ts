@@ -34,11 +34,13 @@ const STORAGE_KEY = "txc.wallet.v1";
 function walletKey(profileId: string = activeProfileId()): string {
   return scopedKey(STORAGE_KEY, profileId);
 }
-// KDF cost for NEW wallets. Raised from the previous 600k. The actual count
-// used to DECRYPT is read from each envelope (see `iterations` below) so
-// existing wallets keep unlocking with whatever they were saved at. This is
-// what prevents a lockout when the default changes.
-const PBKDF2_ITERATIONS = 1_000_000;
+// KDF cost for NEW wallets. 600k PBKDF2-SHA256 is the current OWASP
+// recommendation and keeps unlock responsive on phones (1M made unlock take
+// several seconds). The actual count used to DECRYPT is read from each
+// envelope (see `iterations` below) so existing wallets keep unlocking with
+// whatever they were saved at. This is what prevents a lockout when the
+// default changes.
+const PBKDF2_ITERATIONS = 600_000;
 // Envelopes written before this field existed were all PBKDF2-SHA256 @ 600k.
 const LEGACY_ITERATIONS = 600_000;
 
@@ -278,16 +280,15 @@ export async function unlockWallet(password: string): Promise<UnlockedWallet | n
           mode: "seed",
         };
 
-    // Silent KDF upgrade: if this envelope predates the current cost (or has
-    // no recorded iteration count), transparently re-encrypt at the stronger
-    // setting now that we hold the correct password and plaintext. Best-effort
-    // only — a failure here must never block a successful unlock.
-    if ((env.iterations ?? LEGACY_ITERATIONS) < PBKDF2_ITERATIONS) {
-      try {
-        await saveWallet(unlocked, password);
-      } catch {
+    // Silent KDF normalization: if this envelope wasn't written at the current
+    // cost, re-encrypt at the standard setting now that we hold the correct
+    // password and plaintext. Deliberately NOT awaited — a second key
+    // derivation would double the time the user waits on the unlock button.
+    // Best-effort only; a failure leaves the old envelope in place.
+    if ((env.iterations ?? LEGACY_ITERATIONS) !== PBKDF2_ITERATIONS) {
+      void saveWallet(unlocked, password).catch(() => {
         /* keep the old envelope; user is still unlocked */
-      }
+      });
     }
 
     return unlocked;

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Fingerprint } from "lucide-react";
 import { hasWallet } from "@/lib/txc/storage";
@@ -38,6 +38,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const navigate = useNavigate();
+  const router = useRouter();
   const { unlock, unlocked } = useWallet();
   const [exists, setExists] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
@@ -67,6 +68,13 @@ function Home() {
     // never see a flash of unstyled content. No-op on web.
     void import("@/lib/native/ui").then(({ hideSplash }) => hideSplash());
   }, []);
+
+  // Fetch the dashboard's code while the user is still typing their password,
+  // so unlocking doesn't wait on a chunk download afterwards.
+  useEffect(() => {
+    void router.preloadRoute({ to: "/dashboard" }).catch(() => undefined);
+  }, [router]);
+
 
   useEffect(() => {
     if (unlocked) navigate({ to: "/dashboard" });
