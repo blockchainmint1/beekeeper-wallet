@@ -11,6 +11,7 @@ import {
   unlockWithBiometric,
 } from "@/lib/native/biometric";
 import { BeeKeeperOnboarding } from "@/components/wallet/BeeKeeperOnboarding";
+import { listLegacyBeeKeeperWallets } from "@/lib/legacy-beekeeper";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -199,6 +200,7 @@ function Home() {
             </form>
           </CardContent>
         </Card>
+        </>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
