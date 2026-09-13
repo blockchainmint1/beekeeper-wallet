@@ -860,7 +860,7 @@ function WalletHome() {
         amountText:
           meta && omni
             ? `${formatTokenAmount(omni.amount, meta.divisible)} ${meta.symbol}`
-            : `${formatTxc(Math.abs(net))} TXC`,
+            : formatTxc(Math.abs(net)),
         incoming,
         onOpen: () => setDetail({ kind: "txc", tx, net, incoming }),
       });
