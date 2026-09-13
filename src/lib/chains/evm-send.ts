@@ -26,14 +26,21 @@ export interface EvmTxRequest {
 const KEY = (chain: EvmChainId, address: string) =>
   `evm-nonce:${chain}:${address.toLowerCase()}`;
 
+/**
+ * How long a local reservation is trusted. This used to be an hour, which
+ * caused the opposite failure: if a reserved transaction was dropped by the
+ * node, every later send used a nonce *above* the chain's next one, so it sat
+ * in the mempool forever — a hash came back but nothing was ever mined.
+ */
+const RESERVATION_TTL_MS = 3 * 60_000;
+
 /** Last nonce we handed out locally (survives reloads). */
 function readReserved(chain: EvmChainId, address: string): number | null {
   try {
     const raw = localStorage.getItem(KEY(chain, address));
     if (!raw) return null;
     const { nonce, at } = JSON.parse(raw) as { nonce: number; at: number };
-    // Forget stale reservations — after an hour the chain is authoritative.
-    if (!Number.isFinite(nonce) || Date.now() - at > 60 * 60_000) return null;
+    if (!Number.isFinite(nonce) || Date.now() - at > RESERVATION_TTL_MS) return null;
     return nonce;
   } catch {
     return null;
@@ -78,7 +85,12 @@ export async function sendEvmTransaction(
     pub.getTransactionCount({ address, blockTag: "pending" }).catch(() => 0),
   ]);
   const reserved = readReserved(chainId, address);
-  let nonce = Math.max(latest, pending, reserved != null ? reserved + 1 : 0);
+  // Never lead the chain by more than one slot: a bigger gap can't be mined.
+  const cap = Math.max(latest, pending) + 1;
+  let nonce = Math.min(
+    Math.max(latest, pending, reserved != null ? reserved + 1 : 0),
+    cap,
+  );
 
   let lastErr: unknown;
   for (let attempt = 0; attempt < 5; attempt++) {

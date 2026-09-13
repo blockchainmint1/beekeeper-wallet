@@ -23,6 +23,7 @@ import { useHideBalances, maskAmount } from "@/lib/hide-balances";
 import { useWallet } from "@/lib/txc/wallet-context";
 import {
   EVM_CHAINS,
+  evmClient,
   deriveEvmAddresses,
   formatEth,
   type EvmChainId,
@@ -37,6 +38,7 @@ import {
 } from "@/lib/chains/evm-scan";
 import { fundGas, sweepNative, sweepToken } from "@/lib/chains/evm-sweep";
 import { formatFiat } from "@/lib/txc/units";
+import { addPendingTx } from "@/lib/pending-tx";
 
 const PAGE = 5;
 
@@ -99,13 +101,47 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
     void qc.invalidateQueries({ queryKey: ["erc20-balance", chainId] });
   };
 
-  const run = async (key: string, fn: () => Promise<`0x${string}`>, label: string) => {
+  const run = async (
+    key: string,
+    fn: () => Promise<`0x${string}`>,
+    label: string,
+    track: { from: string; to: string; value: string; asset: string },
+  ) => {
     if (busy) return;
     setBusy(key);
     try {
       const hash = await fn();
-      toast.success(`${label} sent — ${hash.slice(0, 10)}…`);
-      // Give the node a moment, then re-read balances.
+      // Record it locally so it shows up in history right away — indexers lag,
+      // and until now these transactions were invisible until they were indexed.
+      addPendingTx({
+        hash,
+        chain: chainId,
+        from: track.from,
+        to: track.to,
+        value: track.value,
+        asset: track.asset,
+        createdAt: Date.now(),
+      });
+      const url = meta.explorerTx(hash);
+      toast.success(`${label} sent`, {
+        description: `${hash.slice(0, 10)}…${hash.slice(-8)}`,
+        action: url
+          ? { label: "View", onClick: () => window.open(url, "_blank", "noreferrer") }
+          : undefined,
+      });
+      // Confirm it actually lands, instead of only reporting the broadcast.
+      void evmClient(chainId)
+        .waitForTransactionReceipt({ hash, timeout: 180_000 })
+        .then((receipt) => {
+          if (receipt.status === "success") toast.success(`${label} confirmed`);
+          else toast.error(`${label} failed on chain`);
+          refresh();
+        })
+        .catch(() => {
+          toast.error(
+            `${label} hasn't confirmed yet. It's still pending on ${meta.name} — check the explorer link.`,
+          );
+        });
       setTimeout(refresh, 4000);
     } catch (e) {
       toast.error((e as Error).message);
@@ -114,8 +150,9 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
     }
   };
 
-  const doSweepToken = (row: EvmScanRow, token: Erc20TokenMeta) =>
-    run(
+  const doSweepToken = (row: EvmScanRow, token: Erc20TokenMeta) => {
+    const raw = row.tokens[token.symbol] ?? 0n;
+    return run(
       `${row.index}-${token.address}`,
       () =>
         sweepToken({
@@ -123,11 +160,18 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
           root,
           index: row.index,
           token,
-          amount: row.tokens[token.symbol] ?? 0n,
+          amount: raw,
           to: mainAddress as `0x${string}`,
         }),
       `${token.symbol} sweep`,
+      {
+        from: row.address,
+        to: mainAddress ?? "",
+        value: tokenAmountFromRaw(raw, token.decimals),
+        asset: token.symbol,
+      },
     );
+  };
 
   const doSweepNative = (row: EvmScanRow) =>
     run(
@@ -140,6 +184,12 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
           to: mainAddress as `0x${string}`,
         }),
       `${meta.nativeSymbol} sweep`,
+      {
+        from: row.address,
+        to: mainAddress ?? "",
+        value: formatEth(row.native),
+        asset: meta.nativeSymbol,
+      },
     );
 
   const doFundGas = (row: EvmScanRow) => {
@@ -154,6 +204,12 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
           transfers: Math.max(1, tokenCount),
         }),
       "Gas top-up",
+      {
+        from: mainAddress ?? "",
+        to: row.address,
+        value: "",
+        asset: meta.nativeSymbol,
+      },
     );
   };
 
