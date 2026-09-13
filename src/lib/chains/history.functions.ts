@@ -345,6 +345,20 @@ export const getEvmHistory = createServerFn({ method: "POST" })
       }
     }
 
+    // BSC: NOWNodes Blockbook indexes BNB Chain; Alchemy's
+    // alchemy_getAssetTransfers does not. Prefer Blockbook, fall back to
+    // Alchemy when no NOWNodes key is configured or Blockbook is down.
+    if (data.chain === "bsc") {
+      const nnKey = process.env.NOWNODES_API_KEY;
+      if (nnKey) {
+        try {
+          return { transfers: await fetchBscHistory(data.address, nnKey), supported: true };
+        } catch {
+          // Fall through to Alchemy.
+        }
+      }
+    }
+
     const key = process.env.ALCHEMY_KEY;
     const builder = ALCHEMY_URL[data.chain];
     const url = key ? builder(key) : null;
