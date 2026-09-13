@@ -1001,7 +1001,7 @@ function WalletHome() {
               </div>
             )}
 
-            {enabled.includes("isk") && (
+            {!activeWatch && !activeWif && enabled.includes("isk") && activeChain === "isk" && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   IskanderCoin
@@ -1017,7 +1017,7 @@ function WalletHome() {
                 />
               </div>
             )}
-            {enabled.includes("btc") && (
+            {!activeWatch && !activeWif && enabled.includes("btc") && activeChain === "btc" && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Bitcoin
@@ -1033,7 +1033,7 @@ function WalletHome() {
                 />
               </div>
             )}
-            {enabled.includes("ltc") && (
+            {!activeWatch && !activeWif && enabled.includes("ltc") && activeChain === "ltc" && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Litecoin
@@ -1049,7 +1049,7 @@ function WalletHome() {
                 />
               </div>
             )}
-            {enabled.includes("doge") && (
+            {!activeWatch && !activeWif && enabled.includes("doge") && activeChain === "doge" && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Dogecoin
@@ -1065,7 +1065,7 @@ function WalletHome() {
                 />
               </div>
             )}
-            {enabled.includes("tron") && (
+            {!activeWatch && !activeWif && enabled.includes("tron") && activeChain === "tron" && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Tron
@@ -1073,7 +1073,7 @@ function WalletHome() {
                 <TronActivity address={tronAddress} />
               </div>
             )}
-            {enabled.includes("solana") && (
+            {!activeWatch && !activeWif && enabled.includes("solana") && activeChain === "solana" && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   Solana
@@ -1081,7 +1081,7 @@ function WalletHome() {
                 <SolanaActivity address={solanaAccount?.address ?? null} rows={solana.history.data ?? null} />
               </div>
             )}
-            {evmEnabled.map((evmId) => (
+            {!activeWatch && !activeWif && evmEnabled.filter((id) => id === activeChain).map((evmId) => (
               <div key={evmId} className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   {CHAIN_META[evmId].name}
@@ -1094,7 +1094,7 @@ function WalletHome() {
                 
               </div>
             ))}
-            {watchList.map((w, i) => (
+            {watchList.map((w, i) => activeWatch?.id !== w.id ? null : (
               <div key={w.id} className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   {w.label} · watch-only
@@ -1109,7 +1109,7 @@ function WalletHome() {
                 />
               </div>
             ))}
-            {wifList.map((w, i) => (
+            {wifList.map((w, i) => activeWif?.id !== w.id ? null : (
               <div key={w.id} className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   {w.label} · imported key
