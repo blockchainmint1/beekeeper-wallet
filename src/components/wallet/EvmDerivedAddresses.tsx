@@ -148,8 +148,9 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
     }
   };
 
-  const doSweepToken = (row: EvmScanRow, token: Erc20TokenMeta) =>
-    run(
+  const doSweepToken = (row: EvmScanRow, token: Erc20TokenMeta) => {
+    const raw = row.tokens[token.symbol] ?? 0n;
+    return run(
       `${row.index}-${token.address}`,
       () =>
         sweepToken({
@@ -157,11 +158,18 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
           root,
           index: row.index,
           token,
-          amount: row.tokens[token.symbol] ?? 0n,
+          amount: raw,
           to: mainAddress as `0x${string}`,
         }),
       `${token.symbol} sweep`,
+      {
+        from: row.address,
+        to: mainAddress ?? "",
+        value: tokenAmountFromRaw(raw, token.decimals),
+        asset: token.symbol,
+      },
     );
+  };
 
   const doSweepNative = (row: EvmScanRow) =>
     run(
@@ -174,6 +182,12 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
           to: mainAddress as `0x${string}`,
         }),
       `${meta.nativeSymbol} sweep`,
+      {
+        from: row.address,
+        to: mainAddress ?? "",
+        value: formatEth(row.native),
+        asset: meta.nativeSymbol,
+      },
     );
 
   const doFundGas = (row: EvmScanRow) => {
@@ -188,6 +202,12 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
           transfers: Math.max(1, tokenCount),
         }),
       "Gas top-up",
+      {
+        from: mainAddress ?? "",
+        to: row.address,
+        value: "gas",
+        asset: meta.nativeSymbol,
+      },
     );
   };
 
