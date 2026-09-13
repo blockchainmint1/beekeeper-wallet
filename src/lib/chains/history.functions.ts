@@ -186,6 +186,151 @@ async function fetchTransfers(
   return result.transfers ?? [];
 }
 
+// ---------- BSC via NOWNodes Blockbook ----------
+
+interface BlockbookIo {
+  addresses?: string[];
+  value?: string;
+}
+
+interface BlockbookTokenTransfer {
+  token?: string;
+  symbol?: string;
+  decimals?: number;
+  from?: string;
+  to?: string;
+  value?: string;
+}
+
+interface BlockbookTx {
+  txid: string;
+  blockHeight?: number;
+  blockTime?: number;
+  vin?: BlockbookIo[];
+  vout?: BlockbookIo[];
+  tokenTransfers?: BlockbookTokenTransfer[];
+}
+
+/** Convert an integer base-unit string to a decimal string. */
+function formatBaseUnits(value: string, decimals: number): string {
+  let v: bigint;
+  try {
+    v = BigInt(value || "0");
+  } catch {
+    return "0";
+  }
+  if (decimals <= 0) return v.toString();
+  const s = v.toString().padStart(decimals + 1, "0");
+  const whole = s.slice(0, -decimals) || "0";
+  const frac = s.slice(-decimals).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole;
+}
+
+function bscHas(io: BlockbookIo[] | undefined, addrLower: string): boolean {
+  return (io ?? []).some((x) => (x.addresses ?? []).some((a) => a.toLowerCase() === addrLower));
+}
+
+function bscSum(io: BlockbookIo[] | undefined, addrLower: string): bigint {
+  let sum = 0n;
+  for (const x of io ?? []) {
+    if ((x.addresses ?? []).some((a) => a.toLowerCase() === addrLower)) {
+      try {
+        sum += BigInt(x.value || "0");
+      } catch {
+        /* ignore malformed value */
+      }
+    }
+  }
+  return sum;
+}
+
+async function fetchBscHistory(address: string, key: string): Promise<EvmTransfer[]> {
+  const res = await fetch(
+    `https://bscbook.nownodes.io/api/v2/address/${address}?details=txs&pageSize=50`,
+    { headers: { "api-key": key } },
+  );
+  if (!res.ok) throw new Error(`Blockbook BSC ${res.status}`);
+  const j = (await res.json()) as { transactions?: BlockbookTx[] };
+  const addrLower = address.toLowerCase();
+  const out: EvmTransfer[] = [];
+
+  for (const tx of j.transactions ?? []) {
+    const ts = tx.blockTime ? new Date(tx.blockTime * 1000).toISOString() : null;
+    const blockNum = tx.blockHeight ?? 0;
+    const sent = bscSum(tx.vin, addrLower);
+    const recv = bscSum(tx.vout, addrLower);
+
+    // Native BNB movement (net, so self-transfers cancel out).
+    if (sent > recv) {
+      const value = formatBaseUnits((sent - recv).toString(), 18);
+      out.push({
+        hash: tx.txid,
+        from: address,
+        to: null,
+        value,
+        asset: "BNB",
+        category: "external",
+        blockNum,
+        timestamp: ts,
+        outgoing: true,
+        contractAddress: null,
+        spam: false,
+        spamReason: null,
+      });
+    } else if (recv > sent) {
+      const value = formatBaseUnits((recv - sent).toString(), 18);
+      out.push({
+        hash: tx.txid,
+        from: "",
+        to: address,
+        value,
+        asset: "BNB",
+        category: "external",
+        blockNum,
+        timestamp: ts,
+        outgoing: false,
+        contractAddress: null,
+        spam: false,
+        spamReason: null,
+      });
+    }
+
+    // BEP-20 token transfers.
+    for (const tt of tx.tokenTransfers ?? []) {
+      const from = (tt.from ?? "").toLowerCase();
+      const to = (tt.to ?? "").toLowerCase();
+      if (from !== addrLower && to !== addrLower) continue;
+      const outgoing = from === addrLower && to !== addrLower;
+      const contract = tt.token ? tt.token.toLowerCase() : null;
+      const num = Number(formatBaseUnits(tt.value ?? "0", tt.decimals ?? 18));
+      const { spam, reason } = classifySpam(
+        "bsc",
+        "erc20",
+        tt.symbol ?? null,
+        contract,
+        outgoing,
+        Number.isFinite(num) ? num : null,
+      );
+      out.push({
+        hash: tx.txid,
+        from: tt.from ?? "",
+        to: tt.to ?? null,
+        value: formatBaseUnits(tt.value ?? "0", tt.decimals ?? 18),
+        asset: tt.symbol ?? "TOKEN",
+        category: "erc20",
+        blockNum,
+        timestamp: ts,
+        outgoing,
+        contractAddress: contract,
+        spam,
+        spamReason: reason,
+      });
+    }
+  }
+
+  return out.sort((a, b) => b.blockNum - a.blockNum).slice(0, 50);
+}
+
 export const getEvmHistory = createServerFn({ method: "POST" })
   .inputValidator((input: { chain: EvmChainId; address: string }) => {
     if (!input?.chain || !input?.address) throw new Error("chain and address required");
