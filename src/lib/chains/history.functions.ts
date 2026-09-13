@@ -1,7 +1,8 @@
 /**
- * EVM transaction history via Alchemy `alchemy_getAssetTransfers`.
- * Runs server-side so the API key stays hidden. Supports ETH, Base and BSC
- * (Alchemy added BNB Smart Chain support under bnb-mainnet).
+ * EVM transaction history. Runs server-side so API keys stay hidden.
+ * ETH + Base use Alchemy `alchemy_getAssetTransfers`. BSC uses the
+ * NOWNodes Blockbook indexer (Alchemy doesn't support
+ * alchemy_getAssetTransfers on BNB Chain), with Alchemy as a fallback.
  * Zero Chill uses its own explorer API instead.
  */
 import { createServerFn } from "@tanstack/react-start";
@@ -185,6 +186,154 @@ async function fetchTransfers(
   return result.transfers ?? [];
 }
 
+// ---------- BSC via NOWNodes Blockbook ----------
+
+interface BlockbookIo {
+  addresses?: string[];
+  value?: string;
+}
+
+interface BlockbookTokenTransfer {
+  token?: string;
+  symbol?: string;
+  decimals?: number;
+  from?: string;
+  to?: string;
+  value?: string;
+}
+
+interface BlockbookTx {
+  txid: string;
+  blockHeight?: number;
+  blockTime?: number;
+  vin?: BlockbookIo[];
+  vout?: BlockbookIo[];
+  tokenTransfers?: BlockbookTokenTransfer[];
+}
+
+/** Convert an integer base-unit string to a decimal string. */
+function formatBaseUnits(value: string, decimals: number): string {
+  let v: bigint;
+  try {
+    v = BigInt(value || "0");
+  } catch {
+    return "0";
+  }
+  if (decimals <= 0) return v.toString();
+  const s = v.toString().padStart(decimals + 1, "0");
+  const whole = s.slice(0, -decimals) || "0";
+  const frac = s.slice(-decimals).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole;
+}
+
+function bscSum(io: BlockbookIo[] | undefined, addrLower: string): bigint {
+  let sum = 0n;
+  for (const x of io ?? []) {
+    if ((x.addresses ?? []).some((a) => a.toLowerCase() === addrLower)) {
+      try {
+        sum += BigInt(x.value || "0");
+      } catch {
+        /* ignore malformed value */
+      }
+    }
+  }
+  return sum;
+}
+
+async function fetchBscHistory(address: string, key: string): Promise<EvmTransfer[]> {
+  const res = await fetch(
+    `https://bsc-blockbook.nownodes.io/api/v2/address/${address}?details=txs&pageSize=50`,
+    { headers: { "api-key": key } },
+  );
+  if (!res.ok) throw new Error(`Blockbook BSC ${res.status}`);
+  const j = (await res.json()) as { transactions?: BlockbookTx[] };
+  const addrLower = address.toLowerCase();
+  const out: EvmTransfer[] = [];
+
+  for (const tx of j.transactions ?? []) {
+    const ts = tx.blockTime ? new Date(tx.blockTime * 1000).toISOString() : null;
+    const blockNum = tx.blockHeight ?? 0;
+    const sent = bscSum(tx.vin, addrLower);
+    const recv = bscSum(tx.vout, addrLower);
+    const counterparty = (io: BlockbookIo[] | undefined): string | null => {
+      for (const x of io ?? []) {
+        const other = (x.addresses ?? []).find((a) => a.toLowerCase() !== addrLower);
+        if (other) return other;
+      }
+      return null;
+    };
+
+    // Native BNB movement (net, so self-transfers cancel out).
+    if (sent > recv) {
+      const value = formatBaseUnits((sent - recv).toString(), 18);
+      out.push({
+        hash: tx.txid,
+        from: address,
+        to: counterparty(tx.vout),
+        value,
+        asset: "BNB",
+        category: "external",
+        blockNum,
+        timestamp: ts,
+        outgoing: true,
+        contractAddress: null,
+        spam: false,
+        spamReason: null,
+      });
+    } else if (recv > sent) {
+      const value = formatBaseUnits((recv - sent).toString(), 18);
+      out.push({
+        hash: tx.txid,
+        from: counterparty(tx.vin) ?? "",
+        to: address,
+        value,
+        asset: "BNB",
+        category: "external",
+        blockNum,
+        timestamp: ts,
+        outgoing: false,
+        contractAddress: null,
+        spam: false,
+        spamReason: null,
+      });
+    }
+
+    // BEP-20 token transfers.
+    for (const tt of tx.tokenTransfers ?? []) {
+      const from = (tt.from ?? "").toLowerCase();
+      const to = (tt.to ?? "").toLowerCase();
+      if (from !== addrLower && to !== addrLower) continue;
+      const outgoing = from === addrLower && to !== addrLower;
+      const contract = tt.token ? tt.token.toLowerCase() : null;
+      const num = Number(formatBaseUnits(tt.value ?? "0", tt.decimals ?? 18));
+      const { spam, reason } = classifySpam(
+        "bsc",
+        "erc20",
+        tt.symbol ?? null,
+        contract,
+        outgoing,
+        Number.isFinite(num) ? num : null,
+      );
+      out.push({
+        hash: tx.txid,
+        from: tt.from ?? "",
+        to: tt.to ?? null,
+        value: formatBaseUnits(tt.value ?? "0", tt.decimals ?? 18),
+        asset: tt.symbol ?? "TOKEN",
+        category: "erc20",
+        blockNum,
+        timestamp: ts,
+        outgoing,
+        contractAddress: contract,
+        spam,
+        spamReason: reason,
+      });
+    }
+  }
+
+  return out.sort((a, b) => b.blockNum - a.blockNum).slice(0, 50);
+}
+
 export const getEvmHistory = createServerFn({ method: "POST" })
   .inputValidator((input: { chain: EvmChainId; address: string }) => {
     if (!input?.chain || !input?.address) throw new Error("chain and address required");
@@ -200,6 +349,20 @@ export const getEvmHistory = createServerFn({ method: "POST" })
         // Explorer unreachable (outage / TLS) — tell the UI instead of
         // pretending the address has no history.
         return { transfers: [], supported: true, unavailable: true };
+      }
+    }
+
+    // BSC: NOWNodes Blockbook indexes BNB Chain; Alchemy's
+    // alchemy_getAssetTransfers does not. Prefer Blockbook, fall back to
+    // Alchemy when no NOWNodes key is configured or Blockbook is down.
+    if (data.chain === "bsc") {
+      const nnKey = process.env.NOWNODES_API_KEY;
+      if (nnKey) {
+        try {
+          return { transfers: await fetchBscHistory(data.address, nnKey), supported: true };
+        } catch {
+          // Fall through to Alchemy.
+        }
       }
     }
 
