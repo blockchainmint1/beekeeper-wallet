@@ -269,7 +269,7 @@ async function fetchBscHistory(address: string, key: string): Promise<EvmTransfe
       out.push({
         hash: tx.txid,
         from: address,
-        to: null,
+        to: counterparty(tx.vout),
         value,
         asset: "BNB",
         category: "external",
@@ -284,7 +284,7 @@ async function fetchBscHistory(address: string, key: string): Promise<EvmTransfe
       const value = formatBaseUnits((recv - sent).toString(), 18);
       out.push({
         hash: tx.txid,
-        from: "",
+        from: counterparty(tx.vin) ?? "",
         to: address,
         value,
         asset: "BNB",
