@@ -226,10 +226,6 @@ function formatBaseUnits(value: string, decimals: number): string {
   return frac ? `${whole}.${frac}` : whole;
 }
 
-function bscHas(io: BlockbookIo[] | undefined, addrLower: string): boolean {
-  return (io ?? []).some((x) => (x.addresses ?? []).some((a) => a.toLowerCase() === addrLower));
-}
-
 function bscSum(io: BlockbookIo[] | undefined, addrLower: string): bigint {
   let sum = 0n;
   for (const x of io ?? []) {
