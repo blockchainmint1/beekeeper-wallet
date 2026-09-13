@@ -23,6 +23,7 @@ import { useHideBalances, maskAmount } from "@/lib/hide-balances";
 import { useWallet } from "@/lib/txc/wallet-context";
 import {
   EVM_CHAINS,
+  evmClient,
   deriveEvmAddresses,
   formatEth,
   type EvmChainId,
@@ -37,6 +38,7 @@ import {
 } from "@/lib/chains/evm-scan";
 import { fundGas, sweepNative, sweepToken } from "@/lib/chains/evm-sweep";
 import { formatFiat } from "@/lib/txc/units";
+import { addPendingTx } from "@/lib/pending-tx";
 
 const PAGE = 5;
 
@@ -205,7 +207,7 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
       {
         from: mainAddress ?? "",
         to: row.address,
-        value: "gas",
+        value: "",
         asset: meta.nativeSymbol,
       },
     );
