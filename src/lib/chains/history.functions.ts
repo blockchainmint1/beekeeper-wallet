@@ -1,9 +1,8 @@
 /**
- * EVM transaction history. Runs server-side so API keys stay hidden.
- * ETH + Base use Alchemy `alchemy_getAssetTransfers`. BSC uses the
- * NOWNodes Blockbook indexer (Alchemy doesn't support
- * alchemy_getAssetTransfers on BNB Chain), with Alchemy as a fallback.
- * Zero Chill uses its own explorer API instead.
+ * EVM transaction history via Alchemy `alchemy_getAssetTransfers`.
+ * Runs server-side so the API key stays hidden. Supports ETH + Base.
+ * BSC is not supported by alchemy_getAssetTransfers — we return empty and
+ * the UI shows an "open in explorer" link instead.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { fetchZcuHistory } from "./zcu-explorer.server";
@@ -133,8 +132,8 @@ function classifySpam(
 const ALCHEMY_URL: Record<EvmChainId, (k: string) => string | null> = {
   eth: (k) => `https://eth-mainnet.g.alchemy.com/v2/${k}`,
   base: (k) => `https://base-mainnet.g.alchemy.com/v2/${k}`,
-  // BNB Smart Chain is indexed by Alchemy under bnb-mainnet.
-  bsc: (k) => `https://bnb-mainnet.g.alchemy.com/v2/${k}`,
+  // getAssetTransfers unsupported on BSC through Alchemy.
+  bsc: () => null,
   // Zero Chill is not indexed by Alchemy.
   zcu: () => null,
 };
@@ -186,152 +185,159 @@ async function fetchTransfers(
   return result.transfers ?? [];
 }
 
-// ---------- BSC via NOWNodes Blockbook ----------
-
-interface BlockbookIo {
-  addresses?: string[];
-  value?: string;
-}
-
-interface BlockbookTokenTransfer {
-  token?: string;
-  symbol?: string;
-  decimals?: number;
-  from?: string;
-  to?: string;
-  value?: string;
-}
+// -------------------- BSC via NOWNodes Blockbook --------------------
+// Alchemy doesn't index BNB Chain transfers, so BSC history comes from the
+// NOWNodes-hosted Blockbook indexer (NOWNODES_API_KEY stays server-side).
 
 interface BlockbookTx {
   txid: string;
-  blockHeight?: number;
+  blockHeight: number;
   blockTime?: number;
-  vin?: BlockbookIo[];
-  vout?: BlockbookIo[];
-  tokenTransfers?: BlockbookTokenTransfer[];
+  vin?: { addresses?: string[]; value?: string }[];
+  vout?: { addresses?: string[]; value?: string }[];
+  tokenTransfers?: {
+    /** Newer Blockbook builds use `contract`; older ones used `token`. */
+    contract?: string;
+    token?: string;
+    symbol?: string;
+    decimals?: number;
+    from?: string;
+    to?: string;
+    value?: string;
+  }[];
 }
 
-/** Convert an integer base-unit string to a decimal string. */
-function formatBaseUnits(value: string, decimals: number): string {
-  let v: bigint;
+async function blockbookJson(base: string, apiKey: string, path: string): Promise<unknown> {
+  const res = await fetch(`${base}${path}`, {
+    headers: { accept: "application/json", "api-key": apiKey },
+  });
+  if (!res.ok) throw new Error(`blockbook ${res.status}`);
+  return res.json();
+}
+
+function scaledWei(raw: string, decimals: number): string {
   try {
-    v = BigInt(value || "0");
+    const v = BigInt(raw);
+    const d = BigInt(10) ** BigInt(decimals);
+    const whole = v / d;
+    const frac = (v % d).toString().padStart(decimals, "0").replace(/0+$/, "");
+    return frac ? `${whole}.${frac}` : whole.toString();
   } catch {
     return "0";
   }
-  if (decimals <= 0) return v.toString();
-  const s = v.toString().padStart(decimals + 1, "0");
-  const whole = s.slice(0, -decimals) || "0";
-  const frac = s.slice(-decimals).replace(/0+$/, "");
-  return frac ? `${whole}.${frac}` : whole;
 }
 
-function bscSum(io: BlockbookIo[] | undefined, addrLower: string): bigint {
-  let sum = 0n;
-  for (const x of io ?? []) {
-    if ((x.addresses ?? []).some((a) => a.toLowerCase() === addrLower)) {
-      try {
-        sum += BigInt(x.value || "0");
-      } catch {
-        /* ignore malformed value */
-      }
-    }
-  }
-  return sum;
-}
+async function fetchBscHistory(address: string): Promise<EvmTransfer[]> {
+  const apiKey = process.env.NOWNODES_API_KEY;
+  if (!apiKey) throw new Error("NOWNODES_API_KEY not configured");
+  const base = "https://bsc-blockbook.nownodes.io";
+  const lower = address.toLowerCase();
 
-async function fetchBscHistory(address: string, key: string): Promise<EvmTransfer[]> {
-  const res = await fetch(
-    `https://bsc-blockbook.nownodes.io/api/v2/address/${address}?details=txs&pageSize=50`,
-    { headers: { "api-key": key } },
+  // Step 1: recent tx ids touching this address.
+  const addrBody = (await blockbookJson(
+    base,
+    apiKey,
+    `/api/v2/address/${address}?details=txslight&pageSize=25`,
+  )) as { transactions?: (string | { txid?: string })[] };
+  const txids = (Array.isArray(addrBody?.transactions) ? addrBody.transactions! : [])
+    .map((t) => (typeof t === "string" ? t : t?.txid))
+    .filter((t): t is string => typeof t === "string" && t.length > 0)
+    .slice(0, 25);
+  if (txids.length === 0) return [];
+
+  // Step 2: fetch each tx for value/token detail (best-effort, parallel).
+  const results = await Promise.allSettled(
+    txids.map((id) => blockbookJson(base, apiKey, `/api/v2/tx/${id}`)),
   );
-  if (!res.ok) throw new Error(`Blockbook BSC ${res.status}`);
-  const j = (await res.json()) as { transactions?: BlockbookTx[] };
-  const addrLower = address.toLowerCase();
-  const out: EvmTransfer[] = [];
 
-  for (const tx of j.transactions ?? []) {
-    const ts = tx.blockTime ? new Date(tx.blockTime * 1000).toISOString() : null;
-    const blockNum = tx.blockHeight ?? 0;
-    const sent = bscSum(tx.vin, addrLower);
-    const recv = bscSum(tx.vout, addrLower);
-    const counterparty = (io: BlockbookIo[] | undefined): string | null => {
-      for (const x of io ?? []) {
-        const other = (x.addresses ?? []).find((a) => a.toLowerCase() !== addrLower);
-        if (other) return other;
-      }
-      return null;
-    };
+  const rows: EvmTransfer[] = [];
+  for (const r of results) {
+    if (r.status !== "fulfilled") continue;
+    const tx = r.value as BlockbookTx;
+    if (!tx?.txid) continue;
+    try {
+    const timestamp = tx.blockTime ? new Date(tx.blockTime * 1000).toISOString() : null;
 
-    // Native BNB movement (net, so self-transfers cancel out).
-    if (sent > recv) {
-      const value = formatBaseUnits((sent - recv).toString(), 18);
-      out.push({
+    // Native BNB movement.
+    const vinMine = (tx.vin ?? []).some((i) =>
+      (i.addresses ?? []).some((a) => a.toLowerCase() === lower),
+    );
+    const received = (tx.vout ?? []).reduce((sum, o) => {
+      const mine = (o.addresses ?? []).some((a) => a.toLowerCase() === lower);
+      return mine ? sum + BigInt(o.value ?? "0") : sum;
+    }, BigInt(0));
+    const sent = (tx.vin ?? []).reduce((sum, i) => {
+      const mine = (i.addresses ?? []).some((a) => a.toLowerCase() === lower);
+      return mine ? sum + BigInt(i.value ?? "0") : sum;
+    }, BigInt(0));
+    const net = received - sent;
+    // Skip zero-net rows unless the user paid in (contract call with no BNB out).
+    if (net !== BigInt(0)) {
+      const outgoing = net < 0;
+      const amount = net < 0 ? -net : net;
+      const from = tx.vin?.[0]?.addresses?.[0] ?? "";
+      const to = tx.vout?.find((o) =>
+        (o.addresses ?? []).some((a) => a.toLowerCase() === (outgoing ? a.toLowerCase() : lower)),
+      )?.addresses?.[0] ?? null;
+      rows.push({
         hash: tx.txid,
-        from: address,
-        to: counterparty(tx.vout),
-        value,
+        from,
+        to,
+        value: scaledWei(amount.toString(), 18),
         asset: "BNB",
         category: "external",
-        blockNum,
-        timestamp: ts,
-        outgoing: true,
+        blockNum: tx.blockHeight ?? 0,
+        timestamp,
+        outgoing,
         contractAddress: null,
         spam: false,
         spamReason: null,
       });
-    } else if (recv > sent) {
-      const value = formatBaseUnits((recv - sent).toString(), 18);
-      out.push({
-        hash: tx.txid,
-        from: counterparty(tx.vin) ?? "",
-        to: address,
-        value,
-        asset: "BNB",
-        category: "external",
-        blockNum,
-        timestamp: ts,
-        outgoing: false,
-        contractAddress: null,
-        spam: false,
-        spamReason: null,
-      });
+    } else if (vinMine && (tx.tokenTransfers ?? []).length === 0) {
+      // Pure outgoing contract interaction / fee-only — skip to avoid noise.
     }
 
     // BEP-20 token transfers.
-    for (const tt of tx.tokenTransfers ?? []) {
-      const from = (tt.from ?? "").toLowerCase();
-      const to = (tt.to ?? "").toLowerCase();
-      if (from !== addrLower && to !== addrLower) continue;
-      const outgoing = from === addrLower && to !== addrLower;
-      const contract = tt.token ? tt.token.toLowerCase() : null;
-      const num = Number(formatBaseUnits(tt.value ?? "0", tt.decimals ?? 18));
+    for (const t of tx.tokenTransfers ?? []) {
+      const from = t.from ?? "";
+      const to = t.to ?? "";
+      const outgoing = from.toLowerCase() === lower;
+      const incoming = to.toLowerCase() === lower;
+      if (!outgoing && !incoming) continue;
+      const decimals = t.decimals ?? 18;
+      const valueStr = scaledWei(t.value ?? "0", decimals);
+      const contractRaw = t.contract ?? t.token ?? null;
+      const contract = contractRaw ? contractRaw.toLowerCase() : null;
       const { spam, reason } = classifySpam(
         "bsc",
         "erc20",
-        tt.symbol ?? null,
+        t.symbol ?? null,
         contract,
         outgoing,
-        Number.isFinite(num) ? num : null,
+        Number(valueStr) || null,
       );
-      out.push({
+      rows.push({
         hash: tx.txid,
-        from: tt.from ?? "",
-        to: tt.to ?? null,
-        value: formatBaseUnits(tt.value ?? "0", tt.decimals ?? 18),
-        asset: tt.symbol ?? "TOKEN",
+        from,
+        to,
+        value: valueStr,
+        asset: t.symbol ?? "TOKEN",
         category: "erc20",
-        blockNum,
-        timestamp: ts,
+        blockNum: tx.blockHeight ?? 0,
+        timestamp,
         outgoing,
         contractAddress: contract,
         spam,
         spamReason: reason,
       });
     }
+    } catch {
+      // One malformed tx shouldn't blank out the whole activity list.
+      continue;
+    }
   }
 
-  return out.sort((a, b) => b.blockNum - a.blockNum).slice(0, 50);
+  return rows.sort((a, b) => b.blockNum - a.blockNum).slice(0, 50);
 }
 
 export const getEvmHistory = createServerFn({ method: "POST" })
@@ -352,17 +358,13 @@ export const getEvmHistory = createServerFn({ method: "POST" })
       }
     }
 
-    // BSC: NOWNodes Blockbook indexes BNB Chain; Alchemy's
-    // alchemy_getAssetTransfers does not. Prefer Blockbook, fall back to
-    // Alchemy when no NOWNodes key is configured or Blockbook is down.
+    // BNB Chain: Alchemy's getAssetTransfers doesn't support it — use the
+    // NOWNodes Blockbook indexer instead.
     if (data.chain === "bsc") {
-      const nnKey = process.env.NOWNODES_API_KEY;
-      if (nnKey) {
-        try {
-          return { transfers: await fetchBscHistory(data.address, nnKey), supported: true };
-        } catch {
-          // Fall through to Alchemy.
-        }
+      try {
+        return { transfers: await fetchBscHistory(data.address), supported: true };
+      } catch {
+        return { transfers: [], supported: true, unavailable: true };
       }
     }
 

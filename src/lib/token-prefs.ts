@@ -135,6 +135,10 @@ export function isBuiltinToken(chain: EvmChainId, address: string): boolean {
 export function useTokensForChain(chain: EvmChainId): Erc20TokenMeta[] {
   const [tokens, setTokens] = useState<Erc20TokenMeta[]>(() => getEnabledTokens(chain));
   useEffect(() => {
+    // Re-read on mount AND whenever the chain changes — this component instance
+    // is reused across carousel tiles, so a stale list would show (e.g.) the
+    // Ethereum custom tokens while the BSC tile is active.
+    setTokens(getEnabledTokens(chain));
     const h = () => setTokens(getEnabledTokens(chain));
     window.addEventListener(EVT, h);
     return () => window.removeEventListener(EVT, h);
@@ -155,6 +159,7 @@ export function useAllTokensForChain(chain: EvmChainId): {
   useEffect(() => {
     const h = () =>
       setSnapshot({ tokens: getKnownTokens(chain), hidden: readHidden() });
+    h();
     window.addEventListener(EVT, h);
     return () => window.removeEventListener(EVT, h);
   }, [chain]);
