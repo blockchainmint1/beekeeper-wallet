@@ -99,13 +99,47 @@ export function EvmDerivedAddresses({ chainId }: { chainId: EvmChainId }) {
     void qc.invalidateQueries({ queryKey: ["erc20-balance", chainId] });
   };
 
-  const run = async (key: string, fn: () => Promise<`0x${string}`>, label: string) => {
+  const run = async (
+    key: string,
+    fn: () => Promise<`0x${string}`>,
+    label: string,
+    track: { from: string; to: string; value: string; asset: string },
+  ) => {
     if (busy) return;
     setBusy(key);
     try {
       const hash = await fn();
-      toast.success(`${label} sent — ${hash.slice(0, 10)}…`);
-      // Give the node a moment, then re-read balances.
+      // Record it locally so it shows up in history right away — indexers lag,
+      // and until now these transactions were invisible until they were indexed.
+      addPendingTx({
+        hash,
+        chain: chainId,
+        from: track.from,
+        to: track.to,
+        value: track.value,
+        asset: track.asset,
+        createdAt: Date.now(),
+      });
+      const url = meta.explorerTx(hash);
+      toast.success(`${label} sent`, {
+        description: `${hash.slice(0, 10)}…${hash.slice(-8)}`,
+        action: url
+          ? { label: "View", onClick: () => window.open(url, "_blank", "noreferrer") }
+          : undefined,
+      });
+      // Confirm it actually lands, instead of only reporting the broadcast.
+      void evmClient(chainId)
+        .waitForTransactionReceipt({ hash, timeout: 180_000 })
+        .then((receipt) => {
+          if (receipt.status === "success") toast.success(`${label} confirmed`);
+          else toast.error(`${label} failed on chain`);
+          refresh();
+        })
+        .catch(() => {
+          toast.error(
+            `${label} hasn't confirmed yet. It's still pending on ${meta.name} — check the explorer link.`,
+          );
+        });
       setTimeout(refresh, 4000);
     } catch (e) {
       toast.error((e as Error).message);
