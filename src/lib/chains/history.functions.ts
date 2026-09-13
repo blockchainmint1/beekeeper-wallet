@@ -242,7 +242,7 @@ function bscSum(io: BlockbookIo[] | undefined, addrLower: string): bigint {
 
 async function fetchBscHistory(address: string, key: string): Promise<EvmTransfer[]> {
   const res = await fetch(
-    `https://bscbook.nownodes.io/api/v2/address/${address}?details=txs&pageSize=50`,
+    `https://bsc-blockbook.nownodes.io/api/v2/address/${address}?details=txs&pageSize=50`,
     { headers: { "api-key": key } },
   );
   if (!res.ok) throw new Error(`Blockbook BSC ${res.status}`);
