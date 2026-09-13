@@ -255,6 +255,13 @@ async function fetchBscHistory(address: string, key: string): Promise<EvmTransfe
     const blockNum = tx.blockHeight ?? 0;
     const sent = bscSum(tx.vin, addrLower);
     const recv = bscSum(tx.vout, addrLower);
+    const counterparty = (io: BlockbookIo[] | undefined): string | null => {
+      for (const x of io ?? []) {
+        const other = (x.addresses ?? []).find((a) => a.toLowerCase() !== addrLower);
+        if (other) return other;
+      }
+      return null;
+    };
 
     // Native BNB movement (net, so self-transfers cancel out).
     if (sent > recv) {
