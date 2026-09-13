@@ -1,8 +1,8 @@
 /**
  * EVM transaction history via Alchemy `alchemy_getAssetTransfers`.
- * Runs server-side so the API key stays hidden. Supports ETH + Base.
- * BSC is not supported by alchemy_getAssetTransfers — we return empty and
- * the UI shows an "open in explorer" link instead.
+ * Runs server-side so the API key stays hidden. Supports ETH, Base and BSC
+ * (Alchemy added BNB Smart Chain support under bnb-mainnet).
+ * Zero Chill uses its own explorer API instead.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { fetchZcuHistory } from "./zcu-explorer.server";
@@ -132,8 +132,8 @@ function classifySpam(
 const ALCHEMY_URL: Record<EvmChainId, (k: string) => string | null> = {
   eth: (k) => `https://eth-mainnet.g.alchemy.com/v2/${k}`,
   base: (k) => `https://base-mainnet.g.alchemy.com/v2/${k}`,
-  // getAssetTransfers unsupported on BSC through Alchemy.
-  bsc: () => null,
+  // BNB Smart Chain is indexed by Alchemy under bnb-mainnet.
+  bsc: (k) => `https://bnb-mainnet.g.alchemy.com/v2/${k}`,
   // Zero Chill is not indexed by Alchemy.
   zcu: () => null,
 };
