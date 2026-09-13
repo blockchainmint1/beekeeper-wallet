@@ -867,12 +867,11 @@ function WalletHome() {
           )}
 
 
-          {/* Cross-chain recent activity — every enabled wallet's history is
-              shown on the landing page, not just the currently selected tile. */}
+          {/* Recent activity — only the currently selected wallet's history. */}
           <section className="mt-8 px-4">
             <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
 
-            {enabled.includes("txc") && (
+            {!activeWatch && !activeWif && enabled.includes("txc") && activeChain === "txc" && (
               <div className="mb-6">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                   TEXITcoin
