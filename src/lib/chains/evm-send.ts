@@ -85,7 +85,12 @@ export async function sendEvmTransaction(
     pub.getTransactionCount({ address, blockTag: "pending" }).catch(() => 0),
   ]);
   const reserved = readReserved(chainId, address);
-  let nonce = Math.max(latest, pending, reserved != null ? reserved + 1 : 0);
+  // Never lead the chain by more than one slot: a bigger gap can't be mined.
+  const cap = Math.max(latest, pending) + 1;
+  let nonce = Math.min(
+    Math.max(latest, pending, reserved != null ? reserved + 1 : 0),
+    cap,
+  );
 
   let lastErr: unknown;
   for (let attempt = 0; attempt < 5; attempt++) {
