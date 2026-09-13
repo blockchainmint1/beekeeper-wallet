@@ -1,7 +1,8 @@
 /**
- * EVM transaction history via Alchemy `alchemy_getAssetTransfers`.
- * Runs server-side so the API key stays hidden. Supports ETH, Base and BSC
- * (Alchemy added BNB Smart Chain support under bnb-mainnet).
+ * EVM transaction history. Runs server-side so API keys stay hidden.
+ * ETH + Base use Alchemy `alchemy_getAssetTransfers`. BSC uses the
+ * NOWNodes Blockbook indexer (Alchemy doesn't support
+ * alchemy_getAssetTransfers on BNB Chain), with Alchemy as a fallback.
  * Zero Chill uses its own explorer API instead.
  */
 import { createServerFn } from "@tanstack/react-start";
