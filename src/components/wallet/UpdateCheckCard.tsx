@@ -38,6 +38,13 @@ import { isNative, nativePlatform } from "@/lib/native/platform";
 async function openDownload(url: string) {
   if (isNative()) {
     try {
+      const { AppLauncher } = await import("@capacitor/app-launcher");
+      const { completed } = await AppLauncher.openUrl({ url });
+      if (completed) return;
+    } catch {
+      /* fall through */
+    }
+    try {
       const { Browser } = await import("@capacitor/browser");
       await Browser.open({ url, windowName: "_system" });
       return;

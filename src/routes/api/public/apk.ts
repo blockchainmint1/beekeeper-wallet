@@ -18,35 +18,49 @@ const APK_FILENAME = "beekeeper-wallet-0.1.202609141037-release.apk";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+  "Access-Control-Expose-Headers": "Content-Length, Content-Disposition, Accept-Ranges",
   "Access-Control-Max-Age": "86400",
 } as const;
 
-/**
- * Redirect instead of proxying.
- *
- * Streaming the bytes through the Worker meant the response had no reliable
- * Content-Length, so Android's download manager sat at "99%" waiting for an
- * end-of-stream it could not predict, and never flipped to "complete". The
- * gateway serves the exact same bytes with a real Content-Length, ETag and
- * range support, so the download finishes (and can resume) properly.
- */
-const redirect = () =>
-  new Response(null, {
-    status: 302,
-    headers: {
-      Location: APK_SOURCE_URL,
-      "Content-Disposition": `attachment; filename="${APK_FILENAME}"`,
-      "Cache-Control": "public, max-age=300",
-      ...corsHeaders,
-    },
-  });
+function downloadHeaders(length: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/vnd.android.package-archive",
+    "Content-Disposition": `attachment; filename="${APK_FILENAME}"`,
+    "Cache-Control": "public, max-age=300",
+    "Accept-Ranges": "none",
+    ...corsHeaders,
+  };
+  if (length) headers["Content-Length"] = length;
+  return headers;
+}
+
+async function upstreamLength(): Promise<string | null> {
+  try {
+    const response = await fetch(APK_SOURCE_URL, { method: "HEAD" });
+    return response.headers.get("content-length");
+  } catch {
+    return null;
+  }
+}
 
 export const Route = createFileRoute("/api/public/apk")({
   server: {
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
-      HEAD: async () => redirect(),
-      GET: async () => redirect(),
+      HEAD: async () =>
+        new Response(null, { status: 200, headers: downloadHeaders(await upstreamLength()) }),
+      GET: async () => {
+        const upstream = await fetch(APK_SOURCE_URL, {
+          headers: { "Accept-Encoding": "identity" },
+        });
+        if (!upstream.ok || !upstream.body) {
+          return new Response("Download unavailable", { status: 502, headers: corsHeaders });
+        }
+        return new Response(upstream.body, {
+          status: 200,
+          headers: downloadHeaders(upstream.headers.get("content-length")),
+        });
+      },
     },
   },
 });

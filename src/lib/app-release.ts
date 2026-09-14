@@ -15,7 +15,7 @@ export const APP_VERSION = "0.1.202609050547";
  * generic binary content-type and Chrome saves the APK as ".zip", breaking
  * tap-to-install. /api/public/apk streams it with the Android MIME type.
  */
-export const APK_URL = "https://mobile.honest.money/api/public/apk";
+export const APK_URL = "https://beekeeper.money/api/public/apk";
 
 
 export type ReleasePlatform = "android" | "ios" | "web";
@@ -66,8 +66,8 @@ export type AppRelease = {
  * baked into whatever build the user happens to be running.
  */
 export const RELEASE_FEED_HOSTS = [
-  "https://mobile.honest.money",
-  "https://hme-mobile.lovable.app",
+  "https://beekeeper.money",
+  "https://beekeeper-wallet.lovable.app",
 ] as const;
 
 const RELEASE_FEED_PATH = "/api/public/latest-release";
@@ -142,29 +142,38 @@ export function compareVersions(a: string, b: string): number {
 /** Best download link for a release row (falls back to the IPFS gateway). */
 export function releaseDownloadUrl(r: AppRelease | null): string {
   if (!r) return APK_URL;
+  // Android installs always pass through BeeKeeper's own endpoint. This keeps
+  // stale release rows and retired HME URLs from escaping into the UI.
+  if (r.platform === "android") return APK_URL;
   if (r.download_url) return r.download_url;
   if (r.ipfs_cid) return `https://txc.mypinata.cloud/ipfs/${r.ipfs_cid}`;
   return APK_URL;
 }
 
-/** Build stamp the server is shipping right now, or null if unreachable. */
+/** Build stamp the same-origin server is shipping right now, or null. */
 export async function fetchServerBuildId(): Promise<string | null> {
   if (typeof window === "undefined") return null;
-  const bases: string[] = [window.location.origin, ...RELEASE_FEED_HOSTS];
-  for (const base of bases) {
-    try {
-      const res = await fetch(`${base}/api/public/build-id?_=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache" },
-      });
-      if (!res.ok) continue;
-      const json = (await res.json()) as { buildId?: string };
-      if (json?.buildId) return json.buildId;
-    } catch {
-      /* try next host */
-    }
+  try {
+    const res = await fetch(`${window.location.origin}/api/public/build-id?_=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { buildId?: string };
+    return json?.buildId ?? null;
+  } catch {
+    return null;
   }
-  return null;
+}
+
+const RELOADED_FOR_KEY = "beekeeper.reloadedForBuild";
+
+function reloadedFor(): string | null {
+  try {
+    return window.localStorage.getItem(RELOADED_FOR_KEY);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -175,7 +184,9 @@ export async function checkForWebUpdate(): Promise<"current" | "update" | "unkno
   const serverBuild = await fetchServerBuildId();
   if (!serverBuild) return "unknown";
   if (LOCAL_BUILD_ID === "dev") return "current";
-  return serverBuild === LOCAL_BUILD_ID ? "current" : "update";
+  if (serverBuild === LOCAL_BUILD_ID) return "current";
+  if (reloadedFor() === serverBuild) return "current";
+  return "update";
 }
 
 /** Drop caches (incl. service worker) and hard-reload into the new build. */
@@ -188,6 +199,12 @@ export async function applyWebUpdate(): Promise<void> {
     window.sessionStorage.setItem("hme.postUpdate", "1");
   } catch {
     /* memory-only session; still fine */
+  }
+  try {
+    const serverBuild = await fetchServerBuildId();
+    if (serverBuild) window.localStorage.setItem(RELOADED_FOR_KEY, serverBuild);
+  } catch {
+    /* best effort */
   }
   try {
     if ("caches" in window) {
