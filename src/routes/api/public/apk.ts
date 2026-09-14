@@ -12,8 +12,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 const APK_SOURCE_URL =
-  "https://beekeeper.money/__l5e/assets-v1/0d176b7d-812b-44b2-95e7-073f6eba6db9/beekeeper-wallet-0.1.202609141124-release.apk";
-const APK_FILENAME = "beekeeper-wallet-0.1.202609141124-release.apk";
+  "https://beekeeper.money/__l5e/assets-v1/c93a85c3-7458-4a4f-8d44-fc01e6df731d/beekeeper-wallet-0.1.202609141634-release.apk";
+const APK_FILENAME = "beekeeper-wallet-0.1.202609141634-release.apk";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
