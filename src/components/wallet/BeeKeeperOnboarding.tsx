@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { QrScanDialog } from "@/components/wallet/QrScanButton";
 
 import { enableBiometric, isBiometricAvailable } from "@/lib/native/biometric";
+import { isNative } from "@/lib/native/platform";
 import { assessPassword } from "@/lib/security/password-strength";
 import { hasWallet, saveWallet, saveWalletToNewProfile } from "@/lib/txc/storage";
 import { DEFAULT_PROFILE_ID, setActiveProfileId } from "@/lib/profiles";
@@ -315,7 +316,8 @@ export function BeeKeeperOnboarding() {
               <Camera className="mr-2 h-5 w-5" /> Scan my copper coin
             </Button>
             {error && <ErrorMessage>{error}</ErrorMessage>}
-            <div className="mt-6 rounded-md border border-border bg-muted/30 p-4">
+            {!isNative() && (
+              <div className="mt-6 rounded-md border border-border bg-muted/30 p-4">
                 <div className="flex items-start gap-3">
                   <WalletCards className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
@@ -325,6 +327,7 @@ export function BeeKeeperOnboarding() {
                   </div>
                 </div>
               </div>
+            )}
             <div className="mt-8 flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
               <p>Don&apos;t have one yet? <a href="https://coldstoragecoins.com" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">Get a Cold Storage Coin</a></p>
               <p>Really know what you&apos;re doing? <a href="https://words.honest.money" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">Get some words</a></p>
