@@ -12,8 +12,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 const APK_SOURCE_URL =
-  "https://txc.mypinata.cloud/ipfs/QmTNNW6iNKioJD3jce8CaCmQbo9Y2gPr5TPYLEWAzxkkSN?filename=hme-wallet-0.1.202609050547-release.apk&download=true";
-const APK_FILENAME = "hme-wallet-0.1.202609050547-release.apk";
+  "https://beekeeper.money/__l5e/assets-v1/41bec2f0-41c5-4f06-b289-cc1d754851cc/beekeeper-wallet-0.1.202609141037-release.apk";
+const APK_FILENAME = "beekeeper-wallet-0.1.202609141037-release.apk";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

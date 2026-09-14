@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Generates HME Wallet launcher icons for the freshly-added Android
+ * Generates BeeKeeper Wallet launcher icons for the freshly-added Android
  * platform. Runs after `bunx cap add android` / `cap sync android` so the
  * generated `android/app/src/main/res/` overwrites Capacitor's default
  * Capacitor logo with our dollar-sign brand mark.
