@@ -70,8 +70,9 @@ Recommended flow for the first APK on your device:
 
 ## Signing / release
 
-- App ID: `money.honest.txcwallet` (matches iOS bundle so the same Nectar
-  universal-link config on the backend covers both platforms).
+- App ID: `money.beekeeper.wallet` (BeeKeeper-only; the retired remix used
+  `money.honest.txcwallet`, and reusing it made Android offer BeeKeeper APKs as
+  an update to the honest.money app).
 - Generate a keystore via the `Generate Android Keystore` workflow (or locally:
   `keytool -genkey -v -keystore hme.jks -alias hme -keyalg RSA -keysize 4096 -validity 10950`).
 - Add these repo secrets so `android-apk.yml` produces a signed APK/AAB:
