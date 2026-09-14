@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { QrScanButton } from "@/components/wallet/QrScanButton";
 import { useWallet } from "@/lib/txc/wallet-context";
 import {
+  clearLinks,
   consentMode,
   deriveWalletKeys,
   fetchManifest,

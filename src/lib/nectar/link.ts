@@ -378,3 +378,12 @@ export function removeLink(merchantId: string) {
     /* noop */
   }
 }
+
+/** Forget every linked merchant on this device (does not unlink server-side). */
+export function clearLinks() {
+  try {
+    window.localStorage.removeItem(scopedKey(STORE_BASE));
+  } catch {
+    /* noop */
+  }
+}
