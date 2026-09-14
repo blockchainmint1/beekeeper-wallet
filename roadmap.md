@@ -15,3 +15,4 @@
 - [x] Split the post-unlock dashboard from the full wallet and restored the detailed wallet experience
 - [x] Add dashboard Top up/Cash out controls and secure VectorPay handoff; VectorPay settings configured
 - [x] Rename Android builds to BeeKeeper Wallet and publish APK `0.1.202609141037` to the automatic update list
+- [x] Point homepage and Settings updates to BeeKeeper's own APK endpoint and fix Android download completion
