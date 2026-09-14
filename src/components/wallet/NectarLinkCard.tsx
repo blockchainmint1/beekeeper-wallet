@@ -207,6 +207,22 @@ export function NectarLinkCard({ compact, hideWhenLinked }: { compact?: boolean;
                   </Button>
                 </div>
               ))}
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 w-full"
+                onClick={() => {
+                  clearLinks();
+                  setLinks([]);
+                  setNotice("Unlinked on this device. The link prompt is back on your dashboard.");
+                }}
+              >
+                Unlink NectarPay
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                This only forgets the link on this device — your merchant account keeps the keys it
+                already has, and the link prompt will show again.
+              </p>
             </div>
           )}
         </>
