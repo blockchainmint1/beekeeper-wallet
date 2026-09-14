@@ -172,8 +172,9 @@ These already work without any Xcode changes — they light up automatically ins
 
 ## Store identity
 
-- App ID: `money.honest.txcwallet`
-- Display name: `HME Wallet`
+- App ID (Android): `money.beekeeper.wallet`
+- App ID (iOS bundle, unchanged): `money.honest.txcwallet`
+- Display name: `BeeKeeper Wallet`
 - Icon source: `assets/icon.png` (1024×1024)
 - Splash source: `assets/splash.png` (2732×2732)
 

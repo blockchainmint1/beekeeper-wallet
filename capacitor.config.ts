@@ -34,8 +34,16 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const REMOTE_URL = process.env.HME_REMOTE_URL;
 const WEBVIEW_HOSTNAME = "mobile.honest.money";
 
+/**
+ * IDENTITY: BeeKeeper Wallet must be its OWN Android app. The retired remix
+ * shipped under `money.honest.txcwallet`, so any build reusing that id makes
+ * Android offer the APK as an "update to honest.money" (and refuse it when the
+ * signing key differs). This id is BeeKeeper-only — installing it never touches
+ * the honest.money app. `server.hostname` stays unchanged so the webview origin
+ * (and therefore the encrypted wallet storage keying) is untouched.
+ */
 const config: CapacitorConfig = {
-  appId: "money.honest.txcwallet",
+  appId: "money.beekeeper.wallet",
   appName: "BeeKeeper Wallet",
   webDir: "dist/client",
   backgroundColor: "#ffffff",
