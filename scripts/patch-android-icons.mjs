@@ -31,17 +31,21 @@ if (!existsSync(resolve(root, "android/app"))) {
   process.exit(0);
 }
 
-const SILVER = resolve(root, "src/assets/brand/dollar-mark-silver.png");
-const DARK = resolve(root, "src/assets/brand/dollar-mark-dark.png");
-if (!existsSync(SILVER) || !existsSync(DARK)) {
-  console.error("patch-android-icons: source brand mark(s) missing. Aborting.");
+// BeeKeeper Wallet brand mark: golden honeycomb cluster with a bee. This is
+// deliberately NOT the retired honest.money dollar mark — the two apps must be
+// visually distinct in the launcher.
+const MARK = resolve(root, "src/assets/brand/beekeeper-mark.png");
+const SILVER = MARK;
+const DARK = MARK;
+if (!existsSync(MARK)) {
+  console.error("patch-android-icons: source brand mark missing. Aborting.");
   process.exit(1);
 }
 
 // App background matches Splash / theme (#0b0f14). Light bg is a warm cream
 // so the silver mark keeps enough contrast in day mode too.
-const BG_DARK = { r: 11, g: 15, b: 20, alpha: 1 };
-const BG_LIGHT = { r: 245, g: 240, b: 230, alpha: 1 };
+const BG_DARK = { r: 26, g: 18, b: 8, alpha: 1 };
+const BG_LIGHT = { r: 255, g: 248, b: 230, alpha: 1 };
 
 // Legacy launcher sizes (full square).
 const LEGACY = [
@@ -176,7 +180,7 @@ async function main() {
     resolve(valuesDir, "ic_launcher_background.xml"),
     `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#F5F0E6</color>
+    <color name="ic_launcher_background">#FFF8E6</color>
 </resources>
 `,
   );
@@ -184,7 +188,7 @@ async function main() {
     resolve(valuesNightDir, "ic_launcher_background.xml"),
     `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#0B0F14</color>
+    <color name="ic_launcher_background">#1A1208</color>
 </resources>
 `,
   );
