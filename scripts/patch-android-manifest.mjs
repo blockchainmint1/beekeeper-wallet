@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Applies the HME Wallet-specific tweaks to android/app/src/main/AndroidManifest.xml
+ * Applies the BeeKeeper Wallet-specific tweaks to android/app/src/main/AndroidManifest.xml
  * after `bunx cap add android`. Idempotent — safe to re-run.
  *
  * Adds:
@@ -72,10 +72,10 @@ const stringsPath = resolve(process.cwd(), "android/app/src/main/res/values/stri
 if (existsSync(stringsPath)) {
   let strings = readFileSync(stringsPath, "utf8");
   const next = strings
-    .replace(/(<string name="app_name">)[^<]*(<\/string>)/, "$1honest.money$2")
-    .replace(/(<string name="title_activity_main">)[^<]*(<\/string>)/, "$1honest.money$2");
+    .replace(/(<string name="app_name">)[^<]*(<\/string>)/, "$1BeeKeeper Wallet$2")
+    .replace(/(<string name="title_activity_main">)[^<]*(<\/string>)/, "$1BeeKeeper Wallet$2");
   if (next !== strings) {
     writeFileSync(stringsPath, next);
-    console.log("Set Android app name to honest.money.");
+    console.log("Set Android app name to BeeKeeper Wallet.");
   }
 }

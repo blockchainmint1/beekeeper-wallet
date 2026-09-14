@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * Capacitor config for the HME Wallet mobile app.
+ * Capacitor config for the BeeKeeper Wallet mobile app.
  *
  * The web app is served from TanStack Start's static SPA output.
  * `bun run build` writes or mirrors the static bundle to `dist/client` and
@@ -36,7 +36,7 @@ const WEBVIEW_HOSTNAME = "mobile.honest.money";
 
 const config: CapacitorConfig = {
   appId: "money.honest.txcwallet",
-  appName: "honest.money",
+  appName: "BeeKeeper Wallet",
   webDir: "dist/client",
   backgroundColor: "#ffffff",
   server: {
