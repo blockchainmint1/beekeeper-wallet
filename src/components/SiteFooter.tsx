@@ -60,7 +60,7 @@ export function SiteFooter() {
           </button>
           <button
             type="button"
-            onClick={() => openExternal("https://github.com/blockchainmint1/hme-mobile")}
+            onClick={() => openExternal("https://github.com/blockchainmint1/beekeeper-wallet")}
             className="hover:text-foreground"
           >
             GitHub
