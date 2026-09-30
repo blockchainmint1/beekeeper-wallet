@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { evmClient, type EvmChainId } from "@/lib/chains/evm";
+import { checkPendingEvmTx } from "@/lib/chains/evm-send";
 
 export interface PendingTx {
   hash: string;
@@ -23,7 +24,7 @@ export interface PendingTx {
   /** ms epoch when we broadcast. */
   createdAt: number;
   /** Set once we've seen a receipt. */
-  status?: "success" | "reverted";
+  status?: "success" | "reverted" | "dropped";
 }
 
 const KEY = "hme.pending-evm-tx.v1";
@@ -130,8 +131,16 @@ export function usePendingTxs(
               : x,
           );
           writeAll(list);
+        } else if ((await checkPendingEvmTx(chain, t.hash)) === "dropped") {
+          writeAll(readAll().map((x) => x.hash.toLowerCase() === t.hash.toLowerCase() ? { ...x, status: "dropped" as const } : x));
         }
       } catch {
+        // No receipt yet: make sure the node still has it (re-broadcasts if lost).
+        try {
+          if ((await checkPendingEvmTx(chain, t.hash)) === "dropped") {
+            writeAll(readAll().map((x) => x.hash.toLowerCase() === t.hash.toLowerCase() ? { ...x, status: "dropped" as const } : x));
+          }
+        } catch { /* ignore */ }
         /* still pending / not indexed */
       }
     }

@@ -2091,7 +2091,7 @@ function EvmActivity({
                                 : "text-amber-400"
                           }`}
                         >
-                          {reverted ? "reverted" : confirmed ? "confirmed" : "pending"}
+                          {p.status === "dropped" ? "dropped — try again" : reverted ? "reverted" : confirmed ? "confirmed" : "pending"}
                         </span>
                       </p>
                       <a
