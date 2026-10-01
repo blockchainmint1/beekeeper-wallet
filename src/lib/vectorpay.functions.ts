@@ -12,6 +12,8 @@ const startSchema = z
     usd: z.number().finite().min(ORDER_MIN_USD).max(ORDER_MAX_USD),
     name: z.string().trim().min(2).max(120).regex(/^[\p{L}\p{M}.' -]+$/u, "Enter a valid legal name."),
     email: z.string().trim().email().max(200),
+    /** Wallet-derived customer ID (bk_ + 40 hex) — VectorPay keys saved banks to it. */
+    customerId: z.string().regex(/^bk_[0-9a-f]{40}$/),
     acceptedDisclaimers: z.array(z.string().min(1).max(64)).length(CASHOUT_DISCLOSURES.length),
     /** NectarPay merchant id, when this wallet is linked — 0% fee tier. */
     merchantId: z.string().trim().min(3).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
@@ -100,7 +102,7 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
     const relay = await postVectorPayOrder({
       side: "sell",
       reference: orderId,
-      account_ref: data.email.toLowerCase(),
+      account_ref: data.customerId,
       customer_name: data.name,
       customer_email: data.email.toLowerCase(),
       asset,
