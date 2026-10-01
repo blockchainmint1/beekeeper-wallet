@@ -48,6 +48,7 @@ import {
   sendCashRow,
   signEvmProof,
   signTsdProof,
+  cashoutCustomerId,
   type EvmCashRow,
   type TransferProof,
 } from "@/lib/cashout/roundup";
