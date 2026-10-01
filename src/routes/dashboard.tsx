@@ -58,6 +58,7 @@ import { WalletDetailSheet } from "@/components/wallet/WalletDetailSheet";
 import { ReorderTilesSheet } from "@/components/wallet/ReorderTilesSheet";
 import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 import { BalanceHero, type BreakdownRow } from "@/components/wallet/BalanceHero";
+import { useEvmPortfolioTotals } from "@/lib/chains/portfolio-scan";
 import { UnifiedActivity, type ActivityRow } from "@/components/wallet/UnifiedActivity";
 import { getTronHistory } from "@/lib/tron/api";
 import { WalletShell } from "@/components/wallet/WalletShell";
@@ -568,6 +569,19 @@ function WalletHome() {
 
   });
 
+  // Home total: native + stables across the first 20 derived EVM addresses.
+  const evmTotals = useEvmPortfolioTotals(root ?? null, evmEnabled, !!unlocked);
+  // TSD (Omni property 39) across every TXC address, counted at $1.
+  const fetchTsdTotal = useServerFn(getTxcTokenBalancesForAddresses);
+  const tsdAddrKey = [...ownAddresses].sort().join(",");
+  const tsdTotal = useQuery({
+    queryKey: ["portfolio-tsd", tsdAddrKey],
+    enabled: !!unlocked && enabled.includes("txc") && ownAddresses.size > 0,
+    queryFn: () => fetchTsdTotal({ data: { addresses: [...ownAddresses], propertyIds: [39] } }),
+    staleTime: 60_000,
+  });
+  const tsdUsd = Number(BigInt(tsdTotal.data?.[39] ?? "0")) / 1e8;
+
   // Watch-only balances + tx history. Balance query is always on so the
   // tile shows a number without needing to swipe to it; history only fires
   // when the tile is actually the active one (single-address = 1 API call
@@ -656,10 +670,13 @@ function WalletHome() {
         const u = UTXO[c as UtxoChain];
         const meta = WATCH_CHAIN_META[c as UtxoChain];
         const sats = u.q.data?.balanceSats ?? 0;
-        const usd = u.priceUsd != null ? meta.toCoin(sats) * u.priceUsd : null;
+        const coinUsd = u.priceUsd != null ? meta.toCoin(sats) * u.priceUsd : null;
+        const withTsd = c === "txc" && tsdUsd > 0;
+        const usd = coinUsd != null ? coinUsd + (withTsd ? tsdUsd : 0) : null;
         return {
           key: `c:${c}`,
           label: getChainLabel(c),
+          sub: withTsd ? `incl. ${tsdUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })} TSD` : undefined,
           amountText: `${meta.formatCompact(sats)} ${meta.ticker}`,
           fiatText: usd != null ? formatFiat(usd) : null,
           loading: u.q.isLoading,
@@ -675,13 +692,19 @@ function WalletHome() {
       }
       if (c in EVM_CHAINS) {
         const idx = evmEnabled.indexOf(c as EvmChainId);
-        const wei = evmBalances[idx]?.data ?? null;
+        const agg = evmTotals[c]?.data ?? null;
+        const wei = agg ? agg.nativeWei : (evmBalances[idx]?.data ?? null);
         const m = EVM_CHAINS[c as EvmChainId];
         const px = allPrices.data?.prices?.[m.priceSymbol] ?? null;
-        const usd = wei != null && px != null ? (Number(wei) / 1e18) * px : null;
+        const nativeUsd = wei != null && px != null ? (Number(wei) / 1e18) * px : null;
+        const usd = nativeUsd != null ? nativeUsd + (agg?.stableUsd ?? 0) : null;
+        const stableParts = agg
+          ? Object.entries(agg.stables).map(([sym, v]) => `${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${sym}`)
+          : [];
         return {
           key: `c:${c}`,
           label: getChainLabel(c),
+          sub: agg ? [`20 addresses`, ...stableParts].join(" · ") : undefined,
           amountText: `${wei != null ? formatEth(wei) : "0"} ${m.nativeSymbol}`,
           fiatText: usd != null ? formatFiat(usd) : null,
           loading: evmBalances[idx]?.isLoading ?? true,
@@ -787,13 +810,16 @@ function WalletHome() {
           const u = UTXO[c as UtxoChain];
           const meta = WATCH_CHAIN_META[c as UtxoChain];
           if (u.priceUsd != null) sum += meta.toCoin(u.q.data?.balanceSats ?? 0) * u.priceUsd;
+          if (c === "txc") sum += tsdUsd;
           continue;
         }
         if (c in EVM_CHAINS) {
           const idx = evmEnabled.indexOf(c as EvmChainId);
-          const wei = evmBalances[idx]?.data ?? null;
+          const agg = evmTotals[c]?.data ?? null;
+          const wei = agg ? agg.nativeWei : (evmBalances[idx]?.data ?? null);
           const px = allPrices.data?.prices?.[EVM_CHAINS[c as EvmChainId].priceSymbol] ?? null;
           if (wei != null && px != null) sum += (Number(wei) / 1e18) * px;
+          sum += agg?.stableUsd ?? 0;
           continue;
         }
         if (c === "tron") {

@@ -131,7 +131,7 @@ async function purgeCachesAndReload() {
   window.location.replace(url.toString());
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: any; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
