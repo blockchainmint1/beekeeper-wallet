@@ -270,11 +270,11 @@ export function CashoutActions({
         <Button variant="outline" size="lg" disabled title="Top up is coming soon">
           <ArrowDownToLine /> Top up
         </Button>
-        <Button size="lg" disabled title="Cash out is coming soon">
+        <Button size="lg" onClick={() => setOpen(true)}>
           <ArrowUpFromLine /> Cash out
         </Button>
       </div>
-      <p className="mt-2 text-center text-xs text-muted-foreground">Top up and cash out are coming soon.</p>
+      <p className="mt-2 text-center text-xs text-muted-foreground">Top up is coming soon.</p>
 
       <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-md">
