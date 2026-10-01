@@ -267,8 +267,10 @@ export async function deriveWalletKeys(mnemonic: string, passphrase = ""): Promi
     BTC: accountXpub(seed, "m/84'/0'/0'", serializationNetwork(ZPUB_VERSIONS)),
     EVM: evm,
     ZCU: evm,
-    LTC: accountXpub(seed, LTC_DERIVATION_PATHS.bip84, LTC_NETWORK),
-    DOGE: accountXpub(seed, DOGE_DERIVATION_PATHS.bip44, DOGE_NETWORK),
+    // Merchant indexers reject coin-specific versions (Ltub/dgub), so send
+    // the standard serializations: LTC BIP84 as zpub, DOGE BIP44 as xpub.
+    LTC: accountXpub(seed, LTC_DERIVATION_PATHS.bip84, serializationNetwork(ZPUB_VERSIONS)),
+    DOGE: accountXpub(seed, DOGE_DERIVATION_PATHS.bip44, serializationNetwork(XPUB_VERSIONS)),
     BCH: accountXpub(seed, BCH_PATH, BCH_NETWORK),
     DASH: accountXpub(seed, DASH_PATH, DASH_NETWORK),
     ISK: accountXpub(seed, ISK_DERIVATION_PATHS.bip44, ISK_NETWORK),
