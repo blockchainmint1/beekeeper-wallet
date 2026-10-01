@@ -286,17 +286,23 @@ export function CashoutActions({
     setRunning(false);
   }
 
-  async function placeOrder() {
+  /**
+   * Called twice with the same reference: first before any coins move (no
+   * txids, opens VectorPay), then after sending with fresh proofs that carry
+   * the txids — VectorPay looks EVM deposits up by txid and dedupes repeats.
+   */
+  async function placeOrder(final = false) {
     if (!root || !allAccepted || chosen.length === 0) return;
+    if (final && sentRows.length === 0) return;
     setSubmitting(true);
     setError(null);
     try {
       const proofs: Array<TransferProof & { usd: number }> = [];
       // Order first: proofs sign the sending wallet before any coins move, so
       // VectorPay matches deposits that arrive later from these addresses.
-      for (const row of chosen) {
+      for (const row of final ? sentRows : chosen) {
         const to = destinations[row.chain] ?? "";
-        const txids: string[] = [];
+        const txids = final && status[row.key]?.txid ? [status[row.key]!.txid!] : [];
         const amount = String(row.coinAmount);
         const proof = row.evm
           ? await signEvmProof(root, { reference, chain: row.evm.chain, asset: row.asset, index: row.evm.index, to, txids, amount })
@@ -306,7 +312,7 @@ export function CashoutActions({
       const response = await startCashout({
         data: {
           reference,
-          usd: Math.round(Math.min(chosenTotal, ORDER_MAX_USD) * 100) / 100,
+          usd: Math.round(Math.min(final ? sentTotal : chosenTotal, ORDER_MAX_USD) * 100) / 100,
           customerId: await cashoutCustomerId(root),
           acceptedDisclaimers: accepted,
           ...(merchantId ? { merchantId } : {}),
@@ -327,10 +333,10 @@ export function CashoutActions({
         side: "sell",
         createdAt: Date.now(),
         status: response.registered ? "ready" : "registration_failed",
-        usd: quote.usd,
+        usd: (final ? finalQuote : quote).usd,
         feeUsd: response.feeUsd,
-        settlementUsd: quote.settlementUsd,
-        assetAmount: quote.assetAmount,
+        settlementUsd: (final ? finalQuote : quote).settlementUsd,
+        assetAmount: (final ? finalQuote : quote).assetAmount,
         asset: response.asset ?? "TSD",
         chain: response.chain ?? "txc",
         checkoutUrl: response.handoffUrl,
@@ -340,6 +346,15 @@ export function CashoutActions({
       setResult({ orderId: response.orderId, checkoutUrl: response.handoffUrl, detail: response.detail });
       if (!response.registered || !response.handoffUrl) {
         setError(response.detail || "VectorPay couldn't create the order. Nothing was sent.");
+        return;
+      }
+      if (final) {
+        setStep("done");
+        try {
+          sessionStorage.removeItem(SESSION_KEY);
+        } catch {
+          /* noop */
+        }
         return;
       }
       void openVectorPayCheckout(response.handoffUrl);
@@ -583,8 +598,8 @@ export function CashoutActions({
                 {result?.checkoutUrl && (
                   <Button variant="outline" disabled={running} onClick={() => void openVectorPayCheckout(result.checkoutUrl ?? "")}>VectorPay</Button>
                 )}
-                <Button className="flex-1" disabled={sentRows.length === 0 || running} onClick={() => { setStep("done"); try { sessionStorage.removeItem(SESSION_KEY); } catch { /* noop */ } }}>
-                  Finish
+                <Button className="flex-1" disabled={sentRows.length === 0 || running || submitting} onClick={() => void placeOrder(true)}>
+                  {submitting ? <><Loader2 className="animate-spin" /> Confirming</> : "Finish"}
                 </Button>
               </div>
             </div>
