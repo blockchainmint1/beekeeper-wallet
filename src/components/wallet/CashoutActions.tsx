@@ -382,8 +382,9 @@ export function CashoutActions({
           {step === "intro" && (
             <div className="space-y-4 text-sm text-muted-foreground">
               <p>
-                First BeeKeeper adds up the stablecoins you hold and you approve a transfer out of each wallet. Then
-                VectorPay verifies your identity, links your bank and sends the dollars.
+                BeeKeeper rounds up every USDC, USDT and TSD you hold — on every chain and your first 20 addresses — and
+                sends it all to VectorPay in one go. Then VectorPay verifies your identity, links your bank and sends
+                the dollars.
               </p>
               <div className="rounded-md border border-border/60 bg-muted/40 p-3">
                 <p className="font-medium text-foreground">
@@ -408,31 +409,33 @@ export function CashoutActions({
                 </p>
               </div>
 
-              {(tsd.isLoading || stableBalances.some((q) => q.isLoading)) && (
+              {scanning && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Checking your wallets…
+                  <Loader2 className="h-4 w-4 animate-spin" /> Checking every chain and your first 20 addresses…
                 </p>
               )}
 
-              {cashable.length === 0 && !tsd.isLoading && !stableBalances.some((q) => q.isLoading) && (
+              {cashable.length === 0 && !scanning && (
                 <p className="text-sm text-destructive">No USDC, USDT or TSD balances to cash out yet.</p>
               )}
 
               <div className="space-y-2">
                 {cashable.map((row) => {
-                  const checked = selected.includes(row.key);
+                  const checked = picked.includes(row.key);
                   return (
                     <label
                       key={row.key}
-                      className="flex items-start gap-3 rounded-md border border-border/60 bg-muted/30 p-3"
+                      className={`flex items-start gap-3 rounded-md border border-border/60 bg-muted/30 p-3 ${row.blocked ? "opacity-60" : ""}`}
                     >
                       <Checkbox
                         className="mt-0.5"
                         checked={checked}
+                        disabled={Boolean(row.blocked)}
                         onCheckedChange={(next) =>
-                          setSelected((current) =>
-                            next ? [...current, row.key] : current.filter((value) => value !== row.key),
-                          )
+                          setSelected((current) => {
+                            const list = current ?? [];
+                            return next ? [...list, row.key] : list.filter((value) => value !== row.key);
+                          })
                         }
                       />
                       <span className="min-w-0 flex-1">
@@ -442,8 +445,8 @@ export function CashoutActions({
                           </span>
                           <span>${fmt(row.usd, 2)}</span>
                         </span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
-                          {fmt(row.coinAmount)} {row.asset}
+                        <span className={`mt-0.5 block text-xs ${row.blocked ? "text-destructive" : "text-muted-foreground"}`}>
+                          {row.blocked ?? row.sub}
                         </span>
                       </span>
                     </label>
@@ -530,64 +533,81 @@ export function CashoutActions({
           {step === "transfers" && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium">Send each wallet</p>
+                <p className="text-sm font-medium">Send everything</p>
                 <p className="text-xs text-muted-foreground">
-                  Approve them one at a time. Each opens the normal send screen with the cash-out address already
-                  filled in. Tick one off once it's broadcast.
+                  One tap sends each balance straight to VectorPay. If one fails, the rest keep going and the order
+                  covers only what actually went out.
                 </p>
               </div>
 
               <div className="space-y-2">
                 {chosen.map((row) => {
-                  const done = sent.includes(row.key);
-                  const to = destinations[row.depositChain] ?? "";
+                  const st = status[row.key];
+                  const to = destinations[row.chain] ?? "";
                   return (
                     <div key={row.key} className="rounded-md border border-border/60 bg-muted/30 p-3">
                       <div className="flex items-center justify-between gap-2 text-sm font-medium">
                         <span className="flex items-center gap-1.5">
-                          {done ? <Check className="h-3.5 w-3.5 text-primary" /> : <Wallet className="h-3.5 w-3.5 text-primary" />}
+                          {st?.state === "sent" ? (
+                            <Check className="h-3.5 w-3.5 text-primary" />
+                          ) : st?.state === "sending" ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                          ) : st?.state === "failed" ? (
+                            <X className="h-3.5 w-3.5 text-destructive" />
+                          ) : (
+                            <Wallet className="h-3.5 w-3.5 text-primary" />
+                          )}
                           {row.label}
                         </span>
-                        <span>{fmt(row.coinAmount)} {row.asset}</span>
+                        <span>${fmt(row.usd, 2)}</span>
                       </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        {to ? (
-                          <SendLink holding={row} to={to} onOpen={() => setOpen(false)} />
-                        ) : (
-                          <span className="text-xs text-destructive">Cash-out address unavailable.</span>
-                        )}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={done ? "default" : "outline"}
-                          onClick={() =>
-                            setSent((current) =>
-                              done ? current.filter((value) => value !== row.key) : [...current, row.key],
-                            )
-                          }
+                      <p className="mt-0.5 text-xs text-muted-foreground">{row.sub}</p>
+                      {st?.state === "sent" && st.txid && row.evm && (
+                        <a
+                          href={EVM_CHAINS[row.evm.chain].explorerTx(st.txid)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 inline-flex items-center gap-1 text-xs text-primary underline"
                         >
-                          {done ? "Sent" : "Mark sent"}
-                        </Button>
-                      </div>
+                          View transfer <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                      {st?.state === "failed" && <p className="mt-1 text-xs text-destructive">{st.error}</p>}
+                      {!row.evm && st?.state !== "sent" && (
+                        <div className="mt-2 flex items-center gap-2">
+                          {to ? <SendLink holding={row} to={to} onOpen={() => setOpen(false)} /> : null}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setStatus((s) => ({ ...s, [row.key]: { state: "sent" } }))}
+                          >
+                            Mark sent
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
+
+              {evmPending.length > 0 && (
+                <Button className="w-full" disabled={running || !root} onClick={() => void sendAll()}>
+                  {running ? <><Loader2 className="animate-spin" /> Sending…</> : <><Send /> Send {evmPending.length === 1 ? "it" : `all ${evmPending.length}`} now</>}
+                </Button>
+              )}
 
               <div className="space-y-2 rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
                 <Row label="Sent so far" value={`$${fmt(sentTotal, 2)}`} strong />
                 <Row label={feeBps === 0 ? "Service fee (merchant)" : "Service fee (1%)"} value={`$${finalQuote.feeUsd.toFixed(2)}`} />
                 <Row label="Estimated to your bank" value={`$${finalQuote.settlementUsd.toFixed(2)}`} strong />
               </div>
-              <p className="text-xs text-muted-foreground">
-                If one transfer fails, keep going — the order is created for what actually went out.
-              </p>
 
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep("review")}>Back</Button>
-                <Button className="flex-1" disabled={sentRows.length === 0 || submitting} onClick={() => void placeOrder()}>
+                <Button variant="outline" disabled={running} onClick={() => setStep("review")}>Back</Button>
+                <Button className="flex-1" disabled={sentRows.length === 0 || submitting || running} onClick={() => void placeOrder()}>
                   {submitting ? <><Loader2 className="animate-spin" /> Creating order</> : "Finish and get my link"}
                 </Button>
               </div>
