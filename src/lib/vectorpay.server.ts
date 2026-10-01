@@ -66,6 +66,11 @@ export function cashoutDepositAddress(chain: string): string | null {
   // 1) Dedicated per-chain secret (e.g. CASHOUT_BASE).
   const perChain = process.env[CHAIN_SECRET_NAMES[chain] ?? ""]?.trim();
   if (perChain && looksValid(chain, perChain)) return perChain;
+  // 1b) One shared EVM secret covers eth/base/bsc.
+  if (["eth", "base", "bsc"].includes(chain)) {
+    const evm = process.env["CASHOUT_EVM"]?.trim();
+    if (evm && looksValid(chain, evm)) return evm;
+  }
 
   // 2) Fall back to the combined CASHOUT_DEPOSIT_ADDRESSES JSON map.
   try {
