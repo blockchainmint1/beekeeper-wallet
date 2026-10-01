@@ -66,8 +66,8 @@ import {
 } from "@/lib/vectorpay";
 import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.functions";
 
-type Step = "intro" | "holdings" | "details" | "review" | "transfers" | "done";
-const STEPS: Step[] = ["intro", "holdings", "details", "review", "transfers", "done"];
+type Step = "intro" | "holdings" | "review" | "transfers" | "done";
+const STEPS: Step[] = ["intro", "holdings", "review", "transfers", "done"];
 
 interface Holding {
   key: string;
@@ -91,8 +91,6 @@ const SESSION_KEY = "beekeeper.cashout.session.v1";
 interface CashoutSession {
   reference: string;
   step: Step;
-  name: string;
-  email: string;
   accepted: string[];
   selected: string[];
   status: Record<string, RowStatus>;
@@ -146,8 +144,6 @@ export function CashoutActions({
   });
 
   const [step, setStep] = useState<Step>("intro");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [accepted, setAccepted] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[] | null>(null);
   const [status, setStatus] = useState<Record<string, RowStatus>>({});
@@ -167,9 +163,7 @@ export function CashoutActions({
       }
       const saved = JSON.parse(raw) as CashoutSession;
       setReference(saved.reference);
-      setStep(saved.step);
-      setName(saved.name);
-      setEmail(saved.email);
+      setStep((saved.step as string) === "details" ? "review" : saved.step);
       setAccepted(saved.accepted);
       setSelected(saved.selected);
       setStatus(saved.status);
@@ -180,13 +174,13 @@ export function CashoutActions({
   }, []);
   useEffect(() => {
     if (!reference || step === "intro" || step === "done") return;
-    const session: CashoutSession = { reference, step, name, email, accepted, selected: selected ?? [], status };
+    const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], status };
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
     } catch {
       /* noop */
     }
-  }, [reference, step, name, email, accepted, selected, status]);
+  }, [reference, step, accepted, selected, status]);
 
   // NectarPay merchants cash out with no service fee.
   const [merchantId, setMerchantId] = useState<string | null>(null);
@@ -237,8 +231,6 @@ export function CashoutActions({
   const quote = quoteCashout(chosenTotal, feeBps);
   const finalQuote = quoteCashout(Math.min(sentTotal, ORDER_MAX_USD), feeBps);
   const allAccepted = accepted.length === CASHOUT_DISCLOSURES.length;
-  const detailsValid =
-    /^[\p{L}\p{M}.' -]{2,120}$/u.test(name.trim()) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const totalError =
     chosenTotal < ORDER_MIN_USD
       ? `Select at least $${ORDER_MIN_USD} to cash out.`
@@ -251,8 +243,6 @@ export function CashoutActions({
 
   function reset() {
     setStep("intro");
-    setName("");
-    setEmail("");
     setAccepted([]);
     setSelected(null);
     setStatus({});
@@ -295,7 +285,7 @@ export function CashoutActions({
   }
 
   async function placeOrder() {
-    if (!root || !detailsValid || !allAccepted || sentRows.length === 0) return;
+    if (!root || !allAccepted || sentRows.length === 0) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -313,8 +303,6 @@ export function CashoutActions({
         data: {
           reference,
           usd: Math.round(Math.min(sentTotal, ORDER_MAX_USD) * 100) / 100,
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
           customerId: await cashoutCustomerId(root),
           acceptedDisclaimers: accepted,
           ...(merchantId ? { merchantId } : {}),
@@ -466,30 +454,9 @@ export function CashoutActions({
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("intro")}>Back</Button>
-                <Button className="flex-1" disabled={Boolean(totalError)} onClick={() => setStep("details")}>
+                <Button className="flex-1" disabled={Boolean(totalError)} onClick={() => setStep("review")}>
                   Continue
                 </Button>
-              </div>
-            </div>
-          )}
-
-          {step === "details" && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="cashout-name">Full legal name</Label>
-                <Input id="cashout-name" autoComplete="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cashout-email">Email</Label>
-                <Input id="cashout-email" type="email" autoComplete="email" maxLength={200} value={email} onChange={(event) => setEmail(event.target.value)} />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                VectorPay emails you the bank-linking step and uses these details to match your order. BeeKeeper does
-                not store them in your order history.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep("holdings")}>Back</Button>
-                <Button className="flex-1" disabled={!detailsValid} onClick={() => setStep("review")}>Review</Button>
               </div>
             </div>
           )}
@@ -524,7 +491,7 @@ export function CashoutActions({
                 ))}
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep("details")}>Back</Button>
+                <Button variant="outline" onClick={() => setStep("holdings")}>Back</Button>
                 <Button className="flex-1" disabled={!allAccepted} onClick={() => setStep("transfers")}>
                   Start transfers
                 </Button>
@@ -628,8 +595,8 @@ export function CashoutActions({
                 </p>
               </div>
               <p className="flex items-start gap-2 text-xs text-muted-foreground">
-                <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Next, VectorPay verifies your identity and
-                links your bank account, by email or on their secure pages. BeeKeeper never sees your bank login.
+                <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Next, VectorPay asks for your name and email,
+                verifies your identity and links your bank on their secure pages. BeeKeeper never sees any of it.
               </p>
               {result.checkoutUrl ? (
                 <Button className="w-full" onClick={() => void openVectorPayCheckout(result.checkoutUrl ?? "")}>
