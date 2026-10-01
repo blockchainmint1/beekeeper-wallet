@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { deriveSolanaAccount, formatSol } from "@/lib/solana/network";
 import { SolanaActivity, SolanaTile, useSolanaData } from "@/components/wallet/SolanaTile";
@@ -178,6 +179,7 @@ function WalletHome() {
 
   // Reactive enabled chain list
   const [enabled, setEnabled] = useState<ChainId[]>(() => getEnabledChains());
+  const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     const h = () => setEnabled(getEnabledChains());
     window.addEventListener("hme:chains-changed", h);
@@ -843,8 +845,20 @@ function WalletHome() {
     return { text: priced === 0 ? "—" : formatFiat(sum), loading };
   })();
 
-  const refreshAll = () => {
-    void qc.invalidateQueries();
+  const refreshAll = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const started = Date.now();
+    try {
+      // Refetch everything now (not just mark stale), including cached totals.
+      await qc.refetchQueries({ type: "all" });
+      toast.success("Balances updated");
+    } catch {
+      toast.error("Couldn't refresh some balances — try again");
+    } finally {
+      const wait = Math.max(0, 600 - (Date.now() - started));
+      setTimeout(() => setRefreshing(false), wait);
+    }
   };
 
   // ---------- one merged activity feed across every wallet ----------
@@ -1014,7 +1028,8 @@ function WalletHome() {
             totalText={totals.text}
             loading={totals.loading}
             rows={breakdown}
-            onRefresh={refreshAll}
+            onRefresh={() => void refreshAll()}
+            refreshing={refreshing}
           />
 
           <CashoutActions txcAddresses={[...ownAddresses]} evmAddress={evmAddress} />
