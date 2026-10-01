@@ -93,6 +93,7 @@ interface CashoutSession {
   step: Step;
   accepted: string[];
   selected: string[];
+  result?: { orderId: string; checkoutUrl: string | null; detail: string } | null;
   status: Record<string, RowStatus>;
 }
 
@@ -167,6 +168,7 @@ export function CashoutActions({
       setAccepted(saved.accepted);
       setSelected(saved.selected);
       setStatus(saved.status);
+      if (saved.result) setResult(saved.result);
       if (saved.step !== "intro") setOpen(true);
     } catch {
       setReference(newReference());
@@ -174,13 +176,13 @@ export function CashoutActions({
   }, []);
   useEffect(() => {
     if (!reference || step === "intro" || step === "done") return;
-    const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], status };
+    const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], status, result };
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
     } catch {
       /* noop */
     }
-  }, [reference, step, accepted, selected, status]);
+  }, [reference, step, accepted, selected, status, result]);
 
   // NectarPay merchants cash out with no service fee.
   const [merchantId, setMerchantId] = useState<string | null>(null);
@@ -285,14 +287,16 @@ export function CashoutActions({
   }
 
   async function placeOrder() {
-    if (!root || !allAccepted || sentRows.length === 0) return;
+    if (!root || !allAccepted || chosen.length === 0) return;
     setSubmitting(true);
     setError(null);
     try {
       const proofs: Array<TransferProof & { usd: number }> = [];
-      for (const row of sentRows) {
+      // Order first: proofs sign the sending wallet before any coins move, so
+      // VectorPay matches deposits that arrive later from these addresses.
+      for (const row of chosen) {
         const to = destinations[row.chain] ?? "";
-        const txids = status[row.key]?.txid ? [status[row.key]!.txid!] : [];
+        const txids: string[] = [];
         const amount = String(row.coinAmount);
         const proof = row.evm
           ? await signEvmProof(root, { reference, chain: row.evm.chain, asset: row.asset, index: row.evm.index, to, txids, amount })
@@ -302,7 +306,7 @@ export function CashoutActions({
       const response = await startCashout({
         data: {
           reference,
-          usd: Math.round(Math.min(sentTotal, ORDER_MAX_USD) * 100) / 100,
+          usd: Math.round(Math.min(chosenTotal, ORDER_MAX_USD) * 100) / 100,
           customerId: await cashoutCustomerId(root),
           acceptedDisclaimers: accepted,
           ...(merchantId ? { merchantId } : {}),
@@ -323,10 +327,10 @@ export function CashoutActions({
         side: "sell",
         createdAt: Date.now(),
         status: response.registered ? "ready" : "registration_failed",
-        usd: finalQuote.usd,
+        usd: quote.usd,
         feeUsd: response.feeUsd,
-        settlementUsd: finalQuote.settlementUsd,
-        assetAmount: finalQuote.assetAmount,
+        settlementUsd: quote.settlementUsd,
+        assetAmount: quote.assetAmount,
         asset: response.asset ?? "TSD",
         chain: response.chain ?? "txc",
         checkoutUrl: response.handoffUrl,
@@ -334,12 +338,12 @@ export function CashoutActions({
         transfers: proofs.map((p) => ({ chain: p.chain as CashoutChain, asset: p.asset, usd: p.usd })),
       });
       setResult({ orderId: response.orderId, checkoutUrl: response.handoffUrl, detail: response.detail });
-      setStep("done");
-      try {
-        sessionStorage.removeItem(SESSION_KEY);
-      } catch {
-        /* noop */
+      if (!response.registered || !response.handoffUrl) {
+        setError(response.detail || "VectorPay couldn't create the order. Nothing was sent.");
+        return;
       }
+      void openVectorPayCheckout(response.handoffUrl);
+      setStep("transfers");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create the order.");
     } finally {
@@ -490,10 +494,11 @@ export function CashoutActions({
                   </label>
                 ))}
               </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("holdings")}>Back</Button>
-                <Button className="flex-1" disabled={!allAccepted} onClick={() => setStep("transfers")}>
-                  Start transfers
+                <Button className="flex-1" disabled={!allAccepted || submitting} onClick={() => void placeOrder()}>
+                  {submitting ? <><Loader2 className="animate-spin" /> Creating order</> : "Link bank at VectorPay"}
                 </Button>
               </div>
             </div>
@@ -504,7 +509,7 @@ export function CashoutActions({
               <div>
                 <p className="text-sm font-medium">Send everything</p>
                 <p className="text-xs text-muted-foreground">
-                  One tap sends each balance straight to VectorPay. If one fails, the rest keep going and the order
+                  Once your bank is linked at VectorPay, one tap sends each balance straight to them. If one fails, the rest keep going and the order
                   covers only what actually went out.
                 </p>
               </div>
@@ -575,9 +580,11 @@ export function CashoutActions({
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <div className="flex gap-2">
-                <Button variant="outline" disabled={running} onClick={() => setStep("review")}>Back</Button>
-                <Button className="flex-1" disabled={sentRows.length === 0 || submitting || running} onClick={() => void placeOrder()}>
-                  {submitting ? <><Loader2 className="animate-spin" /> Creating order</> : "Finish and get my link"}
+                {result?.checkoutUrl && (
+                  <Button variant="outline" disabled={running} onClick={() => void openVectorPayCheckout(result.checkoutUrl ?? "")}>VectorPay</Button>
+                )}
+                <Button className="flex-1" disabled={sentRows.length === 0 || running} onClick={() => { setStep("done"); try { sessionStorage.removeItem(SESSION_KEY); } catch { /* noop */ } }}>
+                  Finish
                 </Button>
               </div>
             </div>
