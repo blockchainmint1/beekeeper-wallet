@@ -10,8 +10,6 @@ const startSchema = z
   .object({
     reference: z.string().regex(/^BK-[A-Z0-9]+-[A-F0-9]{20,32}$/).max(64),
     usd: z.number().finite().min(ORDER_MIN_USD).max(ORDER_MAX_USD),
-    name: z.string().trim().min(2).max(120).regex(/^[\p{L}\p{M}.' -]+$/u, "Enter a valid legal name."),
-    email: z.string().trim().email().max(200),
     /** Wallet-derived customer ID (bk_ + 40 hex) — VectorPay keys saved banks to it. */
     customerId: z.string().regex(/^bk_[0-9a-f]{40}$/),
     acceptedDisclaimers: z.array(z.string().min(1).max(64)).length(CASHOUT_DISCLOSURES.length),
@@ -103,8 +101,6 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
       side: "sell",
       reference: orderId,
       account_ref: data.customerId,
-      customer_name: data.name,
-      customer_email: data.email.toLowerCase(),
       asset,
       chain,
       destination_address: destination,

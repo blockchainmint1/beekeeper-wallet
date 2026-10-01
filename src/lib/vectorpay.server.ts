@@ -7,8 +7,6 @@ type RelayOrder = {
   side: "sell";
   reference: string;
   account_ref: string;
-  customer_name: string;
-  customer_email: string;
   asset: CashoutAsset;
   chain: CashoutChain;
   destination_address: string;
