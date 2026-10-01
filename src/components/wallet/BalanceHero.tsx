@@ -66,11 +66,12 @@ export function BalanceHero({
               <button
                 type="button"
                 onClick={onRefresh}
-                className="inline-flex items-center gap-1 hover:text-foreground"
+                disabled={refreshing}
+                className="inline-flex items-center gap-1 hover:text-foreground disabled:opacity-70"
                 aria-label="Refresh balances"
               >
-                <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
-                Refresh
+                <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin text-primary" : ""}`} />
+                {refreshing ? "Refreshing…" : "Refresh"}
               </button>
             )}
           </div>
