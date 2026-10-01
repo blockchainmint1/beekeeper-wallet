@@ -31,15 +31,25 @@ export const PYUSD_BY_CHAIN: Partial<Record<StableEvmChainId, Erc20TokenMeta>> =
   eth: { symbol: "PYUSD", address: "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8", decimals: 6 },
 };
 
+/** Canonical DAI contracts. */
+export const DAI_BY_CHAIN: Record<StableEvmChainId, Erc20TokenMeta> = {
+  eth: { symbol: "DAI", address: "0x6B175474E89094C44Da98b954EedeAC495271d0F", decimals: 18 },
+  base: { symbol: "DAI", address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb", decimals: 18 },
+  bsc: { symbol: "DAI", address: "0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3", decimals: 18 },
+};
+
+/** Symbols counted at $1 in the portfolio total. */
+export const USD_STABLE_SYMBOLS = new Set(["USDC", "USDT", "PYUSD", "DAI"]);
+
 /**
  * Built-in tokens we know about per chain. Display / enable state is layered
  * on top via `token-prefs.ts` (users can hide any of these and add custom
  * ERC-20s). Order = default display order.
  */
 export const BUILTIN_TOKENS_BY_CHAIN: Record<EvmChainId, Erc20TokenMeta[]> = {
-  eth: [USDC_BY_CHAIN.eth, USDT_BY_CHAIN.eth, PYUSD_BY_CHAIN.eth!],
-  base: [USDC_BY_CHAIN.base, USDT_BY_CHAIN.base],
-  bsc: [USDC_BY_CHAIN.bsc, USDT_BY_CHAIN.bsc],
+  eth: [USDC_BY_CHAIN.eth, USDT_BY_CHAIN.eth, PYUSD_BY_CHAIN.eth!, DAI_BY_CHAIN.eth],
+  base: [USDC_BY_CHAIN.base, USDT_BY_CHAIN.base, DAI_BY_CHAIN.base],
+  bsc: [USDC_BY_CHAIN.bsc, USDT_BY_CHAIN.bsc, DAI_BY_CHAIN.bsc],
   // No canonical stablecoins deployed on Zero Chill yet — users can add
   // custom ERC-20s from settings.
   zcu: [],
