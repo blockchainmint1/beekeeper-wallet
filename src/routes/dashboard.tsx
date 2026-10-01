@@ -851,7 +851,7 @@ function WalletHome() {
     const started = Date.now();
     try {
       // Refetch everything now (not just mark stale), including cached totals.
-      await qc.refetchQueries({ type: "all" });
+      await qc.refetchQueries({ type: "active" });
       toast.success("Balances updated");
     } catch {
       toast.error("Couldn't refresh some balances — try again");
