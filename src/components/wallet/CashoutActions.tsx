@@ -93,6 +93,7 @@ interface CashoutSession {
   step: Step;
   accepted: string[];
   selected: string[];
+  result?: { orderId: string; checkoutUrl: string | null; detail: string } | null;
   status: Record<string, RowStatus>;
 }
 
@@ -167,6 +168,7 @@ export function CashoutActions({
       setAccepted(saved.accepted);
       setSelected(saved.selected);
       setStatus(saved.status);
+      if (saved.result) setResult(saved.result);
       if (saved.step !== "intro") setOpen(true);
     } catch {
       setReference(newReference());
@@ -174,13 +176,13 @@ export function CashoutActions({
   }, []);
   useEffect(() => {
     if (!reference || step === "intro" || step === "done") return;
-    const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], status };
+    const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], status, result };
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
     } catch {
       /* noop */
     }
-  }, [reference, step, accepted, selected, status]);
+  }, [reference, step, accepted, selected, status, result]);
 
   // NectarPay merchants cash out with no service fee.
   const [merchantId, setMerchantId] = useState<string | null>(null);
@@ -492,6 +494,7 @@ export function CashoutActions({
                   </label>
                 ))}
               </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("holdings")}>Back</Button>
                 <Button className="flex-1" disabled={!allAccepted || submitting} onClick={() => void placeOrder()}>
