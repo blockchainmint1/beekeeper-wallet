@@ -170,7 +170,7 @@ export function AddSeedCard({ compact }: { compact?: boolean }) {
                         type="button"
                         onClick={() => {
                           setWordCount(12);
-                          if (mnemonic || mode === "generate") generate(12);
+                          if (mnemonic) generate(12);
                         }}
                         className={`rounded-md px-3 py-2 text-sm font-medium ${
                           wordCount === 12 ? "bg-primary text-primary-foreground" : "hover:bg-muted"
