@@ -37,15 +37,37 @@ type RelayOrder = {
 };
 
 
+/** Per-chain env secrets take priority, e.g. CASHOUT_ETH / CASHOUT_BASE / CASHOUT_BSC / CASHOUT_TXC / CASHOUT_TRON. */
+const CHAIN_SECRET_NAMES: Record<string, string> = {
+  eth: "CASHOUT_ETH",
+  base: "CASHOUT_BASE",
+  bsc: "CASHOUT_BSC",
+  txc: "CASHOUT_TXC",
+  tron: "CASHOUT_TRON",
+};
+
+function looksValid(chain: string, value: string): boolean {
+  if (["base", "eth", "bsc"].includes(chain)) return /^0x[0-9a-fA-F]{40}$/.test(value);
+  if (chain === "txc") return /^[A-Za-z0-9]{26,64}$/.test(value);
+  if (chain === "tron") return /^[T][A-Za-z1-9]{33}$/.test(value);
+  return false;
+}
+
 export function vectorPayConfigured(): boolean {
   return Boolean(
     process.env["BEEKEEPER_WEBHOOK_SECRET"]?.trim() &&
       process.env["VECTORPAY_ORDER_WEBHOOK_URL"]?.trim() &&
-      process.env["CASHOUT_DEPOSIT_ADDRESSES"]?.trim(),
+      cashoutDepositAddress("eth") &&
+      cashoutDepositAddress("txc"),
   );
 }
 
 export function cashoutDepositAddress(chain: string): string | null {
+  // 1) Dedicated per-chain secret (e.g. CASHOUT_BASE).
+  const perChain = process.env[CHAIN_SECRET_NAMES[chain] ?? ""]?.trim();
+  if (perChain && looksValid(chain, perChain)) return perChain;
+
+  // 2) Fall back to the combined CASHOUT_DEPOSIT_ADDRESSES JSON map.
   try {
     const raw = JSON.parse(process.env["CASHOUT_DEPOSIT_ADDRESSES"] ?? "{}") as Record<string, unknown>;
     const parsed: Record<string, unknown> = {};
@@ -59,10 +81,7 @@ export function cashoutDepositAddress(chain: string): string | null {
     };
     const hit = (aliases[chain] ?? [chain]).map((k) => parsed[k]).find((v) => typeof v === "string") as string | undefined;
     const value = hit ? hit.trim() : "";
-    if (["base", "eth", "bsc"].includes(chain) && !/^0x[0-9a-fA-F]{40}$/.test(value)) return null;
-    if (chain === "txc" && !/^[A-Za-z0-9]{26,64}$/.test(value)) return null;
-    if (chain === "tron" && !/^[T][A-Za-z1-9]{33}$/.test(value)) return null;
-    return value || null;
+    return value && looksValid(chain, value) ? value : null;
   } catch {
     return null;
   }
