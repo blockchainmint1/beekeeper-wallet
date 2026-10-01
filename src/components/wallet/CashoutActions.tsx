@@ -17,7 +17,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowDownToLine,
@@ -28,8 +28,9 @@ import {
   Loader2,
   Send,
   Wallet,
+  X,
 } from "lucide-react";
-import type { Address } from "viem";
+import { formatEther, type Address } from "viem";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -37,9 +38,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { getTxcTokenBalancesForAddresses } from "@/lib/txc/tokens.functions";
-import { readErc20Balance, tokenAmountFromRaw, USDC_BY_CHAIN, USDT_BY_CHAIN } from "@/lib/chains/erc20";
-import { EVM_CHAINS, type StableEvmChainId } from "@/lib/chains/evm";
+import { EVM_CHAINS } from "@/lib/chains/evm";
+import { useWallet } from "@/lib/txc/wallet-context";
 import { listLinks } from "@/lib/nectar/link";
+import {
+  ensureGas,
+  ROUNDUP_CHAINS,
+  scanEvmCashable,
+  sendCashRow,
+  signEvmProof,
+  signTsdProof,
+  type EvmCashRow,
+  type TransferProof,
+} from "@/lib/cashout/roundup";
 import {
   CASHOUT_DISCLOSURES,
   MERCHANT_FEE_BPS,
@@ -54,80 +65,127 @@ import {
 } from "@/lib/vectorpay";
 import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.functions";
 
-const STABLE_EVM_CHAINS: StableEvmChainId[] = ["eth", "base", "bsc"];
-
-const STABLE_TOKEN_CATALOG: { asset: CashoutAsset; byChain: Record<StableEvmChainId, { symbol: string; address: Address; decimals: number }> }[] = [
-  { asset: "USDC", byChain: USDC_BY_CHAIN },
-  { asset: "USDT", byChain: USDT_BY_CHAIN },
-];
-
 type Step = "intro" | "holdings" | "details" | "review" | "transfers" | "done";
 const STEPS: Step[] = ["intro", "holdings", "details", "review", "transfers", "done"];
 
 interface Holding {
   key: string;
-  /** Wallet's own chain id. */
   chain: CashoutChain;
-  /** Which cash-out deposit address receives it. */
-  depositChain: CashoutChain;
   label: string;
+  sub: string;
   asset: CashoutAsset;
   coinAmount: number;
   usd: number;
   /** Omni property id, for TSD. */
   propertyId?: number;
+  evm?: EvmCashRow;
+  /** Can't send: no coin for the network fee anywhere. */
+  blocked?: string;
+}
+
+type RowStatus = { state: "sending" | "sent" | "failed"; txid?: string; error?: string };
+
+/** Survives the trip to the TSD send screen and back. */
+const SESSION_KEY = "beekeeper.cashout.session.v1";
+interface CashoutSession {
+  reference: string;
+  step: Step;
+  name: string;
+  email: string;
+  accepted: string[];
+  selected: string[];
+  status: Record<string, RowStatus>;
 }
 
 function fmt(value: number, digits = 6) {
   return value.toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
+function newReference() {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
+  return `BK-${Date.now().toString(36).toUpperCase()}-${suffix}`;
+}
+
 export function CashoutActions({
   txcAddresses,
-  evmAddress,
 }: {
   txcAddresses: string[];
-  evmAddress: string | null;
+  evmAddress?: string | null;
 }) {
   const allowed = useExchangeFeaturesAllowed();
+  const { root } = useWallet();
   const configFn = useServerFn(getVectorPayConfig);
   const startCashout = useServerFn(startVectorPayCashout);
   const fetchTsd = useServerFn(getTxcTokenBalancesForAddresses);
+  const [open, setOpen] = useState(false);
+
   const config = useQuery({
     queryKey: ["vectorpay-config"],
     queryFn: () => configFn(),
     staleTime: 60_000,
     enabled: allowed,
   });
+  const destinations = config.data?.destinations ?? { txc: null, base: null, eth: null, bsc: null, tron: null };
+
   const addressKey = txcAddresses.slice().sort().join(",");
   const tsd = useQuery({
     queryKey: ["cashout-tsd", addressKey],
-    enabled: allowed && txcAddresses.length > 0,
+    enabled: allowed && open && txcAddresses.length > 0,
     queryFn: () => fetchTsd({ data: { addresses: txcAddresses, propertyIds: [39] } }),
     staleTime: 15_000,
   });
 
-  const stableQueries = STABLE_EVM_CHAINS.flatMap((chain) =>
-    STABLE_TOKEN_CATALOG.map((entry) => ({
-      queryKey: ["cashout-stable", chain, entry.asset, evmAddress],
-      enabled: allowed && Boolean(evmAddress),
-      queryFn: () => readErc20Balance(chain, entry.byChain[chain], evmAddress as Address),
-      staleTime: 15_000,
-    })),
-  );
-  const stableBalances = useQueries({ queries: stableQueries });
+  const evmChains = ROUNDUP_CHAINS.filter((c) => destinations[c]);
+  const evm = useQuery({
+    queryKey: ["cashout-evm-roundup", root ? root.neutered().toBase58().slice(0, 24) : null, evmChains.join(",")],
+    enabled: allowed && open && !!root && evmChains.length > 0,
+    queryFn: () => scanEvmCashable(root!, evmChains),
+    staleTime: 15_000,
+  });
 
-  const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("intro");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [accepted, setAccepted] = useState<string[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [sent, setSent] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[] | null>(null);
+  const [status, setStatus] = useState<Record<string, RowStatus>>({});
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ orderId: string; checkoutUrl: string | null; detail: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState("");
+
+  // Restore an in-progress cash-out (e.g. after sending TSD on its own screen).
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) {
+        setReference(newReference());
+        return;
+      }
+      const saved = JSON.parse(raw) as CashoutSession;
+      setReference(saved.reference);
+      setStep(saved.step);
+      setName(saved.name);
+      setEmail(saved.email);
+      setAccepted(saved.accepted);
+      setSelected(saved.selected);
+      setStatus(saved.status);
+      if (saved.step !== "intro") setOpen(true);
+    } catch {
+      setReference(newReference());
+    }
+  }, []);
+  useEffect(() => {
+    if (!reference || step === "intro" || step === "done") return;
+    const session: CashoutSession = { reference, step, name, email, accepted, selected: selected ?? [], status };
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } catch {
+      /* noop */
+    }
+  }, [reference, step, name, email, accepted, selected, status]);
 
   // NectarPay merchants cash out with no service fee.
   const [merchantId, setMerchantId] = useState<string | null>(null);
@@ -137,54 +195,43 @@ export function CashoutActions({
   }, [open]);
   const feeBps = merchantId ? MERCHANT_FEE_BPS : ORDER_FEE_BPS;
 
-  const destinations = config.data?.destinations ?? { txc: null, base: null, eth: null, bsc: null, tron: null };
-
-  /** Everything the merchant holds that a cash-out deposit address can accept. */
+  /** Everything this wallet holds that a cash-out deposit address can accept. */
   const cashable = useMemo<Holding[]>(() => {
     const list: Holding[] = [];
-
     const tsdAmount = Number(BigInt(tsd.data?.[39] ?? "0")) / 1e8;
     if (tsdAmount > 0 && destinations.txc) {
+      list.push({ key: "t:tsd", chain: "txc", label: "TSD on TEXITcoin", sub: "Sent from the TSD send screen", asset: "TSD", coinAmount: tsdAmount, usd: tsdAmount, propertyId: 39 });
+    }
+    for (const row of evm.data ?? []) {
+      const chain = EVM_CHAINS[row.chain];
+      const fee = `~${Number(formatEther(row.gasWei)).toFixed(6)} ${chain.nativeSymbol} fee`;
       list.push({
-        key: "t:tsd",
-        chain: "txc",
-        depositChain: "txc",
-        label: "TSD on TEXITcoin",
-        asset: "TSD",
-        coinAmount: tsdAmount,
-        usd: tsdAmount,
-        propertyId: 39,
+        key: row.key,
+        chain: row.chain,
+        label: `${row.asset} on ${chain.name}`,
+        sub: `${row.index === 0 ? "Main address" : `Address #${row.index}`} · ${fee}${row.gas === "fund" ? " (topped up from main)" : ""}`,
+        asset: row.asset,
+        coinAmount: row.amount,
+        usd: row.amount,
+        evm: row,
+        blocked: row.gas === "nogas" ? `Needs a little ${chain.nativeSymbol} for the network fee` : undefined,
       });
     }
+    return list.sort((a, b) => b.usd - a.usd);
+  }, [tsd.data, evm.data, destinations.txc]);
 
-    let idx = 0;
-    for (const chain of STABLE_EVM_CHAINS) {
-      for (const entry of STABLE_TOKEN_CATALOG) {
-        const raw = stableBalances[idx]?.data ?? 0n;
-        idx++;
-        if (raw <= 0n) continue;
-        const amt = Number(tokenAmountFromRaw(raw, entry.byChain[chain].decimals));
-        if (amt <= 0 || !destinations[chain]) continue;
-        list.push({
-          key: `e:${chain}:${entry.asset}`,
-          chain,
-          depositChain: chain,
-          label: `${entry.asset} on ${EVM_CHAINS[chain].name}`,
-          asset: entry.asset,
-          coinAmount: amt,
-          usd: amt,
-        });
-      }
-    }
+  // Default: everything sendable, except tiny Ethereum balances the fee would eat.
+  useEffect(() => {
+    if (selected !== null || step !== "holdings" || tsd.isLoading || evm.isLoading) return;
+    setSelected(cashable.filter((r) => !r.blocked && !(r.chain === "eth" && r.usd < 10)).map((r) => r.key));
+  }, [selected, step, cashable, tsd.isLoading, evm.isLoading]);
 
-    list.sort((a, b) => b.usd - a.usd);
-    return list;
-  }, [tsd.data, stableBalances, destinations]);
-
-  const chosen = useMemo(() => cashable.filter((row) => selected.includes(row.key)), [cashable, selected]);
+  const picked = selected ?? [];
+  const chosen = useMemo(() => cashable.filter((row) => picked.includes(row.key)), [cashable, picked]);
   const chosenTotal = chosen.reduce((sum, row) => sum + row.usd, 0);
-  const sentRows = chosen.filter((row) => sent.includes(row.key));
+  const sentRows = chosen.filter((row) => status[row.key]?.state === "sent");
   const sentTotal = sentRows.reduce((sum, row) => sum + row.usd, 0);
+  const evmPending = chosen.filter((r) => r.evm && status[r.key]?.state !== "sent");
 
   const quote = quoteCashout(chosenTotal, feeBps);
   const finalQuote = quoteCashout(Math.min(sentTotal, ORDER_MAX_USD), feeBps);
@@ -197,12 +244,7 @@ export function CashoutActions({
       : chosenTotal > ORDER_MAX_USD
         ? `Orders top out at $${ORDER_MAX_USD}. Uncheck a wallet or two.`
         : null;
-
-  // Default to everything that can be cashed out — merchants usually sweep the lot.
-  useEffect(() => {
-    if (step !== "holdings" || cashable.length === 0) return;
-    setSelected((current) => (current.length > 0 ? current : cashable.map((row) => row.key)));
-  }, [step, cashable]);
+  const scanning = tsd.isLoading || evm.isLoading || config.isLoading;
 
   if (!allowed) return null;
 
@@ -211,20 +253,61 @@ export function CashoutActions({
     setName("");
     setEmail("");
     setAccepted([]);
-    setSelected([]);
-    setSent([]);
+    setSelected(null);
+    setStatus({});
     setError(null);
     setResult(null);
-    const bytes = crypto.getRandomValues(new Uint8Array(12));
-    const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
-    setReference(`BK-${Date.now().toString(36).toUpperCase()}-${suffix}`);
+    setReference(newReference());
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+    } catch {
+      /* noop */
+    }
+  }
+
+  /** Send every selected EVM balance, one after another, to its deposit address. */
+  async function sendAll() {
+    if (!root || running) return;
+    setRunning(true);
+    setError(null);
+    const funded = new Set<string>();
+    for (const row of evmPending) {
+      const e = row.evm!;
+      const to = destinations[e.chain] as Address | null;
+      if (!to) continue;
+      setStatus((s) => ({ ...s, [row.key]: { state: "sending" } }));
+      try {
+        const groupKey = `${e.chain}:${e.index}`;
+        if (!funded.has(groupKey)) {
+          const count = evmPending.filter((r) => r.evm!.chain === e.chain && r.evm!.index === e.index).length;
+          await ensureGas(root, e.chain, e.index, count);
+          funded.add(groupKey);
+        }
+        const txid = await sendCashRow(root, e, to);
+        setStatus((s) => ({ ...s, [row.key]: { state: "sent", txid } }));
+      } catch (cause) {
+        const msg = cause instanceof Error ? cause.message.split("\n")[0] : "Send failed";
+        setStatus((s) => ({ ...s, [row.key]: { state: "failed", error: msg } }));
+      }
+    }
+    setRunning(false);
   }
 
   async function placeOrder() {
-    if (!detailsValid || !allAccepted || sentRows.length === 0) return;
+    if (!root || !detailsValid || !allAccepted || sentRows.length === 0) return;
     setSubmitting(true);
     setError(null);
     try {
+      const proofs: Array<TransferProof & { usd: number }> = [];
+      for (const row of sentRows) {
+        const to = destinations[row.chain] ?? "";
+        const txids = status[row.key]?.txid ? [status[row.key]!.txid!] : [];
+        const amount = String(row.coinAmount);
+        const proof = row.evm
+          ? await signEvmProof(root, { reference, chain: row.evm.chain, asset: row.asset, index: row.evm.index, to, txids, amount })
+          : signTsdProof(root, { reference, to, txids, amount });
+        proofs.push({ ...proof, usd: Math.round(row.usd * 100) / 100 });
+      }
       const response = await startCashout({
         data: {
           reference,
@@ -233,10 +316,15 @@ export function CashoutActions({
           email: email.trim().toLowerCase(),
           acceptedDisclaimers: accepted,
           ...(merchantId ? { merchantId } : {}),
-          transfers: sentRows.map((row) => ({
-            chain: row.depositChain,
-            asset: row.asset,
-            usd: Math.round(row.usd * 100) / 100,
+          transfers: proofs.map((p) => ({
+            chain: p.chain as CashoutChain,
+            asset: p.asset,
+            usd: p.usd,
+            from: p.from,
+            txids: p.txids,
+            amount: p.amount,
+            message: p.message,
+            signature: p.signature,
           })),
         },
       });
@@ -253,10 +341,15 @@ export function CashoutActions({
         chain: response.chain ?? "txc",
         checkoutUrl: response.handoffUrl,
         detail: response.detail,
-        transfers: response.transfers,
+        transfers: proofs.map((p) => ({ chain: p.chain as CashoutChain, asset: p.asset, usd: p.usd })),
       });
       setResult({ orderId: response.orderId, checkoutUrl: response.handoffUrl, detail: response.detail });
       setStep("done");
+      try {
+        sessionStorage.removeItem(SESSION_KEY);
+      } catch {
+        /* noop */
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create the order.");
     } finally {
