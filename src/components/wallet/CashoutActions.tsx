@@ -48,6 +48,7 @@ import {
   sendCashRow,
   signEvmProof,
   signTsdProof,
+  cashoutCustomerId,
   type EvmCashRow,
   type TransferProof,
 } from "@/lib/cashout/roundup";
@@ -314,6 +315,7 @@ export function CashoutActions({
           usd: Math.round(Math.min(sentTotal, ORDER_MAX_USD) * 100) / 100,
           name: name.trim(),
           email: email.trim().toLowerCase(),
+          customerId: await cashoutCustomerId(root),
           acceptedDisclaimers: accepted,
           ...(merchantId ? { merchantId } : {}),
           transfers: proofs.map((p) => ({

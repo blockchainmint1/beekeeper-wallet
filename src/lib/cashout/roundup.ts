@@ -192,3 +192,18 @@ export function signTsdProof(
   const signed = signMessageWithKey({ privateKey: node.privateKey, kind: "bip44", address: holder.address, message });
   return { chain: "txc", asset: "TSD", from: holder.address, to: args.to, txids: args.txids, amount: args.amount, message, signature: signed.signature };
 }
+
+/**
+ * Stable, unguessable VectorPay customer ID for this seed. Derived from a
+ * PRIVATE key on a dedicated path (never shared as an xpub), so merchants
+ * holding our xpubs can't compute it and nobody can type someone else's.
+ */
+export async function cashoutCustomerId(root: BIP32Interface): Promise<string> {
+  const key = root.derivePath("m/44'/696969'/77'/0/0").privateKey;
+  if (!key) throw new Error("Wallet key unavailable");
+  const tag = new TextEncoder().encode("beekeeper-vectorpay-customer-v1:");
+  const buf = new Uint8Array(tag.length + key.length);
+  buf.set(tag); buf.set(key, tag.length);
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", buf));
+  return "bk_" + Array.from(hash.slice(0, 20), (b) => b.toString(16).padStart(2, "0")).join("");
+}
