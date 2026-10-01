@@ -163,9 +163,38 @@ export function AddSeedCard({ compact }: { compact?: boolean }) {
             <form onSubmit={submit} className="space-y-4">
               {mode === "generate" ? (
                 <div className="space-y-3">
+                  <div>
+                    <Label>Seed length</Label>
+                    <div className="mt-1 grid grid-cols-2 gap-2 rounded-lg border border-border p-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWordCount(12);
+                          if (mnemonic || mode === "generate") generate(12);
+                        }}
+                        className={`rounded-md px-3 py-2 text-sm font-medium ${
+                          wordCount === 12 ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                        }`}
+                      >
+                        12 words
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWordCount(24);
+                          if (mnemonic) generate(24);
+                        }}
+                        className={`rounded-md px-3 py-2 text-sm font-medium ${
+                          wordCount === 24 ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                        }`}
+                      >
+                        24 words
+                      </button>
+                    </div>
+                  </div>
                   {!mnemonic ? (
-                    <Button type="button" onClick={generate} className="w-full">
-                      <RefreshCw className="h-4 w-4 mr-2" /> Generate 24-word seed
+                    <Button type="button" onClick={() => generate()} className="w-full">
+                      <RefreshCw className="h-4 w-4 mr-2" /> Generate {wordCount}-word seed
                     </Button>
                   ) : (
                     <>
