@@ -30,11 +30,13 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { toast } from "sonner";
 
 type Mode = "generate" | "import";
+type WordCount = 12 | 24;
 
 export function AddSeedCard({ compact }: { compact?: boolean }) {
   const { root, loadFromMemory } = useWallet();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("generate");
+  const [wordCount, setWordCount] = useState<WordCount>(24);
   const [mnemonic, setMnemonic] = useState("");
   const [passphrase, setPassphrase] = useState("");
   const [password, setPassword] = useState("");
@@ -47,6 +49,7 @@ export function AddSeedCard({ compact }: { compact?: boolean }) {
 
   function reset() {
     setMode("generate");
+    setWordCount(24);
     setMnemonic("");
     setPassphrase("");
     setPassword("");
