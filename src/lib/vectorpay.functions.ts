@@ -22,6 +22,12 @@ const startSchema = z
           chain: z.enum(["txc", "base", "eth", "bsc", "tron"]),
           asset: z.enum(["TSD", "USDC", "USDT"]),
           usd: z.number().finite().min(0).max(ORDER_MAX_USD),
+          /** Ownership proof: sending address signed the order + txids. */
+          from: z.string().trim().min(20).max(80).optional(),
+          txids: z.array(z.string().trim().regex(/^(0x)?[0-9a-fA-F]{64}$/)).max(20).optional(),
+          amount: z.string().regex(/^\d+(\.\d+)?$/).max(40).optional(),
+          message: z.string().max(2000).optional(),
+          signature: z.string().min(40).max(200).optional(),
         }),
       )
       .min(1)
@@ -113,6 +119,10 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
         asset: row.asset,
         usd: row.usd.toFixed(2),
         destination_address: cashoutDepositAddress(row.chain)!,
+        ...(row.from ? { from_address: row.from } : {}),
+        ...(row.txids ? { txids: row.txids } : {}),
+        ...(row.amount ? { asset_amount: row.amount } : {}),
+        ...(row.message && row.signature ? { proof_message: row.message, proof_signature: row.signature } : {}),
       })),
       ...(data.merchantId ? { merchant_ref: data.merchantId } : {}),
     });

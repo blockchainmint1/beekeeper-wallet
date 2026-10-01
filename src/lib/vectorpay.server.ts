@@ -21,7 +21,17 @@ type RelayOrder = {
   cancel_url: string;
   accepted_disclaimers: string[];
   /** Wallet-by-wallet transfers the merchant actually sent for this order. */
-  transfers: Array<{ chain: string; asset: string; usd: string; destination_address?: string }>;
+  transfers: Array<{
+    chain: string;
+    asset: string;
+    usd: string;
+    destination_address?: string;
+    from_address?: string;
+    txids?: string[];
+    asset_amount?: string;
+    proof_message?: string;
+    proof_signature?: string;
+  }>;
   /** NectarPay merchant id when the wallet is linked (0% fee tier). */
   merchant_ref?: string;
 };

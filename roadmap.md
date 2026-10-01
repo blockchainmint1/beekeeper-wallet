@@ -17,3 +17,4 @@
 - [x] Rename Android builds to BeeKeeper Wallet and publish APK `0.1.202609141037` to the automatic update list
 - [x] Point homepage and Settings updates to BeeKeeper's own APK endpoint and fix Android download completion
 - [x] Give the Android app its own package id (`money.beekeeper.wallet`) so installs no longer offer to update the honest.money app
+- [x] Cash-out round-up: one-tap send of USDC/USDT (20 addresses, eth/base/bsc) + TSD, signed proofs to VectorPay
