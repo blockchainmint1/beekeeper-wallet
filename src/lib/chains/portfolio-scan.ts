@@ -28,7 +28,7 @@ export function useEvmPortfolioTotals(
   const scannable = chains.filter(isScannableChain);
   const results = useQueries({
     queries: scannable.map((chain) => ({
-      queryKey: ["evm-portfolio-total", chain, root?.fingerprint ?? null],
+      queryKey: ["evm-portfolio-total", chain, root ? root.neutered().toBase58().slice(0, 24) : null],
       enabled: enabled && !!root,
       staleTime: 60_000,
       refetchInterval: 120_000,

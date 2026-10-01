@@ -670,10 +670,13 @@ function WalletHome() {
         const u = UTXO[c as UtxoChain];
         const meta = WATCH_CHAIN_META[c as UtxoChain];
         const sats = u.q.data?.balanceSats ?? 0;
-        const usd = u.priceUsd != null ? meta.toCoin(sats) * u.priceUsd : null;
+        const coinUsd = u.priceUsd != null ? meta.toCoin(sats) * u.priceUsd : null;
+        const withTsd = c === "txc" && tsdUsd > 0;
+        const usd = coinUsd != null ? coinUsd + (withTsd ? tsdUsd : 0) : null;
         return {
           key: `c:${c}`,
           label: getChainLabel(c),
+          sub: withTsd ? `incl. ${tsdUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })} TSD` : undefined,
           amountText: `${meta.formatCompact(sats)} ${meta.ticker}`,
           fiatText: usd != null ? formatFiat(usd) : null,
           loading: u.q.isLoading,
