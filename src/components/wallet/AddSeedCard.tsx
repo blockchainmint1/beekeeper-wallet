@@ -59,10 +59,10 @@ export function AddSeedCard({ compact }: { compact?: boolean }) {
     setBusy(false);
   }
 
-  function generate() {
+  function generate(count: WordCount = wordCount) {
     setError(null);
     try {
-      setMnemonic(generateMnemonic(256));
+      setMnemonic(generateMnemonic(count === 12 ? 128 : 256));
       setConfirmedBackup(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not generate seed");
