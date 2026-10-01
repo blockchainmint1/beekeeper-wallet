@@ -47,8 +47,18 @@ export function vectorPayConfigured(): boolean {
 
 export function cashoutDepositAddress(chain: string): string | null {
   try {
-    const parsed = JSON.parse(process.env["CASHOUT_DEPOSIT_ADDRESSES"] ?? "{}") as Record<string, unknown>;
-    const value = typeof parsed[chain] === "string" ? parsed[chain].trim() : "";
+    const raw = JSON.parse(process.env["CASHOUT_DEPOSIT_ADDRESSES"] ?? "{}") as Record<string, unknown>;
+    const parsed: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(raw)) parsed[k.toLowerCase()] = v;
+    const aliases: Record<string, string[]> = {
+      eth: ["eth", "ethereum", "evm"],
+      base: ["base", "evm"],
+      bsc: ["bsc", "bnb", "evm"],
+      txc: ["txc", "texitcoin", "tsd"],
+      tron: ["tron", "trx"],
+    };
+    const hit = (aliases[chain] ?? [chain]).map((k) => parsed[k]).find((v) => typeof v === "string") as string | undefined;
+    const value = hit ? hit.trim() : "";
     if (["base", "eth", "bsc"].includes(chain) && !/^0x[0-9a-fA-F]{40}$/.test(value)) return null;
     if (chain === "txc" && !/^[A-Za-z0-9]{26,64}$/.test(value)) return null;
     if (chain === "tron" && !/^[T][A-Za-z1-9]{33}$/.test(value)) return null;
