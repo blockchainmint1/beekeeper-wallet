@@ -31,3 +31,4 @@ Current gates:
 
 If the user asks for a feature and does not explicitly say it should be on iOS,
 default to excluding it from iOS. Ask the user for confirmation when unsure.
+- Cash-out deposits are attributed by txid + sending-address signature (docs/vectorpay-cashout-proof.md), never by amount — VectorPay uses one shared deposit address per chain.
