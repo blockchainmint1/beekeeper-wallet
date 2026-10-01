@@ -37,7 +37,7 @@ txids: <txid1>,<txid2>
 1. Rebuild `proof_message` from the fields and require an exact match (including `order` = this order's `reference`).
 2. Verify the signature:
    - **EVM**: EIP-191 `personal_sign`. Use `viem.verifyMessage({ address: from_address, message, signature })` or ethers `verifyMessage`.
-   - **TXC (TSD)**: Bitcoin-style compact signature (base64), message prefix `"\x18TEXITcoin Signed Message:\n"`, legacy P2PKH address. Use bitcoinjs-message with the TEXITcoin prefix.
+   - **TXC (TSD)**: Bitcoin-style compact signature (base64), message prefix `"\x1aTEXITcoin Signed Message:\n"` (0x1a length byte), legacy P2PKH address. Use bitcoinjs-message with the TEXITcoin prefix.
 3. For each txid, read the chain yourself and confirm that it's a token transfer of `asset` **from `from_address` to your deposit address**. Credit the **on-chain amount**, never `usd` or `asset_amount`.
 4. Store each txid as used and reject any txid already credited to another order.
 5. **TSD with no txids**: credit unclaimed TSD transfers from `from_address` to the TXC deposit address that were seen after the order was created. Only a signed `from_address` can claim them.
