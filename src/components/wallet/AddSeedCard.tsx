@@ -30,11 +30,13 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { toast } from "sonner";
 
 type Mode = "generate" | "import";
+type WordCount = 12 | 24;
 
 export function AddSeedCard({ compact }: { compact?: boolean }) {
   const { root, loadFromMemory } = useWallet();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("generate");
+  const [wordCount, setWordCount] = useState<WordCount>(24);
   const [mnemonic, setMnemonic] = useState("");
   const [passphrase, setPassphrase] = useState("");
   const [password, setPassword] = useState("");
@@ -47,6 +49,7 @@ export function AddSeedCard({ compact }: { compact?: boolean }) {
 
   function reset() {
     setMode("generate");
+    setWordCount(24);
     setMnemonic("");
     setPassphrase("");
     setPassword("");
@@ -56,10 +59,10 @@ export function AddSeedCard({ compact }: { compact?: boolean }) {
     setBusy(false);
   }
 
-  function generate() {
+  function generate(count: WordCount = wordCount) {
     setError(null);
     try {
-      setMnemonic(generateMnemonic(256));
+      setMnemonic(generateMnemonic(count === 12 ? 128 : 256));
       setConfirmedBackup(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not generate seed");
@@ -160,9 +163,38 @@ export function AddSeedCard({ compact }: { compact?: boolean }) {
             <form onSubmit={submit} className="space-y-4">
               {mode === "generate" ? (
                 <div className="space-y-3">
+                  <div>
+                    <Label>Seed length</Label>
+                    <div className="mt-1 grid grid-cols-2 gap-2 rounded-lg border border-border p-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWordCount(12);
+                          if (mnemonic) generate(12);
+                        }}
+                        className={`rounded-md px-3 py-2 text-sm font-medium ${
+                          wordCount === 12 ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                        }`}
+                      >
+                        12 words
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWordCount(24);
+                          if (mnemonic) generate(24);
+                        }}
+                        className={`rounded-md px-3 py-2 text-sm font-medium ${
+                          wordCount === 24 ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                        }`}
+                      >
+                        24 words
+                      </button>
+                    </div>
+                  </div>
                   {!mnemonic ? (
-                    <Button type="button" onClick={generate} className="w-full">
-                      <RefreshCw className="h-4 w-4 mr-2" /> Generate 24-word seed
+                    <Button type="button" onClick={() => generate()} className="w-full">
+                      <RefreshCw className="h-4 w-4 mr-2" /> Generate {wordCount}-word seed
                     </Button>
                   ) : (
                     <>
