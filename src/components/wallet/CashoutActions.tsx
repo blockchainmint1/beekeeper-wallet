@@ -456,11 +456,33 @@ export function CashoutActions({
 
           {step === "holdings" && (
             <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">What you can cash out</p>
-                <p className="text-xs text-muted-foreground">
-                  Only USDC, USDT and TSD can be cashed out. Everything is selected by default.
-                </p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">What you can cash out</p>
+                  <p className="text-xs text-muted-foreground">
+                    Only USDC, USDT and TSD can be cashed out. Everything is selected by default.
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setSelected(cashable.filter((r) => !r.blocked).map((r) => r.key))}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setSelected([])}
+                  >
+                    None
+                  </Button>
+                </div>
               </div>
 
               {scanning && (
@@ -474,36 +496,59 @@ export function CashoutActions({
               )}
 
               <div className="space-y-2">
-                {cashable.map((row) => {
+                {cashableEff.map((row) => {
+                  const orig = cashableByKey.get(row.key)!;
                   const checked = picked.includes(row.key);
+                  const typed = amounts[row.key] ?? "";
                   return (
-                    <label
+                    <div
                       key={row.key}
-                      className={`flex items-start gap-3 rounded-md border border-border/60 bg-muted/30 p-3 ${row.blocked ? "opacity-60" : ""}`}
+                      className={`rounded-md border border-border/60 bg-muted/30 p-3 ${row.blocked ? "opacity-60" : ""}`}
                     >
-                      <Checkbox
-                        className="mt-0.5"
-                        checked={checked}
-                        disabled={Boolean(row.blocked)}
-                        onCheckedChange={(next) =>
-                          setSelected((current) => {
-                            const list = current ?? [];
-                            return next ? [...list, row.key] : list.filter((value) => value !== row.key);
-                          })
-                        }
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                          <span className="flex items-center gap-1.5">
-                            <Wallet className="h-3.5 w-3.5 text-primary" /> {row.label}
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id={`cashout-${row.key}`}
+                          className="mt-0.5"
+                          checked={checked}
+                          disabled={Boolean(row.blocked)}
+                          onCheckedChange={(next) =>
+                            setSelected((current) => {
+                              const list = current ?? [];
+                              return next ? [...list, row.key] : list.filter((value) => value !== row.key);
+                            })
+                          }
+                        />
+                        <label htmlFor={`cashout-${row.key}`} className="min-w-0 flex-1 cursor-pointer">
+                          <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                            <span className="flex items-center gap-1.5">
+                              <Wallet className="h-3.5 w-3.5 text-primary" /> {row.label}
+                            </span>
+                            <span>${fmt(row.usd, 2)}</span>
                           </span>
-                          <span>${fmt(row.usd, 2)}</span>
-                        </span>
-                        <span className={`mt-0.5 block text-xs ${row.blocked ? "text-destructive" : "text-muted-foreground"}`}>
-                          {row.blocked ?? row.sub}
-                        </span>
-                      </span>
-                    </label>
+                          <span className={`mt-0.5 block text-xs ${row.blocked ? "text-destructive" : "text-muted-foreground"}`}>
+                            {row.blocked ?? row.sub}
+                          </span>
+                        </label>
+                      </div>
+                      {checked && !row.blocked && (
+                        <div className="mt-2 flex items-center gap-2 pl-7">
+                          <span className="shrink-0 text-xs text-muted-foreground">Cash out</span>
+                          <Input
+                            inputMode="decimal"
+                            value={typed}
+                            onChange={(e) =>
+                              setAmounts((current) => ({ ...current, [row.key]: e.target.value.replace(/[^0-9.]/g, "") }))
+                            }
+                            placeholder={fmt(orig.usd, 2)}
+                            className="h-7 w-24 text-right text-xs"
+                            autoComplete="off"
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {typed ? `of $${fmt(orig.usd, 2)}` : `— blank for all $${fmt(orig.usd, 2)}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -514,11 +559,17 @@ export function CashoutActions({
                 <Row label="Estimated to your bank" value={`$${quote.settlementUsd.toFixed(2)}`} strong />
               </div>
 
+              {invalidAmounts && (
+                <p className="text-sm text-destructive">
+                  Each amount must be more than $0 and no more than that balance. Leave a line blank to send all of it.
+                </p>
+              )}
+
               {totalError && <p className="text-sm text-destructive">{totalError}</p>}
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("intro")}>Back</Button>
-                <Button className="flex-1" disabled={Boolean(totalError)} onClick={() => setStep("review")}>
+                <Button className="flex-1" disabled={Boolean(totalError) || invalidAmounts} onClick={() => setStep("review")}>
                   Continue
                 </Button>
               </div>
