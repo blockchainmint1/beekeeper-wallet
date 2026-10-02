@@ -29,6 +29,7 @@ import { SecurityCheckupCard } from "@/components/wallet/SecurityCheckupCard";
 import { SignMessageCard } from "@/components/wallet/SignMessageCard";
 import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 
+import { EcosystemLinkCard } from "@/components/wallet/EcosystemLinkCard";
 import { UpdateCheckCard } from "@/components/wallet/UpdateCheckCard";
 import { TsdCashoutKeyCard } from "@/components/wallet/TsdCashoutKeyCard";
 import { TsdAccountLinkCard } from "@/components/wallet/TsdAccountLinkCard";
