@@ -300,7 +300,7 @@ export function CashoutActions({
     const list: Holding[] = [];
     const tsdAmount = Number(BigInt(tsd.data?.[39] ?? "0")) / 1e8;
     if (tsdAmount > 0 && destinations.txc) {
-      list.push({ key: "t:tsd", chain: "txc", label: "TSD on TEXITcoin", sub: "Sent from the TSD send screen", asset: "TSD", coinAmount: tsdAmount, usd: tsdAmount, propertyId: 39 });
+      list.push({ key: "t:tsd", chain: "txc", label: "TSD on TEXITcoin", sub: "Sent right here, from your TEXITcoin wallet", asset: "TSD", coinAmount: tsdAmount, usd: tsdAmount, propertyId: 39 });
     }
     for (const row of evm.data ?? []) {
       const chain = EVM_CHAINS[row.chain];
@@ -901,41 +901,6 @@ export function CashoutActions({
         </DialogContent>
       </Dialog>
     </section>
-  );
-}
-
-/**
- * Opens the ordinary send screen for this wallet, prefilled with the cash-out
- * address — the broadcast path stays the same battle-tested code.
- */
-function SendLink({ holding, to, onOpen }: { holding: Holding; to: string; onOpen: () => void }) {
-  const label = (
-    <>
-      <Send /> Send {holding.asset}
-    </>
-  );
-  const amount = holding.propertyId ? String(holding.coinAmount) : undefined;
-
-  if (holding.chain === "txc") {
-    return (
-      <Button asChild size="sm" className="flex-1">
-        <Link
-          to="/wallet/send"
-          search={{ to, ...(amount ? { amount } : {}), ...(holding.propertyId ? { token: String(holding.propertyId) } : {}), cashout: holding.key }}
-          onClick={onOpen}
-        >
-          {label}
-        </Link>
-      </Button>
-    );
-  }
-
-  return (
-    <Button asChild size="sm" className="flex-1">
-      <Link to="/wallet/evm/$chain/send" params={{ chain: holding.chain }} search={{ to, asset: holding.asset }} onClick={onOpen}>
-        {label}
-      </Link>
-    </Button>
   );
 }
 
