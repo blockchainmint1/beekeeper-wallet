@@ -96,7 +96,8 @@ interface Holding {
 type RowStatus = { state: "sending" | "sent" | "failed" | "skipped"; txid?: string; error?: string };
 
 /** Survives the trip to the TSD send screen and back. */
-const SESSION_KEY = "beekeeper.cashout.session.v1";
+export const CASHOUT_SESSION_KEY = "beekeeper.cashout.session.v1";
+const SESSION_KEY = CASHOUT_SESSION_KEY;
 interface CashoutSession {
   reference: string;
   step: Step;
@@ -875,7 +876,7 @@ function SendLink({ holding, to, onOpen }: { holding: Holding; to: string; onOpe
       <Button asChild size="sm" className="flex-1">
         <Link
           to="/wallet/send"
-          search={{ to, ...(amount ? { amount } : {}), ...(holding.propertyId ? { token: String(holding.propertyId) } : {}) }}
+          search={{ to, ...(amount ? { amount } : {}), ...(holding.propertyId ? { token: String(holding.propertyId) } : {}), cashout: holding.key }}
           onClick={onOpen}
         >
           {label}
