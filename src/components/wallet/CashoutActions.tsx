@@ -93,7 +93,7 @@ interface Holding {
   blocked?: string;
 }
 
-type RowStatus = { state: "sending" | "sent" | "failed"; txid?: string; error?: string };
+type RowStatus = { state: "sending" | "sent" | "failed" | "skipped"; txid?: string; error?: string };
 
 /** Survives the trip to the TSD send screen and back. */
 const SESSION_KEY = "beekeeper.cashout.session.v1";
