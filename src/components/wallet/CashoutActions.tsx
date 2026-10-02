@@ -264,6 +264,15 @@ export function CashoutActions({
   const sentRows = chosen.filter((row) => status[row.key]?.state === "sent");
   const sentTotal = sentRows.reduce((sum, row) => sum + row.usd, 0);
   const evmPending = chosen.filter((r) => r.evm && status[r.key]?.state !== "sent");
+  // A checked row with a typed amount that isn't a valid partial amount.
+  const invalidAmounts = picked.some((key) => {
+    const orig = cashableByKey.get(key);
+    if (!orig || orig.blocked) return false;
+    const txt = amounts[key];
+    if (txt === undefined || txt === "") return false;
+    const v = Number(txt);
+    return !Number.isFinite(v) || v <= 0 || v > orig.usd;
+  });
 
   const quote = quoteCashout(chosenTotal, feeBps);
   const finalQuote = quoteCashout(Math.min(sentTotal, ORDER_MAX_USD), feeBps);
@@ -282,6 +291,7 @@ export function CashoutActions({
     setStep("intro");
     setAccepted([]);
     setSelected(null);
+    setAmounts({});
     setStatus({});
     setError(null);
     setResult(null);
@@ -311,7 +321,7 @@ export function CashoutActions({
           await ensureGas(root, e.chain, e.index, count);
           funded.add(groupKey);
         }
-        const txid = await sendCashRow(root, e, to);
+        const txid = await sendCashRow(root, e, to, partialRaw(row, amounts));
         setStatus((s) => ({ ...s, [row.key]: { state: "sent", txid } }));
       } catch (cause) {
         const msg = cause instanceof Error ? cause.message.split("\n")[0] : "Send failed";
