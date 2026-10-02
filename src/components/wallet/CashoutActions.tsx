@@ -93,6 +93,8 @@ interface CashoutSession {
   step: Step;
   accepted: string[];
   selected: string[];
+  /** Per-row manually lowered cash-out amount ("partial cash-out"). */
+  amounts: Record<string, string>;
   result?: { orderId: string; checkoutUrl: string | null; detail: string } | null;
   status: Record<string, RowStatus>;
 }
@@ -105,6 +107,33 @@ function newReference() {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
   const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
   return `BK-${Date.now().toString(36).toUpperCase()}-${suffix}`;
+}
+
+/** Row with a manually lowered cash-out amount, or unchanged when blank/full. */
+function appliedAmount(row: Holding, amounts: Record<string, string>): Holding {
+  const txt = amounts[row.key];
+  if (!txt) return row;
+  const v = Number(txt);
+  if (!Number.isFinite(v) || v <= 0 || v >= row.usd) return row;
+  if (row.evm) {
+    const raw = BigInt(Math.round(v * 10 ** row.evm.token.decimals));
+    if (raw <= 0n || raw >= row.evm.raw) return row;
+    const coin = Number(raw) / 10 ** row.evm.token.decimals;
+    return { ...row, usd: coin, coinAmount: coin };
+  }
+  const coin = Math.min(Math.round((v / row.usd) * row.coinAmount * 1e8) / 1e8, row.coinAmount);
+  return { ...row, usd: coin, coinAmount: coin };
+}
+
+/** Raw token amount for a partial cash-out row (undefined = send the full balance). */
+function partialRaw(row: Holding, amounts: Record<string, string>): bigint | undefined {
+  if (!row.evm) return undefined;
+  const txt = amounts[row.key];
+  if (!txt) return undefined;
+  const v = Number(txt);
+  if (!Number.isFinite(v) || v <= 0) return undefined;
+  const raw = BigInt(Math.round(v * 10 ** row.evm.token.decimals));
+  return raw > 0n && raw < row.evm.raw ? raw : undefined;
 }
 
 export function CashoutActions({
@@ -147,6 +176,7 @@ export function CashoutActions({
   const [step, setStep] = useState<Step>("intro");
   const [accepted, setAccepted] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[] | null>(null);
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Record<string, RowStatus>>({});
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -167,6 +197,7 @@ export function CashoutActions({
       setStep((saved.step as string) === "details" ? "review" : saved.step);
       setAccepted(saved.accepted);
       setSelected(saved.selected);
+      setAmounts(saved.amounts ?? {});
       setStatus(saved.status);
       if (saved.result) setResult(saved.result);
       if (saved.step !== "intro") setOpen(true);
@@ -176,13 +207,13 @@ export function CashoutActions({
   }, []);
   useEffect(() => {
     if (!reference || step === "intro" || step === "done") return;
-    const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], status, result };
+    const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], amounts, status, result };
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
     } catch {
       /* noop */
     }
-  }, [reference, step, accepted, selected, status, result]);
+  }, [reference, step, accepted, selected, amounts, status, result]);
 
   // NectarPay merchants cash out with no service fee.
   const [merchantId, setMerchantId] = useState<string | null>(null);
@@ -217,6 +248,10 @@ export function CashoutActions({
     return list.sort((a, b) => b.usd - a.usd);
   }, [tsd.data, evm.data, destinations.txc]);
 
+  const cashableByKey = useMemo(() => new Map(cashable.map((r) => [r.key, r])), [cashable]);
+  // Rows with a manually lowered amount ("cash out only part of this balance").
+  const cashableEff = useMemo(() => cashable.map((r) => appliedAmount(r, amounts)), [cashable, amounts]);
+
   // Default: everything sendable, except tiny Ethereum balances the fee would eat.
   useEffect(() => {
     if (selected !== null || step !== "holdings" || tsd.isLoading || evm.isLoading) return;
@@ -224,11 +259,20 @@ export function CashoutActions({
   }, [selected, step, cashable, tsd.isLoading, evm.isLoading]);
 
   const picked = selected ?? [];
-  const chosen = useMemo(() => cashable.filter((row) => picked.includes(row.key)), [cashable, picked]);
+  const chosen = useMemo(() => cashableEff.filter((row) => picked.includes(row.key)), [cashableEff, picked]);
   const chosenTotal = chosen.reduce((sum, row) => sum + row.usd, 0);
   const sentRows = chosen.filter((row) => status[row.key]?.state === "sent");
   const sentTotal = sentRows.reduce((sum, row) => sum + row.usd, 0);
   const evmPending = chosen.filter((r) => r.evm && status[r.key]?.state !== "sent");
+  // A checked row with a typed amount that isn't a valid partial amount.
+  const invalidAmounts = picked.some((key) => {
+    const orig = cashableByKey.get(key);
+    if (!orig || orig.blocked) return false;
+    const txt = amounts[key];
+    if (txt === undefined || txt === "") return false;
+    const v = Number(txt);
+    return !Number.isFinite(v) || v <= 0 || v > orig.usd;
+  });
 
   const quote = quoteCashout(chosenTotal, feeBps);
   const finalQuote = quoteCashout(Math.min(sentTotal, ORDER_MAX_USD), feeBps);
@@ -247,6 +291,7 @@ export function CashoutActions({
     setStep("intro");
     setAccepted([]);
     setSelected(null);
+    setAmounts({});
     setStatus({});
     setError(null);
     setResult(null);
@@ -276,7 +321,7 @@ export function CashoutActions({
           await ensureGas(root, e.chain, e.index, count);
           funded.add(groupKey);
         }
-        const txid = await sendCashRow(root, e, to);
+        const txid = await sendCashRow(root, e, to, partialRaw(row, amounts));
         setStatus((s) => ({ ...s, [row.key]: { state: "sent", txid } }));
       } catch (cause) {
         const msg = cause instanceof Error ? cause.message.split("\n")[0] : "Send failed";
@@ -411,11 +456,33 @@ export function CashoutActions({
 
           {step === "holdings" && (
             <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">What you can cash out</p>
-                <p className="text-xs text-muted-foreground">
-                  Only USDC, USDT and TSD can be cashed out. Everything is selected by default.
-                </p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">What you can cash out</p>
+                  <p className="text-xs text-muted-foreground">
+                    Only USDC, USDT and TSD can be cashed out. Everything is selected by default.
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setSelected(cashable.filter((r) => !r.blocked).map((r) => r.key))}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setSelected([])}
+                  >
+                    None
+                  </Button>
+                </div>
               </div>
 
               {scanning && (
@@ -429,36 +496,59 @@ export function CashoutActions({
               )}
 
               <div className="space-y-2">
-                {cashable.map((row) => {
+                {cashableEff.map((row) => {
+                  const orig = cashableByKey.get(row.key)!;
                   const checked = picked.includes(row.key);
+                  const typed = amounts[row.key] ?? "";
                   return (
-                    <label
+                    <div
                       key={row.key}
-                      className={`flex items-start gap-3 rounded-md border border-border/60 bg-muted/30 p-3 ${row.blocked ? "opacity-60" : ""}`}
+                      className={`rounded-md border border-border/60 bg-muted/30 p-3 ${row.blocked ? "opacity-60" : ""}`}
                     >
-                      <Checkbox
-                        className="mt-0.5"
-                        checked={checked}
-                        disabled={Boolean(row.blocked)}
-                        onCheckedChange={(next) =>
-                          setSelected((current) => {
-                            const list = current ?? [];
-                            return next ? [...list, row.key] : list.filter((value) => value !== row.key);
-                          })
-                        }
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                          <span className="flex items-center gap-1.5">
-                            <Wallet className="h-3.5 w-3.5 text-primary" /> {row.label}
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id={`cashout-${row.key}`}
+                          className="mt-0.5"
+                          checked={checked}
+                          disabled={Boolean(row.blocked)}
+                          onCheckedChange={(next) =>
+                            setSelected((current) => {
+                              const list = current ?? [];
+                              return next ? [...list, row.key] : list.filter((value) => value !== row.key);
+                            })
+                          }
+                        />
+                        <label htmlFor={`cashout-${row.key}`} className="min-w-0 flex-1 cursor-pointer">
+                          <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                            <span className="flex items-center gap-1.5">
+                              <Wallet className="h-3.5 w-3.5 text-primary" /> {row.label}
+                            </span>
+                            <span>${fmt(row.usd, 2)}</span>
                           </span>
-                          <span>${fmt(row.usd, 2)}</span>
-                        </span>
-                        <span className={`mt-0.5 block text-xs ${row.blocked ? "text-destructive" : "text-muted-foreground"}`}>
-                          {row.blocked ?? row.sub}
-                        </span>
-                      </span>
-                    </label>
+                          <span className={`mt-0.5 block text-xs ${row.blocked ? "text-destructive" : "text-muted-foreground"}`}>
+                            {row.blocked ?? row.sub}
+                          </span>
+                        </label>
+                      </div>
+                      {checked && !row.blocked && (
+                        <div className="mt-2 flex items-center gap-2 pl-7">
+                          <span className="shrink-0 text-xs text-muted-foreground">Cash out</span>
+                          <Input
+                            inputMode="decimal"
+                            value={typed}
+                            onChange={(e) =>
+                              setAmounts((current) => ({ ...current, [row.key]: e.target.value.replace(/[^0-9.]/g, "") }))
+                            }
+                            placeholder={fmt(orig.usd, 2)}
+                            className="h-7 w-24 text-right text-xs"
+                            autoComplete="off"
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {typed ? `of $${fmt(orig.usd, 2)}` : `— blank for all $${fmt(orig.usd, 2)}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -469,11 +559,17 @@ export function CashoutActions({
                 <Row label="Estimated to your bank" value={`$${quote.settlementUsd.toFixed(2)}`} strong />
               </div>
 
+              {invalidAmounts && (
+                <p className="text-sm text-destructive">
+                  Each amount must be more than $0 and no more than that balance. Leave a line blank to send all of it.
+                </p>
+              )}
+
               {totalError && <p className="text-sm text-destructive">{totalError}</p>}
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("intro")}>Back</Button>
-                <Button className="flex-1" disabled={Boolean(totalError)} onClick={() => setStep("review")}>
+                <Button className="flex-1" disabled={Boolean(totalError) || invalidAmounts} onClick={() => setStep("review")}>
                   Continue
                 </Button>
               </div>
