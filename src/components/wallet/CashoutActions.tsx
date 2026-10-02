@@ -178,6 +178,7 @@ export function CashoutActions({
   const [selected, setSelected] = useState<string[] | null>(null);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Record<string, RowStatus>>({});
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ orderId: string; checkoutUrl: string | null; detail: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
