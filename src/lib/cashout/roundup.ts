@@ -135,9 +135,16 @@ export async function ensureGas(root: BIP32Interface, chain: StableEvmChainId, i
 }
 
 /** Send one token balance straight to the cash-out deposit address. */
-export async function sendCashRow(root: BIP32Interface, row: EvmCashRow, to: Address): Promise<`0x${string}`> {
+export async function sendCashRow(
+  root: BIP32Interface,
+  row: EvmCashRow,
+  to: Address,
+  /** Partial cash-out: send less than the full scanned balance. */
+  rawOverride?: bigint,
+): Promise<`0x${string}`> {
   const { client } = walletFor(row.chain, row.index, root);
-  return sendEvmTransaction(row.chain, client, { to: row.token.address, data: encodeTransfer(to, row.raw), value: 0n });
+  const raw = rawOverride !== undefined && rawOverride > 0n && rawOverride < row.raw ? rawOverride : row.raw;
+  return sendEvmTransaction(row.chain, client, { to: row.token.address, data: encodeTransfer(to, raw), value: 0n });
 }
 
 /* ------------------------------------------------------------------ */

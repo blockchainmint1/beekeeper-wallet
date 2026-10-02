@@ -93,6 +93,8 @@ interface CashoutSession {
   step: Step;
   accepted: string[];
   selected: string[];
+  /** Per-row manually lowered cash-out amount ("partial cash-out"). */
+  amounts: Record<string, string>;
   result?: { orderId: string; checkoutUrl: string | null; detail: string } | null;
   status: Record<string, RowStatus>;
 }
@@ -105,6 +107,33 @@ function newReference() {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
   const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
   return `BK-${Date.now().toString(36).toUpperCase()}-${suffix}`;
+}
+
+/** Row with a manually lowered cash-out amount, or unchanged when blank/full. */
+function appliedAmount(row: Holding, amounts: Record<string, string>): Holding {
+  const txt = amounts[row.key];
+  if (!txt) return row;
+  const v = Number(txt);
+  if (!Number.isFinite(v) || v <= 0 || v >= row.usd) return row;
+  if (row.evm) {
+    const raw = BigInt(Math.round(v * 10 ** row.evm.token.decimals));
+    if (raw <= 0n || raw >= row.evm.raw) return row;
+    const coin = Number(raw) / 10 ** row.evm.token.decimals;
+    return { ...row, usd: coin, coinAmount: coin };
+  }
+  const coin = Math.min(Math.round((v / row.usd) * row.coinAmount * 1e8) / 1e8, row.coinAmount);
+  return { ...row, usd: coin, coinAmount: coin };
+}
+
+/** Raw token amount for a partial cash-out row (undefined = send the full balance). */
+function partialRaw(row: Holding, amounts: Record<string, string>): bigint | undefined {
+  if (!row.evm) return undefined;
+  const txt = amounts[row.key];
+  if (!txt) return undefined;
+  const v = Number(txt);
+  if (!Number.isFinite(v) || v <= 0) return undefined;
+  const raw = BigInt(Math.round(v * 10 ** row.evm.token.decimals));
+  return raw > 0n && raw < row.evm.raw ? raw : undefined;
 }
 
 export function CashoutActions({
