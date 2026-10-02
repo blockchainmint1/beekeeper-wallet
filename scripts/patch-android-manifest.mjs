@@ -54,10 +54,26 @@ const deepLinks = `
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="pay.honest.money" />
             </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="beekeeper" />
+            </intent-filter>
 `;
 
 if (!xml.includes('android:scheme="nectar"')) {
   xml = xml.replace(/(<\/activity>)/, `${deepLinks}        $1`);
+} else if (!xml.includes('android:scheme="beekeeper"')) {
+  const beekeeperLink = `
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="beekeeper" />
+            </intent-filter>
+`;
+  xml = xml.replace(/(<\/activity>)/, `${beekeeperLink}        $1`);
 }
 
 if (xml === original) {

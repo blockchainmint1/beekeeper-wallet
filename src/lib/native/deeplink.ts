@@ -13,6 +13,17 @@
  */
 import type { AnyRouter } from "@tanstack/react-router";
 import { isNative } from "./platform";
+import { parseVectorPayLinkInput, stashPendingVectorPayCode } from "@/lib/vectorpay-link";
+
+/** beekeeper://link-vectorpay?code=... — stash the code and open Settings. */
+function handleWalletLinkUrl(raw: string, router: AnyRouter): boolean {
+  if (!raw.startsWith("beekeeper://")) return false;
+  const code = parseVectorPayLinkInput(raw);
+  if (!code) return false;
+  stashPendingVectorPayCode(code);
+  router.navigate({ to: "/wallet/settings" });
+  return true;
+}
 
 export interface ParsedPayUrl {
   invoiceId: string;
@@ -56,6 +67,7 @@ export async function registerPayDeepLinkListener(router: AnyRouter): Promise<()
     const { App } = await import("@capacitor/app");
 
     const handle = (url: string) => {
+      if (handleWalletLinkUrl(url, router)) return;
       const parsed = parsePayUrl(url);
       if (!parsed) return;
       router.navigate({
