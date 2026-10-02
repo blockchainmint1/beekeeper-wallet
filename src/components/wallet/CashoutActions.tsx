@@ -517,7 +517,51 @@ export function CashoutActions({
                     : "Any amount up to $1,000 per order. NectarPay merchants pay no fee."}
                 </p>
               </div>
-              <Button className="w-full" onClick={() => setStep("holdings")}>Get started</Button>
+              {vpLink ? (
+                <div className="space-y-3">
+                  {vpLink.bank && (
+                    <p className="rounded-md border border-border/60 bg-muted/40 p-3 text-foreground">
+                      Pays out to {vpLink.bank.institution ?? "your bank"} ····{vpLink.bank.mask}
+                      {vpLink.firstName ? ` · ${vpLink.firstName}` : ""}
+                    </p>
+                  )}
+                  <Button className="w-full" onClick={() => setStep("holdings")}>Get started</Button>
+                </div>
+              ) : (
+                <div className="space-y-3 rounded-md border border-border/60 p-3">
+                  <p className="font-medium text-foreground">First, link your VectorPay account</p>
+                  <p>
+                    VectorPay handles identity, your bank and the payout. Sign in at vector-pay.com, open
+                    &quot;Connect your wallet&quot;, then paste the code or scan its QR here.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={vpCode}
+                      onChange={(e) => setVpCode(e.target.value)}
+                      placeholder="Link code (e.g. CVMR-ZFYE)"
+                      className="text-xs"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <QrScanButton
+                      onScan={(text) => {
+                        setVpCode(text);
+                        void onLinkVectorPay(text);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={vpBusy || !vpCode.trim()}
+                      onClick={() => void onLinkVectorPay(vpCode)}
+                    >
+                      {vpBusy ? "Linking…" : "Link"}
+                    </Button>
+                  </div>
+                  {vpChecking && <p className="text-xs">Checking for an existing link…</p>}
+                  {vpError && <p className="text-xs text-destructive">{vpError}</p>}
+                </div>
+              )}
             </div>
           )}
 
