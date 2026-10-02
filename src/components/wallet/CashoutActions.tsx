@@ -37,7 +37,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
-import { getTxcTokenBalancesForAddresses } from "@/lib/txc/tokens.functions";
+import { getTxcTokenBalancesForAddresses, getTxcTokenBalancesPerAddress } from "@/lib/txc/tokens.functions";
+import { sendOmniToken } from "@/lib/txc/omni-send";
+import { explorerTxUrl } from "@/lib/txc/mempool";
 import { EVM_CHAINS } from "@/lib/chains/evm";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { listLinks } from "@/lib/nectar/link";
@@ -153,10 +155,12 @@ export function CashoutActions({
   evmAddress?: string | null;
 }) {
   const allowed = useExchangeFeaturesAllowed();
-  const { root } = useWallet();
+  const { root, unlocked } = useWallet();
   const configFn = useServerFn(getVectorPayConfig);
   const startCashout = useServerFn(startVectorPayCashout);
   const fetchTsd = useServerFn(getTxcTokenBalancesForAddresses);
+  const fetchTsdPerAddr = useServerFn(getTxcTokenBalancesPerAddress);
+  const [tsdProgress, setTsdProgress] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   const config = useQuery({
@@ -390,6 +394,35 @@ export function CashoutActions({
       const msg = cause instanceof Error ? cause.message.split("\n")[0] : "Send failed";
       setStatus((s) => ({ ...s, [row.key]: { state: "failed", error: msg } }));
     } finally {
+      setRunning(false);
+    }
+  }
+
+  /** Send TSD right here — same Omni logic as the Send screen, no page change. */
+  async function sendTsdRow(row: Holding) {
+    if (!root || !unlocked || running || !row.propertyId) return;
+    const to = destinations.txc;
+    if (!to) return;
+    setRunning(true);
+    setError(null);
+    setStatus((s) => ({ ...s, [row.key]: { state: "sending" } }));
+    try {
+      const units = BigInt(Math.round(row.coinAmount * 1e8));
+      const txid = await sendOmniToken({
+        root,
+        kind: unlocked.kind,
+        propertyId: row.propertyId,
+        amountUnits: units,
+        to,
+        fetchPerAddress: (addresses, propertyIds) => fetchTsdPerAddr({ data: { addresses, propertyIds } }),
+        onProgress: setTsdProgress,
+      });
+      setStatus((s) => ({ ...s, [row.key]: { state: "sent", txid } }));
+    } catch (cause) {
+      const msg = cause instanceof Error ? cause.message.split("\n")[0] : "Send failed";
+      setStatus((s) => ({ ...s, [row.key]: { state: "failed", error: msg } }));
+    } finally {
+      setTsdProgress(null);
       setRunning(false);
     }
   }
@@ -783,20 +816,32 @@ export function CashoutActions({
                         </div>
                       )}
                       {st?.state === "skipped" && <p className="mt-1 text-xs text-muted-foreground">Skipped — not included.</p>}
+                      {st?.state === "sent" && st.txid && !row.evm && (
+                        <a
+                          href={explorerTxUrl(st.txid)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 inline-flex items-center gap-1 text-xs text-primary underline"
+                        >
+                          View transfer <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
                       {!row.evm && st?.state !== "sent" && st?.state !== "skipped" && (
                         <div className="mt-2 flex items-center gap-2">
-                          {to ? <SendLink holding={row} to={to} onOpen={() => setOpen(false)} /> : null}
                           <Button
                             type="button"
                             size="sm"
-                            variant="outline"
-                            onClick={() => setStatus((s) => ({ ...s, [row.key]: { state: "sent" } }))}
+                            className="flex-1"
+                            disabled={running || !root || !unlocked || !to}
+                            onClick={() => void sendTsdRow(row)}
                           >
-                            Mark sent
+                            {st?.state === "sending" ? <><Loader2 className="animate-spin" /> {tsdProgress ?? "Sending…"}</> : <><Send /> {st?.state === "failed" ? "Try again" : `Send ${row.asset}`}</>}
                           </Button>
-                          <Button type="button" size="sm" variant="ghost" onClick={() => setStatus((s) => ({ ...s, [row.key]: { state: "skipped" } }))}>
-                            Skip
-                          </Button>
+                          {st?.state === "failed" && (
+                            <Button type="button" size="sm" variant="outline" disabled={running} onClick={() => setStatus((s) => ({ ...s, [row.key]: { state: "skipped" } }))}>
+                              Skip
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
