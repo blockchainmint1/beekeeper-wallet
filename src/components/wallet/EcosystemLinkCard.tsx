@@ -12,10 +12,15 @@ import { QrScanButton } from "@/components/wallet/QrScanButton";
 import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 import { TsdAccountLinkCard } from "@/components/wallet/TsdAccountLinkCard";
 import { WebsiteSignInCard } from "@/components/wallet/WebsiteSignInCard";
+import { VectorPayLinkCard } from "@/components/wallet/VectorPayLinkCard";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { parseLinkInput } from "@/lib/nectar/link";
 import { parseTsdLinkInput } from "@/lib/rewards/tsd-link";
 import { looksLikeLoginQr } from "@/lib/nectar/auth";
+import {
+  parseVectorPayLinkInput,
+  takePendingVectorPayCode,
+} from "@/lib/vectorpay-link";
 import {
   listEcosystemLinks,
   removeEcosystemLink,
@@ -25,6 +30,7 @@ import {
 type Pending =
   | { kind: "nectar"; url: string; n: number }
   | { kind: "tsd"; url: string; n: number }
+  | { kind: "vectorpay"; code: string; n: number }
   | { kind: "signin"; payload: string; n: number };
 
 export function EcosystemLinkCard() {
@@ -38,9 +44,17 @@ export function EcosystemLinkCard() {
   const refresh = () => setLinks(listEcosystemLinks());
   useEffect(refresh, [unlocked]);
 
+  // The app was opened via beekeeper://link-vectorpay?code=... — pick it up.
+  useEffect(() => {
+    const code = takePendingVectorPayCode();
+    if (code) setPending({ kind: "vectorpay", code, n: Date.now() });
+  }, []);
+
   function read(raw: string) {
     setError(null);
     const n = Date.now();
+    const vp = parseVectorPayLinkInput(raw);
+    if (vp) return setPending({ kind: "vectorpay", code: vp, n });
     const tsd = parseTsdLinkInput(raw);
     if (tsd) return setPending({ kind: "tsd", url: tsd, n });
     const nectar = parseLinkInput(raw);
@@ -98,6 +112,9 @@ export function EcosystemLinkCard() {
           )}
           {pending?.kind === "tsd" && (
             <TsdAccountLinkCard key={pending.n} embedded initialUrl={pending.url} onDone={done} />
+          )}
+          {pending?.kind === "vectorpay" && (
+            <VectorPayLinkCard key={pending.n} embedded initialCode={pending.code} onDone={done} />
           )}
           {pending?.kind === "signin" && (
             <WebsiteSignInCard

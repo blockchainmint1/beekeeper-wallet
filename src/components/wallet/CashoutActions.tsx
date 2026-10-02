@@ -65,6 +65,15 @@ import {
   type CashoutAsset,
 } from "@/lib/vectorpay";
 import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.functions";
+import { QrScanButton } from "@/components/wallet/QrScanButton";
+import { recordEcosystemLink } from "@/lib/ecosystem-links";
+import {
+  getVectorPayLink,
+  parseVectorPayLinkInput,
+  setVectorPayLink,
+  type VectorPayLink,
+} from "@/lib/vectorpay-link";
+import { redeemVectorPayLink, vectorPayLinkStatus } from "@/lib/vectorpay-link.functions";
 
 type Step = "intro" | "holdings" | "review" | "transfers" | "done";
 const STEPS: Step[] = ["intro", "holdings", "review", "transfers", "done"];
@@ -222,6 +231,64 @@ export function CashoutActions({
     setMerchantId(listLinks()[0]?.merchantId ?? null);
   }, [open]);
   const feeBps = merchantId ? MERCHANT_FEE_BPS : ORDER_FEE_BPS;
+
+  // Cash out requires a linked VectorPay account. Check the local record,
+  // then confirm with VectorPay (picks up links made on another device).
+  const [vpLink, setVpLink] = useState<VectorPayLink | null>(null);
+  const [vpChecking, setVpChecking] = useState(false);
+  const [vpCode, setVpCode] = useState("");
+  const [vpBusy, setVpBusy] = useState(false);
+  const [vpError, setVpError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open || !root) return;
+    setVpLink(getVectorPayLink());
+    setVpChecking(true);
+    void (async () => {
+      try {
+        const accountRef = await cashoutCustomerId(root);
+        const reply = await vectorPayLinkStatus({ data: { accountRef } });
+        if (reply.ok && reply.linked) {
+          setVectorPayLink({ firstName: reply.firstName, bank: reply.bank });
+          setVpLink(getVectorPayLink());
+        }
+      } catch {
+        /* offline — fall back to the local record */
+      } finally {
+        setVpChecking(false);
+      }
+    })();
+  }, [open, root]);
+
+  async function onLinkVectorPay(raw: string) {
+    if (!root) return;
+    const code = parseVectorPayLinkInput(raw);
+    if (!code) {
+      setVpError("That isn't a VectorPay link code. Copy the code or scan the QR on your VectorPay dashboard.");
+      return;
+    }
+    setVpBusy(true);
+    setVpError(null);
+    try {
+      const accountRef = await cashoutCustomerId(root);
+      const reply = await redeemVectorPayLink({ data: { code, accountRef } });
+      if (!reply.ok || !reply.linked) {
+        setVpError(reply.detail);
+        return;
+      }
+      setVectorPayLink({ firstName: reply.firstName, bank: reply.bank });
+      recordEcosystemLink({
+        id: "vectorpay",
+        app: "VectorPay",
+        detail: reply.bank ? `${reply.bank.institution ?? "Bank"} ····${reply.bank.mask}` : "Cash out to your bank",
+      });
+      setVpLink(getVectorPayLink());
+      setVpCode("");
+    } catch (e) {
+      setVpError(e instanceof Error ? e.message : "Could not link VectorPay.");
+    } finally {
+      setVpBusy(false);
+    }
+  }
 
   /** Everything this wallet holds that a cash-out deposit address can accept. */
   const cashable = useMemo<Holding[]>(() => {
@@ -450,7 +517,51 @@ export function CashoutActions({
                     : "Any amount up to $1,000 per order. NectarPay merchants pay no fee."}
                 </p>
               </div>
-              <Button className="w-full" onClick={() => setStep("holdings")}>Get started</Button>
+              {vpLink ? (
+                <div className="space-y-3">
+                  {vpLink.bank && (
+                    <p className="rounded-md border border-border/60 bg-muted/40 p-3 text-foreground">
+                      Pays out to {vpLink.bank.institution ?? "your bank"} ····{vpLink.bank.mask}
+                      {vpLink.firstName ? ` · ${vpLink.firstName}` : ""}
+                    </p>
+                  )}
+                  <Button className="w-full" onClick={() => setStep("holdings")}>Get started</Button>
+                </div>
+              ) : (
+                <div className="space-y-3 rounded-md border border-border/60 p-3">
+                  <p className="font-medium text-foreground">First, link your VectorPay account</p>
+                  <p>
+                    VectorPay handles identity, your bank and the payout. Sign in at vector-pay.com, open
+                    &quot;Connect your wallet&quot;, then paste the code or scan its QR here.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={vpCode}
+                      onChange={(e) => setVpCode(e.target.value)}
+                      placeholder="Link code (e.g. CVMR-ZFYE)"
+                      className="text-xs"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <QrScanButton
+                      onScan={(text) => {
+                        setVpCode(text);
+                        void onLinkVectorPay(text);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={vpBusy || !vpCode.trim()}
+                      onClick={() => void onLinkVectorPay(vpCode)}
+                    >
+                      {vpBusy ? "Linking…" : "Link"}
+                    </Button>
+                  </div>
+                  {vpChecking && <p className="text-xs">Checking for an existing link…</p>}
+                  {vpError && <p className="text-xs text-destructive">{vpError}</p>}
+                </div>
+              )}
             </div>
           )}
 

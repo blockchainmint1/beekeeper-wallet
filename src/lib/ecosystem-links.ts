@@ -7,6 +7,7 @@
  */
 import { listLinks, removeLink } from "@/lib/nectar/link";
 import { listTsdLinks, removeTsdLink } from "@/lib/rewards/tsd-link";
+import { clearVectorPayLink } from "@/lib/vectorpay-link";
 
 const KEY = "beekeeper.ecosystem.links.v1";
 
@@ -59,5 +60,6 @@ export function listEcosystemLinks(): EcosystemLink[] {
 export function removeEcosystemLink(id: string) {
   if (id.startsWith("nectar:")) return removeLink(id.slice(7));
   if (id.startsWith("tsd:")) return removeTsdLink(id.slice(4));
+  if (id === "vectorpay") clearVectorPayLink();
   writeGeneric(readGeneric().filter((l) => l.id !== id));
 }
