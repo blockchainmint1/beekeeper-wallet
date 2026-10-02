@@ -197,6 +197,7 @@ export function CashoutActions({
       setStep((saved.step as string) === "details" ? "review" : saved.step);
       setAccepted(saved.accepted);
       setSelected(saved.selected);
+      setAmounts(saved.amounts ?? {});
       setStatus(saved.status);
       if (saved.result) setResult(saved.result);
       if (saved.step !== "intro") setOpen(true);
@@ -206,13 +207,13 @@ export function CashoutActions({
   }, []);
   useEffect(() => {
     if (!reference || step === "intro" || step === "done") return;
-    const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], status, result };
+    const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], amounts, status, result };
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
     } catch {
       /* noop */
     }
-  }, [reference, step, accepted, selected, status, result]);
+  }, [reference, step, accepted, selected, amounts, status, result]);
 
   // NectarPay merchants cash out with no service fee.
   const [merchantId, setMerchantId] = useState<string | null>(null);
@@ -247,6 +248,10 @@ export function CashoutActions({
     return list.sort((a, b) => b.usd - a.usd);
   }, [tsd.data, evm.data, destinations.txc]);
 
+  const cashableByKey = useMemo(() => new Map(cashable.map((r) => [r.key, r])), [cashable]);
+  // Rows with a manually lowered amount ("cash out only part of this balance").
+  const cashableEff = useMemo(() => cashable.map((r) => appliedAmount(r, amounts)), [cashable, amounts]);
+
   // Default: everything sendable, except tiny Ethereum balances the fee would eat.
   useEffect(() => {
     if (selected !== null || step !== "holdings" || tsd.isLoading || evm.isLoading) return;
@@ -254,7 +259,7 @@ export function CashoutActions({
   }, [selected, step, cashable, tsd.isLoading, evm.isLoading]);
 
   const picked = selected ?? [];
-  const chosen = useMemo(() => cashable.filter((row) => picked.includes(row.key)), [cashable, picked]);
+  const chosen = useMemo(() => cashableEff.filter((row) => picked.includes(row.key)), [cashableEff, picked]);
   const chosenTotal = chosen.reduce((sum, row) => sum + row.usd, 0);
   const sentRows = chosen.filter((row) => status[row.key]?.state === "sent");
   const sentTotal = sentRows.reduce((sum, row) => sum + row.usd, 0);
