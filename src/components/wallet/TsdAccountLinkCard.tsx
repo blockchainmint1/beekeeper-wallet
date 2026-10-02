@@ -23,7 +23,17 @@ import {
   type TsdLinkRecord,
 } from "@/lib/rewards/tsd-link";
 
-export function TsdAccountLinkCard({ compact }: { compact?: boolean }) {
+export function TsdAccountLinkCard({
+  compact,
+  initialUrl,
+  embedded,
+  onDone,
+}: {
+  compact?: boolean;
+  initialUrl?: string;
+  embedded?: boolean;
+  onDone?: () => void;
+}) {
   const { unlocked } = useWallet();
   const seedless = !unlocked || unlocked.mode === "keyonly" || !unlocked.mnemonic;
 
@@ -37,6 +47,11 @@ export function TsdAccountLinkCard({ compact }: { compact?: boolean }) {
   useEffect(() => {
     setLinks(listTsdLinks());
   }, [unlocked]);
+
+  useEffect(() => {
+    if (initialUrl) void onLoad(initialUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialUrl]);
 
   async function onLoad(raw: string) {
     setError(null);
@@ -79,11 +94,49 @@ export function TsdAccountLinkCard({ compact }: { compact?: boolean }) {
       setManifest(null);
       setInput("");
       setNotice(`Linked to ${record.accountName}.`);
+      onDone?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Link failed.");
     } finally {
       setBusy(false);
     }
+  }
+
+  const approval = manifest ? (
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="text-sm font-medium">
+                {manifest!.account_name ?? "TSD Swap account"}
+                {manifest!.account_id ? (
+                  <span className="text-muted-foreground"> · {manifest!.account_id}</span>
+                ) : null}
+              </div>
+              {manifest!.purpose && (
+                <p className="text-xs text-muted-foreground">{manifest!.purpose}</p>
+              )}
+              <div className="text-xs text-muted-foreground">
+                Sharing: watch-only account keys (TEXITcoin, EVM and the other chains). No seed, no
+                private keys.
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" disabled={busy} onClick={() => void onApprove()}>
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Share keys"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setManifest(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : null;
+
+  if (embedded) {
+    return (
+      <div className="space-y-3">
+        {busy && !manifest && <Loader2 className="h-4 w-4 animate-spin" />}
+        {manifest && approval}
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        {notice && <p className="text-xs text-muted-foreground">{notice}</p>}
+      </div>
+    );
   }
 
   const body = (
@@ -124,31 +177,7 @@ export function TsdAccountLinkCard({ compact }: { compact?: boolean }) {
             </Button>
           </div>
 
-          {manifest && (
-            <div className="rounded-lg border p-3 space-y-2">
-              <div className="text-sm font-medium">
-                {manifest.account_name ?? "TSD Swap account"}
-                {manifest.account_id ? (
-                  <span className="text-muted-foreground"> · {manifest.account_id}</span>
-                ) : null}
-              </div>
-              {manifest.purpose && (
-                <p className="text-xs text-muted-foreground">{manifest.purpose}</p>
-              )}
-              <div className="text-xs text-muted-foreground">
-                Sharing: watch-only account keys (TEXITcoin, EVM and the other chains). No seed, no
-                private keys.
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" disabled={busy} onClick={() => void onApprove()}>
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Share keys"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setManifest(null)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
+          {manifest && approval}
 
           {error && <p className="text-xs text-destructive">{error}</p>}
           {notice && <p className="text-xs text-muted-foreground">{notice}</p>}

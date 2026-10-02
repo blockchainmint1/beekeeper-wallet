@@ -26,7 +26,21 @@ import {
   type NectarManifest,
 } from "@/lib/nectar/link";
 
-export function NectarLinkCard({ compact, hideWhenLinked }: { compact?: boolean; hideWhenLinked?: boolean }) {
+export function NectarLinkCard({
+  compact,
+  hideWhenLinked,
+  initialUrl,
+  embedded,
+  onDone,
+}: {
+  compact?: boolean;
+  hideWhenLinked?: boolean;
+  /** Ecosystem link: a URL already read from the shared paste/scan box. */
+  initialUrl?: string;
+  /** Ecosystem link: render only the approval step (no input, no list). */
+  embedded?: boolean;
+  onDone?: () => void;
+}) {
   const { unlocked } = useWallet();
   const seedless = !unlocked || unlocked.mode === "keyonly" || !unlocked.mnemonic;
 
@@ -42,6 +56,11 @@ export function NectarLinkCard({ compact, hideWhenLinked }: { compact?: boolean;
   useEffect(() => {
     setLinks(listLinks());
   }, [unlocked]);
+
+  useEffect(() => {
+    if (initialUrl) void onLoad(initialUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialUrl]);
 
   if (hideWhenLinked && links.length > 0) return null;
 
@@ -90,11 +109,66 @@ export function NectarLinkCard({ compact, hideWhenLinked }: { compact?: boolean;
       setManifest(null);
       setInput("");
       setNotice(`Linked to ${record.merchantName}.`);
+      onDone?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Link failed.");
     } finally {
       setBusy(false);
     }
+  }
+
+  const approval = manifest ? (
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="text-sm font-medium">
+                {manifest!.merchant_name ?? "Nectar Pay merchant"}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Requesting: {manifest!.chains.join(", ")}
+              </div>
+              {mode === "blocked" ? (
+                <p className="text-xs text-destructive">
+                  Another wallet is already on file for this merchant. Ask them to re-issue the
+                  link with new wallets allowed.
+                </p>
+              ) : (
+                <>
+                  {mode === "confirm-new-wallet" && (
+                    <label className="flex items-start gap-2 text-xs">
+                      <Checkbox
+                        checked={ackNewWallet}
+                        onCheckedChange={(v) => setAckNewWallet(v === true)}
+                      />
+                      <span>
+                        This merchant has a different wallet on file. Link this wallet instead.
+                      </span>
+                    </label>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      disabled={busy || (mode === "confirm-new-wallet" && !ackNewWallet)}
+                      onClick={() => void onApprove()}
+                    >
+                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Share xpubs"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setManifest(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null;
+
+  if (embedded) {
+    return (
+      <div className="space-y-3">
+        {busy && !manifest && <Loader2 className="h-4 w-4 animate-spin" />}
+        {manifest && approval}
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        {notice && <p className="text-xs text-muted-foreground">{notice}</p>}
+      </div>
+    );
   }
 
   const body = (
@@ -135,48 +209,7 @@ export function NectarLinkCard({ compact, hideWhenLinked }: { compact?: boolean;
             </Button>
           </div>
 
-          {manifest && (
-            <div className="rounded-lg border p-3 space-y-2">
-              <div className="text-sm font-medium">
-                {manifest.merchant_name ?? "Nectar Pay merchant"}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Requesting: {manifest.chains.join(", ")}
-              </div>
-              {mode === "blocked" ? (
-                <p className="text-xs text-destructive">
-                  Another wallet is already on file for this merchant. Ask them to re-issue the
-                  link with new wallets allowed.
-                </p>
-              ) : (
-                <>
-                  {mode === "confirm-new-wallet" && (
-                    <label className="flex items-start gap-2 text-xs">
-                      <Checkbox
-                        checked={ackNewWallet}
-                        onCheckedChange={(v) => setAckNewWallet(v === true)}
-                      />
-                      <span>
-                        This merchant has a different wallet on file. Link this wallet instead.
-                      </span>
-                    </label>
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      disabled={busy || (mode === "confirm-new-wallet" && !ackNewWallet)}
-                      onClick={() => void onApprove()}
-                    >
-                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Share xpubs"}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setManifest(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+          {manifest && approval}
 
           {error && <p className="text-xs text-destructive">{error}</p>}
           {notice && <p className="text-xs text-muted-foreground">{notice}</p>}

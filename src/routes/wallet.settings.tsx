@@ -29,6 +29,7 @@ import { SecurityCheckupCard } from "@/components/wallet/SecurityCheckupCard";
 import { SignMessageCard } from "@/components/wallet/SignMessageCard";
 import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 
+import { EcosystemLinkCard } from "@/components/wallet/EcosystemLinkCard";
 import { UpdateCheckCard } from "@/components/wallet/UpdateCheckCard";
 import { TsdCashoutKeyCard } from "@/components/wallet/TsdCashoutKeyCard";
 import { TsdAccountLinkCard } from "@/components/wallet/TsdAccountLinkCard";
@@ -198,25 +199,14 @@ function SettingsPage() {
         </SettingsSection>
 
         <SettingsSection
-          value="merchant-link"
+          value="ecosystem-link"
           icon={Link2}
-          title="Merchant link"
-          description="Share watch-only keys with a Nectar Pay merchant."
-        >
-          <NectarLinkCard compact />
-        </SettingsSection>
-
-
-
-        <SettingsSection
-          value="tsd-cashout"
-          icon={ArrowDownUp}
-          title="TSD settings"
-          description="API key, shared account key and TSD reminders."
+          title="Ecosystem link"
+          description="NectarPay, TSD Swap, streamTXC, Bonfire and more."
         >
           <div className="space-y-6">
+            <EcosystemLinkCard />
             <TsdCashoutKeyCard compact />
-            <TsdAccountLinkCard compact />
             <TsdNudgeToggleCard compact />
           </div>
         </SettingsSection>
