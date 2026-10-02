@@ -58,6 +58,7 @@ import {
 import { useTxcTokenProps } from "@/lib/txc/token-props";
 import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { TsdCashoutPanel, type CashoutPlan } from "@/components/wallet/TsdCashoutPanel";
+import { CASHOUT_SESSION_KEY } from "@/components/wallet/CashoutActions";
 import { useCashoutApiKey } from "@/lib/cashout/api-key";
 import { TSD_PROPERTY_ID, formatUsd, payoutFor } from "@/lib/cashout/tsd";
 
