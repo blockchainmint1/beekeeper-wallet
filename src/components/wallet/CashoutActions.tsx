@@ -93,7 +93,7 @@ interface Holding {
   blocked?: string;
 }
 
-type RowStatus = { state: "sending" | "sent" | "failed"; txid?: string; error?: string };
+type RowStatus = { state: "sending" | "sent" | "failed" | "skipped"; txid?: string; error?: string };
 
 /** Survives the trip to the TSD send screen and back. */
 const SESSION_KEY = "beekeeper.cashout.session.v1";
@@ -331,6 +331,7 @@ export function CashoutActions({
   const sentRows = chosen.filter((row) => status[row.key]?.state === "sent");
   const sentTotal = sentRows.reduce((sum, row) => sum + row.usd, 0);
   const evmPending = chosen.filter((r) => r.evm && status[r.key]?.state !== "sent");
+  const allResolved = chosen.every((r) => status[r.key]?.state === "sent" || status[r.key]?.state === "skipped");
   // A checked row with a typed amount that isn't a valid partial amount.
   const invalidAmounts = picked.some((key) => {
     const orig = cashableByKey.get(key);
@@ -370,32 +371,26 @@ export function CashoutActions({
     }
   }
 
-  /** Send every selected EVM balance, one after another, to its deposit address. */
-  async function sendAll() {
-    if (!root || running) return;
+  /** Send one selected EVM balance to its deposit address (tops up gas first if needed). */
+  async function sendOne(row: Holding) {
+    if (!root || running || !row.evm) return;
+    const e = row.evm;
+    const to = destinations[e.chain] as Address | null;
+    if (!to) return;
     setRunning(true);
     setError(null);
-    const funded = new Set<string>();
-    for (const row of evmPending) {
-      const e = row.evm!;
-      const to = destinations[e.chain] as Address | null;
-      if (!to) continue;
-      setStatus((s) => ({ ...s, [row.key]: { state: "sending" } }));
-      try {
-        const groupKey = `${e.chain}:${e.index}`;
-        if (!funded.has(groupKey)) {
-          const count = evmPending.filter((r) => r.evm!.chain === e.chain && r.evm!.index === e.index).length;
-          await ensureGas(root, e.chain, e.index, count);
-          funded.add(groupKey);
-        }
-        const txid = await sendCashRow(root, e, to, partialRaw(row, amounts));
-        setStatus((s) => ({ ...s, [row.key]: { state: "sent", txid } }));
-      } catch (cause) {
-        const msg = cause instanceof Error ? cause.message.split("\n")[0] : "Send failed";
-        setStatus((s) => ({ ...s, [row.key]: { state: "failed", error: msg } }));
-      }
+    setStatus((s) => ({ ...s, [row.key]: { state: "sending" } }));
+    try {
+      const count = evmPending.filter((r) => r.evm!.chain === e.chain && r.evm!.index === e.index).length || 1;
+      await ensureGas(root, e.chain, e.index, count);
+      const txid = await sendCashRow(root, e, to, partialRaw(row, amounts));
+      setStatus((s) => ({ ...s, [row.key]: { state: "sent", txid } }));
+    } catch (cause) {
+      const msg = cause instanceof Error ? cause.message.split("\n")[0] : "Send failed";
+      setStatus((s) => ({ ...s, [row.key]: { state: "failed", error: msg } }));
+    } finally {
+      setRunning(false);
     }
-    setRunning(false);
   }
 
   /**
@@ -469,7 +464,7 @@ export function CashoutActions({
         }
         return;
       }
-      void openVectorPayCheckout(response.handoffUrl);
+      // Already linked at VectorPay — no checkout bounce; go straight to sending.
       setStep("transfers");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create the order.");
@@ -496,16 +491,15 @@ export function CashoutActions({
             <p className="text-xs font-semibold uppercase text-primary">
               Cash out · {STEPS.indexOf(step) + 1} of {STEPS.length}
             </p>
-            <DialogTitle>{step === "done" ? "Link your bank and get paid" : "Cash out to your bank"}</DialogTitle>
+            <DialogTitle>{step === "done" ? "Cash-out sent" : "Cash out to your bank"}</DialogTitle>
             <DialogDescription>Turn your USDC, USDT and TSD into dollars in your bank account.</DialogDescription>
           </DialogHeader>
 
           {step === "intro" && (
             <div className="space-y-4 text-sm text-muted-foreground">
               <p>
-                BeeKeeper rounds up every USDC, USDT and TSD you hold — on every chain and your first 20 addresses — and
-                sends it all to VectorPay in one go. Then VectorPay verifies your identity, links your bank and sends
-                the dollars.
+                BeeKeeper rounds up every USDC, USDT and TSD you hold — on every chain and your first 20 addresses —
+                and sends it to VectorPay, who pays your linked bank.
               </p>
               <div className="rounded-md border border-border/60 bg-muted/40 p-3">
                 <p className="font-medium text-foreground">
@@ -513,19 +507,19 @@ export function CashoutActions({
                 </p>
                 <p className="mt-1">
                   {merchantId
-                    ? "NectarPay merchants cash out free. Any amount up to $1,000 per order."
+                    ? "NectarPay merchant — you cash out free. Any amount up to $1,000 per order."
                     : "Any amount up to $1,000 per order. NectarPay merchants pay no fee."}
                 </p>
               </div>
               {vpLink ? (
                 <div className="space-y-3">
-                  {vpLink.bank && (
-                    <p className="rounded-md border border-border/60 bg-muted/40 p-3 text-foreground">
-                      Pays out to {vpLink.bank.institution ?? "your bank"} ····{vpLink.bank.mask}
-                      {vpLink.firstName ? ` · ${vpLink.firstName}` : ""}
-                    </p>
-                  )}
-                  <Button className="w-full" onClick={() => setStep("holdings")}>Get started</Button>
+                  <p className="rounded-md border border-border/60 bg-muted/40 p-3 text-foreground">
+                    {vpLink.bank
+                      ? `Pays out to ${vpLink.bank.institution ?? "your bank"} ····${vpLink.bank.mask}`
+                      : "VectorPay linked — no bank on file yet. Add one in your VectorPay account first."}
+                    {vpLink.firstName ? ` · ${vpLink.firstName}` : ""}
+                  </p>
+                  <Button className="w-full" disabled={!vpLink.bank} onClick={() => setStep("holdings")}>Get started</Button>
                 </div>
               ) : (
                 <div className="space-y-3 rounded-md border border-border/60 p-3">
@@ -720,7 +714,7 @@ export function CashoutActions({
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("holdings")}>Back</Button>
                 <Button className="flex-1" disabled={!allAccepted || submitting} onClick={() => void placeOrder()}>
-                  {submitting ? <><Loader2 className="animate-spin" /> Creating order</> : "Link bank at VectorPay"}
+                  {submitting ? <><Loader2 className="animate-spin" /> Creating order</> : "Create cash-out order with VectorPay"}
                 </Button>
               </div>
             </div>
@@ -729,10 +723,10 @@ export function CashoutActions({
           {step === "transfers" && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium">Send everything</p>
+                <p className="text-sm font-medium">Send each one</p>
                 <p className="text-xs text-muted-foreground">
-                  Once your bank is linked at VectorPay, one tap sends each balance straight to them. If one fails, the rest keep going and the order
-                  covers only what actually went out.
+                  Your order {reference} is waiting at VectorPay. Tap Send on each line. If one fails, tap it again or
+                  skip it — the order only covers what actually went out.
                 </p>
               </div>
 
@@ -769,7 +763,26 @@ export function CashoutActions({
                         </a>
                       )}
                       {st?.state === "failed" && <p className="mt-1 text-xs text-destructive">{st.error}</p>}
-                      {!row.evm && st?.state !== "sent" && (
+                      {row.evm && st?.state !== "sent" && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="flex-1"
+                            disabled={running || !root || !to}
+                            onClick={() => void sendOne(row)}
+                          >
+                            {st?.state === "sending" ? <><Loader2 className="animate-spin" /> Sending…</> : <><Send /> {st?.state === "failed" ? "Try again" : `Send ${row.asset}`}</>}
+                          </Button>
+                          {st?.state === "failed" && (
+                            <Button type="button" size="sm" variant="outline" disabled={running} onClick={() => setStatus((s) => ({ ...s, [row.key]: { state: "skipped" } }))}>
+                              Skip
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {st?.state === "skipped" && <p className="mt-1 text-xs text-muted-foreground">Skipped — not included.</p>}
+                      {!row.evm && st?.state !== "sent" && st?.state !== "skipped" && (
                         <div className="mt-2 flex items-center gap-2">
                           {to ? <SendLink holding={row} to={to} onOpen={() => setOpen(false)} /> : null}
                           <Button
@@ -780,18 +793,15 @@ export function CashoutActions({
                           >
                             Mark sent
                           </Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => setStatus((s) => ({ ...s, [row.key]: { state: "skipped" } }))}>
+                            Skip
+                          </Button>
                         </div>
                       )}
                     </div>
                   );
                 })}
               </div>
-
-              {evmPending.length > 0 && (
-                <Button className="w-full" disabled={running || !root} onClick={() => void sendAll()}>
-                  {running ? <><Loader2 className="animate-spin" /> Sending…</> : <><Send /> Send {evmPending.length === 1 ? "it" : `all ${evmPending.length}`} now</>}
-                </Button>
-              )}
 
               <div className="space-y-2 rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
                 <Row label="Sent so far" value={`$${fmt(sentTotal, 2)}`} strong />
@@ -801,14 +811,16 @@ export function CashoutActions({
 
               {error && <p className="text-sm text-destructive">{error}</p>}
 
-              <div className="flex gap-2">
-                {result?.checkoutUrl && (
-                  <Button variant="outline" disabled={running} onClick={() => void openVectorPayCheckout(result.checkoutUrl ?? "")}>VectorPay</Button>
-                )}
-                <Button className="flex-1" disabled={sentRows.length === 0 || running || submitting} onClick={() => void placeOrder(true)}>
-                  {submitting ? <><Loader2 className="animate-spin" /> Confirming</> : "Finish"}
-                </Button>
-              </div>
+              <Button
+                className="w-full"
+                disabled={!allResolved || sentRows.length === 0 || running || submitting}
+                onClick={() => void placeOrder(true)}
+              >
+                {submitting ? <><Loader2 className="animate-spin" /> Confirming</> : "Complete cash-out"}
+              </Button>
+              {!allResolved && (
+                <p className="text-center text-xs text-muted-foreground">Send or skip every line to finish.</p>
+              )}
             </div>
           )}
 
@@ -816,27 +828,26 @@ export function CashoutActions({
             <div className="space-y-4 text-sm">
               <div className="rounded-md border border-border/60 bg-muted/40 p-4 text-center">
                 <Check className="mx-auto mb-2 h-7 w-7 text-primary" />
-                <p className="font-semibold">{result.detail}</p>
+                <p className="font-semibold">Your cash-out is on its way</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{result.orderId}</p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   ${fmt(sentTotal, 2)} sent from {sentRows.length} {sentRows.length === 1 ? "wallet" : "wallets"} ·
-                  {" "}estimated ${finalQuote.settlementUsd.toFixed(2)} to your bank
+                  {" "}estimated ${finalQuote.settlementUsd.toFixed(2)} to{" "}
+                  {vpLink?.bank ? `${vpLink.bank.institution ?? "your bank"} ····${vpLink.bank.mask}` : "your bank"}
                 </p>
               </div>
               <p className="flex items-start gap-2 text-xs text-muted-foreground">
-                <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Next, VectorPay asks for your name and email,
-                verifies your identity and links your bank on their secure pages. BeeKeeper never sees any of it.
+                <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> VectorPay checks the coins on the
+                blockchain, then pays your linked bank — usually 1–3 business days.
               </p>
-              {result.checkoutUrl ? (
+              {result.checkoutUrl && (
                 <Button className="w-full" onClick={() => void openVectorPayCheckout(result.checkoutUrl ?? "")}>
-                  Link my bank at VectorPay <ExternalLink />
+                  View my cash-out status on VectorPay <ExternalLink />
                 </Button>
-              ) : (
-                <p className="text-destructive">Keep your reference and try again later.</p>
               )}
               <Button asChild variant="outline" className="w-full">
                 <Link to="/wallet/order/$id" params={{ id: result.orderId }} onClick={() => setOpen(false)}>
-                  View order
+                  View order in BeeKeeper
                 </Link>
               </Button>
             </div>
