@@ -4,13 +4,14 @@ import { QrScanButton } from "@/components/wallet/QrScanButton";
 import { fetchLoginMessage, parseLoginInput, signInToNectar, type NectarLoginRequest } from "@/lib/nectar/auth";
 import { loginSiteName } from "@/lib/web-login-hosts";
 import { useWallet } from "@/lib/txc/wallet-context";
+import { recordEcosystemLink } from "@/lib/ecosystem-links";
 
 /**
  * "Sign in to a website" flow: scan a partner site's sign-in QR (NectarPay,
  * streamTXC, …), review the exact login message, approve, and the signature
  * goes back to the site. No payment is authorized.
  */
-export function WebsiteSignInCard({ initialPayload }: { initialPayload?: string }) {
+export function WebsiteSignInCard({ initialPayload, embedded, onDone }: { initialPayload?: string; embedded?: boolean; onDone?: () => void }) {
   const { unlocked } = useWallet();
   const seedless = !unlocked || unlocked.mode === "keyonly" || !unlocked.mnemonic;
 
@@ -51,6 +52,12 @@ export function WebsiteSignInCard({ initialPayload }: { initialPayload?: string 
         passphrase: unlocked.passphrase,
       });
       setLoginDone(true);
+      recordEcosystemLink({
+        id: `site:${loginRequest.origin}`,
+        app: loginSiteName(loginRequest.origin),
+        detail: `Signed in · ${loginRequest.origin}`,
+      });
+      onDone?.();
     } catch (e) {
       setLoginError(e instanceof Error ? e.message : "Could not complete sign-in.");
     } finally {
@@ -68,7 +75,7 @@ export function WebsiteSignInCard({ initialPayload }: { initialPayload?: string 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
+      {!embedded && <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium">Sign in to a website</p>
           <p className="text-xs text-muted-foreground">
@@ -77,7 +84,7 @@ export function WebsiteSignInCard({ initialPayload }: { initialPayload?: string 
           </p>
         </div>
         <QrScanButton onScan={onScan} />
-      </div>
+      </div>}
       {loginRequest && (
         <div className="space-y-3 rounded-md border border-border/60 p-3">
           <p className="text-xs text-muted-foreground">
