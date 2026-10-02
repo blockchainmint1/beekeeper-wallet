@@ -72,6 +72,8 @@ const searchSchema = z.object({
   amount: z.string().optional(),
   /** Optional Omni property id to preselect the token picker. */
   token: z.string().optional(),
+  /** Cash-out row key when this send is part of a VectorPay cash-out. */
+  cashout: z.string().optional(),
 });
 
 export const Route = createFileRoute("/wallet/send")({
@@ -620,6 +622,20 @@ function SendPage() {
       setProgress(isTokenSend && activeToken ? `Sending ${activeToken.symbol}…` : "Sending TXC…");
       const txid = await broadcastTx(built.hex);
       reserveOutpoints(picked.map((u) => ({ txid: u.txid, vout: u.vout })));
+      // Part of a VectorPay cash-out: mark that row sent so the cash-out
+      // screen picks up where it left off when we return.
+      if (search.cashout) {
+        try {
+          const raw = sessionStorage.getItem(CASHOUT_SESSION_KEY);
+          if (raw) {
+            const session = JSON.parse(raw);
+            session.status = { ...(session.status ?? {}), [search.cashout]: { state: "sent", txid } };
+            sessionStorage.setItem(CASHOUT_SESSION_KEY, JSON.stringify(session));
+          }
+        } catch {
+          /* noop */
+        }
+      }
       hapticSuccess();
       void qc.invalidateQueries({ queryKey: ["account"] });
       void qc.invalidateQueries({ queryKey: ["txs"] });
@@ -697,7 +713,11 @@ function SendPage() {
           View on explorer <ExternalLink className="h-3.5 w-3.5" />
         </a>
         <div className="mt-8 flex justify-center gap-2">
-          <Button onClick={() => navigate({ to: "/wallet" })}>Back to wallet</Button>
+          {search.cashout ? (
+            <Button onClick={() => navigate({ to: "/dashboard" })}>Back to cash-out</Button>
+          ) : (
+            <Button onClick={() => navigate({ to: "/wallet" })}>Back to wallet</Button>
+          )}
         </div>
       </main>
     );
