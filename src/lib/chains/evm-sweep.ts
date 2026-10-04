@@ -18,7 +18,7 @@ import {
 import type { BIP32Interface } from "bip32";
 import { evmClient, deriveEvmAccountAt, EVM_CHAINS, type EvmChainId } from "./evm";
 import { encodeTransfer, type Erc20TokenMeta } from "./erc20";
-import { sendEvmTransaction } from "./evm-send";
+import { sendEvmTransaction, fees } from "./evm-send";
 
 /** Gas units: plain native transfer / typical ERC-20 transfer. */
 const NATIVE_GAS = 21_000n;
@@ -35,6 +35,9 @@ function walletFor(chain: EvmChainId, account: PrivateKeyAccount) {
 /** Per-gas price we can safely budget against (includes a headroom buffer). */
 export async function effectiveGasPrice(chain: EvmChainId): Promise<bigint> {
   const client = evmClient(chain);
+  // Match the fee caps sendEvmTransaction actually signs with.
+  const f = await fees(chain);
+  if (f.maxFeePerGas) return f.maxFeePerGas;
   try {
     const fees = await client.estimateFeesPerGas();
     const max = fees.maxFeePerGas ?? fees.gasPrice ?? 0n;
@@ -143,14 +146,27 @@ export async function sweepNative(opts: {
 }): Promise<`0x${string}`> {
   const { chain, root, index, to } = opts;
   const account = deriveEvmAccountAt(root, index);
-  const est = await estimateNativeSweep(chain, account.address);
-  if (est.sendable <= 0n) {
-    throw new Error(
-      `Balance is too small to cover its own gas on ${EVM_CHAINS[chain].name}.`,
-    );
+  const client = evmClient(chain);
+  // Budget with the exact fee caps we sign with, so balance − value always covers gas.
+  const [balance, f] = await Promise.all([client.getBalance({ address: account.address }), fees(chain)]);
+  let feeFields: { maxFeePerGas?: bigint; maxPriorityFeePerGas?: bigint; gasPrice?: bigint };
+  let perGas: bigint;
+  if (f.maxFeePerGas) {
+    feeFields = { maxFeePerGas: f.maxFeePerGas, maxPriorityFeePerGas: f.maxPriorityFeePerGas };
+    perGas = f.maxFeePerGas;
+  } else {
+    perGas = ((await client.getGasPrice()) * 12n) / 10n;
+    feeFields = { gasPrice: perGas };
+  }
+  const gasCost = perGas * NATIVE_GAS;
+  const value = balance > gasCost ? balance - gasCost : 0n;
+  if (value <= 0n) {
+    throw new Error(`Balance is too small to cover its own gas on ${EVM_CHAINS[chain].name}.`);
   }
   return sendEvmTransaction(chain, walletFor(chain, account), {
     to,
-    value: est.sendable,
+    value,
+    gas: NATIVE_GAS,
+    ...feeFields,
   });
 }

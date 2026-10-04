@@ -23,6 +23,9 @@ export interface EvmTxRequest {
   data?: `0x${string}`;
   value?: bigint;
   gas?: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+  gasPrice?: bigint;
 }
 
 const KEY = (chain: EvmChainId, address: string) =>
@@ -85,7 +88,7 @@ const isNonceCollision = (m: string) =>
   m.includes("replacement_underpriced") ||
   m.includes("nonce too low");
 
-async function fees(chainId: EvmChainId) {
+export async function fees(chainId: EvmChainId) {
   const pub = evmClient(chainId);
   try {
     const block = await pub.getBlock({ blockTag: "latest" });
