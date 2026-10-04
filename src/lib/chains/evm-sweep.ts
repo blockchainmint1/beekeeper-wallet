@@ -35,6 +35,9 @@ function walletFor(chain: EvmChainId, account: PrivateKeyAccount) {
 /** Per-gas price we can safely budget against (includes a headroom buffer). */
 export async function effectiveGasPrice(chain: EvmChainId): Promise<bigint> {
   const client = evmClient(chain);
+  // Match the fee caps sendEvmTransaction actually signs with.
+  const f = await fees(chain);
+  if (f.maxFeePerGas) return f.maxFeePerGas;
   try {
     const fees = await client.estimateFeesPerGas();
     const max = fees.maxFeePerGas ?? fees.gasPrice ?? 0n;
