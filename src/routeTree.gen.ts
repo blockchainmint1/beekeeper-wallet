@@ -9,92 +9,67 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WalletRouteImport } from './routes/wallet'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as ManifestoRouteImport } from './routes/manifesto'
-import { Route as ImportKeyRouteImport } from './routes/import-key'
-import { Route as ImportRouteImport } from './routes/import'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as CreateRouteImport } from './routes/create'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as WalletIndexRouteImport } from './routes/wallet.index'
-import { Route as WalletWifAddRouteImport } from './routes/wallet.wif-add'
-import { Route as WalletWatchAddRouteImport } from './routes/wallet.watch-add'
-import { Route as WalletSigninRouteImport } from './routes/wallet.signin'
-import { Route as WalletSettingsRouteImport } from './routes/wallet.settings'
-import { Route as WalletSendRouteImport } from './routes/wallet.send'
-import { Route as WalletReceiveRouteImport } from './routes/wallet.receive'
-import { Route as WalletContactsRouteImport } from './routes/wallet.contacts'
-import { Route as WalletBackupRouteImport } from './routes/wallet.backup'
-import { Route as PayInvoiceIdRouteImport } from './routes/pay.$invoiceId'
-import { Route as LegalTermsRouteImport } from './routes/legal.terms'
-import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
-import { Route as ApiZcuExplorerBaseRouteImport } from './routes/api/zcu-explorer-base'
+import { Route as CreateRouteImport } from './routes/create'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ImportRouteImport } from './routes/import'
+import { Route as ImportKeyRouteImport } from './routes/import-key'
+import { Route as ManifestoRouteImport } from './routes/manifesto'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as ApiSolanaRouteImport } from './routes/api/solana'
-import { Route as WalletTxcPathsRouteImport } from './routes/wallet.txc.paths'
-import { Route as WalletTxcMigrateRouteImport } from './routes/wallet.txc.migrate'
-import { Route as WalletTxcConsolidateRouteImport } from './routes/wallet.txc.consolidate'
-import { Route as WalletTronSendRouteImport } from './routes/wallet.tron.send'
-import { Route as WalletTronReceiveRouteImport } from './routes/wallet.tron.receive'
-import { Route as WalletTronBridgeRouteImport } from './routes/wallet.tron.bridge'
-import { Route as WalletSolanaSendRouteImport } from './routes/wallet.solana.send'
-import { Route as WalletSolanaReceiveRouteImport } from './routes/wallet.solana.receive'
-import { Route as WalletOrderIdRouteImport } from './routes/wallet.order.$id'
-import { Route as WalletLtcSwapRouteImport } from './routes/wallet.ltc.swap'
-import { Route as WalletLtcSendRouteImport } from './routes/wallet.ltc.send'
-import { Route as WalletLtcReceiveRouteImport } from './routes/wallet.ltc.receive'
-import { Route as WalletIskSendRouteImport } from './routes/wallet.isk.send'
-import { Route as WalletIskReceiveRouteImport } from './routes/wallet.isk.receive'
-import { Route as WalletEvmChainRouteImport } from './routes/wallet.evm.$chain'
-import { Route as WalletDogeSwapRouteImport } from './routes/wallet.doge.swap'
-import { Route as WalletDogeSendRouteImport } from './routes/wallet.doge.send'
-import { Route as WalletDogeReceiveRouteImport } from './routes/wallet.doge.receive'
-import { Route as WalletBtcSendRouteImport } from './routes/wallet.btc.send'
-import { Route as WalletBtcReceiveRouteImport } from './routes/wallet.btc.receive'
-import { Route as ApiTsdLinkRouteImport } from './routes/api/tsd.link'
-import { Route as ApiTronSplatRouteImport } from './routes/api/tron.$'
-import { Route as ApiPublicVectorpayOrderStatusRouteImport } from './routes/api/public/vectorpay-order-status'
-import { Route as ApiPublicLatestReleaseRouteImport } from './routes/api/public/latest-release'
-import { Route as ApiPublicBuildIdRouteImport } from './routes/api/public/build-id'
-import { Route as ApiPublicApkRouteImport } from './routes/api/public/apk'
-import { Route as ApiNectarLinkRouteImport } from './routes/api/nectar.link'
+import { Route as ApiZcuExplorerBaseRouteImport } from './routes/api/zcu-explorer-base'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
+import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as PayInvoiceIdRouteImport } from './routes/pay.$invoiceId'
+import { Route as WalletIndexRouteImport } from './routes/wallet.index'
+import { Route as WalletBackupRouteImport } from './routes/wallet.backup'
+import { Route as WalletContactsRouteImport } from './routes/wallet.contacts'
+import { Route as WalletReceiveRouteImport } from './routes/wallet.receive'
+import { Route as WalletSendRouteImport } from './routes/wallet.send'
+import { Route as WalletSettingsRouteImport } from './routes/wallet.settings'
+import { Route as WalletSigninRouteImport } from './routes/wallet.signin'
+import { Route as WalletWatchAddRouteImport } from './routes/wallet.watch-add'
+import { Route as WalletWifAddRouteImport } from './routes/wallet.wif-add'
 import { Route as ApiEvmChainRouteImport } from './routes/api/evm.$chain'
-import { Route as WalletWifIdSendRouteImport } from './routes/wallet.wif.$id.send'
-import { Route as WalletWifIdReceiveRouteImport } from './routes/wallet.wif.$id.receive'
-import { Route as WalletEvmChainSwapRouteImport } from './routes/wallet.evm.$chain.swap'
-import { Route as WalletEvmChainSendRouteImport } from './routes/wallet.evm.$chain.send'
-import { Route as WalletEvmChainReceiveRouteImport } from './routes/wallet.evm.$chain.receive'
-import { Route as ApiUtxoCoinSplatRouteImport } from './routes/api/utxo.$coin.$'
+import { Route as ApiNectarLinkRouteImport } from './routes/api/nectar.link'
+import { Route as ApiPublicApkRouteImport } from './routes/api/public/apk'
+import { Route as ApiPublicBuildIdRouteImport } from './routes/api/public/build-id'
+import { Route as ApiPublicLatestReleaseRouteImport } from './routes/api/public/latest-release'
+import { Route as ApiPublicVectorpayOrderStatusRouteImport } from './routes/api/public/vectorpay-order-status'
+import { Route as ApiTronSplatRouteImport } from './routes/api/tron.$'
+import { Route as ApiTsdLinkRouteImport } from './routes/api/tsd.link'
+import { Route as WalletBtcReceiveRouteImport } from './routes/wallet.btc.receive'
+import { Route as WalletBtcSendRouteImport } from './routes/wallet.btc.send'
+import { Route as WalletDogeReceiveRouteImport } from './routes/wallet.doge.receive'
+import { Route as WalletDogeSendRouteImport } from './routes/wallet.doge.send'
+import { Route as WalletDogeSwapRouteImport } from './routes/wallet.doge.swap'
+import { Route as WalletEvmChainRouteImport } from './routes/wallet.evm.$chain'
+import { Route as WalletIskReceiveRouteImport } from './routes/wallet.isk.receive'
+import { Route as WalletIskSendRouteImport } from './routes/wallet.isk.send'
+import { Route as WalletLtcReceiveRouteImport } from './routes/wallet.ltc.receive'
+import { Route as WalletLtcSendRouteImport } from './routes/wallet.ltc.send'
+import { Route as WalletLtcSwapRouteImport } from './routes/wallet.ltc.swap'
+import { Route as WalletOrderIdRouteImport } from './routes/wallet.order.$id'
+import { Route as WalletSolanaReceiveRouteImport } from './routes/wallet.solana.receive'
+import { Route as WalletSolanaSendRouteImport } from './routes/wallet.solana.send'
+import { Route as WalletTronBridgeRouteImport } from './routes/wallet.tron.bridge'
+import { Route as WalletTronReceiveRouteImport } from './routes/wallet.tron.receive'
+import { Route as WalletTronSendRouteImport } from './routes/wallet.tron.send'
+import { Route as WalletTxcConsolidateRouteImport } from './routes/wallet.txc.consolidate'
+import { Route as WalletTxcMigrateRouteImport } from './routes/wallet.txc.migrate'
+import { Route as WalletTxcPathsRouteImport } from './routes/wallet.txc.paths'
 import { Route as ApiNectarPayInvoiceIdRouteImport } from './routes/api/nectar.pay.$invoiceId'
+import { Route as ApiUtxoCoinSplatRouteImport } from './routes/api/utxo.$coin.$'
+import { Route as WalletEvmChainReceiveRouteImport } from './routes/wallet.evm.$chain.receive'
+import { Route as WalletEvmChainSendRouteImport } from './routes/wallet.evm.$chain.send'
+import { Route as WalletEvmChainSwapRouteImport } from './routes/wallet.evm.$chain.swap'
+import { Route as WalletWifIdReceiveRouteImport } from './routes/wallet.wif.$id.receive'
+import { Route as WalletWifIdSendRouteImport } from './routes/wallet.wif.$id.send'
 
-const WalletRoute = WalletRouteImport.update({
-  id: '/wallet',
-  path: '/wallet',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ManifestoRoute = ManifestoRouteImport.update({
-  id: '/manifesto',
-  path: '/manifesto',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImportKeyRoute = ImportKeyRouteImport.update({
-  id: '/import-key',
-  path: '/import-key',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImportRoute = ImportRouteImport.update({
-  id: '/import',
-  path: '/import',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateRoute = CreateRouteImport.update({
@@ -102,74 +77,34 @@ const CreateRoute = CreateRouteImport.update({
   path: '/create',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WalletIndexRoute = WalletIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletWifAddRoute = WalletWifAddRouteImport.update({
-  id: '/wif-add',
-  path: '/wif-add',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletWatchAddRoute = WalletWatchAddRouteImport.update({
-  id: '/watch-add',
-  path: '/watch-add',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletSigninRoute = WalletSigninRouteImport.update({
-  id: '/signin',
-  path: '/signin',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletSettingsRoute = WalletSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletSendRoute = WalletSendRouteImport.update({
-  id: '/send',
-  path: '/send',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletReceiveRoute = WalletReceiveRouteImport.update({
-  id: '/receive',
-  path: '/receive',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletContactsRoute = WalletContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletBackupRoute = WalletBackupRouteImport.update({
-  id: '/backup',
-  path: '/backup',
-  getParentRoute: () => WalletRoute,
-} as any)
-const PayInvoiceIdRoute = PayInvoiceIdRouteImport.update({
-  id: '/pay/$invoiceId',
-  path: '/pay/$invoiceId',
+const ImportRoute = ImportRouteImport.update({
+  id: '/import',
+  path: '/import',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LegalTermsRoute = LegalTermsRouteImport.update({
-  id: '/legal/terms',
-  path: '/legal/terms',
+const ImportKeyRoute = ImportKeyRouteImport.update({
+  id: '/import-key',
+  path: '/import-key',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
-  id: '/legal/privacy',
-  path: '/legal/privacy',
+const ManifestoRoute = ManifestoRouteImport.update({
+  id: '/manifesto',
+  path: '/manifesto',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiZcuExplorerBaseRoute = ApiZcuExplorerBaseRouteImport.update({
-  id: '/api/zcu-explorer-base',
-  path: '/api/zcu-explorer-base',
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSolanaRoute = ApiSolanaRouteImport.update({
@@ -177,114 +112,94 @@ const ApiSolanaRoute = ApiSolanaRouteImport.update({
   path: '/api/solana',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WalletTxcPathsRoute = WalletTxcPathsRouteImport.update({
-  id: '/txc/paths',
-  path: '/txc/paths',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletTxcMigrateRoute = WalletTxcMigrateRouteImport.update({
-  id: '/txc/migrate',
-  path: '/txc/migrate',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletTxcConsolidateRoute = WalletTxcConsolidateRouteImport.update({
-  id: '/txc/consolidate',
-  path: '/txc/consolidate',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletTronSendRoute = WalletTronSendRouteImport.update({
-  id: '/tron/send',
-  path: '/tron/send',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletTronReceiveRoute = WalletTronReceiveRouteImport.update({
-  id: '/tron/receive',
-  path: '/tron/receive',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletTronBridgeRoute = WalletTronBridgeRouteImport.update({
-  id: '/tron/bridge',
-  path: '/tron/bridge',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletSolanaSendRoute = WalletSolanaSendRouteImport.update({
-  id: '/solana/send',
-  path: '/solana/send',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletSolanaReceiveRoute = WalletSolanaReceiveRouteImport.update({
-  id: '/solana/receive',
-  path: '/solana/receive',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletOrderIdRoute = WalletOrderIdRouteImport.update({
-  id: '/order/$id',
-  path: '/order/$id',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletLtcSwapRoute = WalletLtcSwapRouteImport.update({
-  id: '/ltc/swap',
-  path: '/ltc/swap',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletLtcSendRoute = WalletLtcSendRouteImport.update({
-  id: '/ltc/send',
-  path: '/ltc/send',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletLtcReceiveRoute = WalletLtcReceiveRouteImport.update({
-  id: '/ltc/receive',
-  path: '/ltc/receive',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletIskSendRoute = WalletIskSendRouteImport.update({
-  id: '/isk/send',
-  path: '/isk/send',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletIskReceiveRoute = WalletIskReceiveRouteImport.update({
-  id: '/isk/receive',
-  path: '/isk/receive',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletEvmChainRoute = WalletEvmChainRouteImport.update({
-  id: '/evm/$chain',
-  path: '/evm/$chain',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletDogeSwapRoute = WalletDogeSwapRouteImport.update({
-  id: '/doge/swap',
-  path: '/doge/swap',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletDogeSendRoute = WalletDogeSendRouteImport.update({
-  id: '/doge/send',
-  path: '/doge/send',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletDogeReceiveRoute = WalletDogeReceiveRouteImport.update({
-  id: '/doge/receive',
-  path: '/doge/receive',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletBtcSendRoute = WalletBtcSendRouteImport.update({
-  id: '/btc/send',
-  path: '/btc/send',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletBtcReceiveRoute = WalletBtcReceiveRouteImport.update({
-  id: '/btc/receive',
-  path: '/btc/receive',
-  getParentRoute: () => WalletRoute,
-} as any)
-const ApiTsdLinkRoute = ApiTsdLinkRouteImport.update({
-  id: '/api/tsd/link',
-  path: '/api/tsd/link',
+const ApiZcuExplorerBaseRoute = ApiZcuExplorerBaseRouteImport.update({
+  id: '/api/zcu-explorer-base',
+  path: '/api/zcu-explorer-base',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiTronSplatRoute = ApiTronSplatRouteImport.update({
-  id: '/api/tron/$',
-  path: '/api/tron/$',
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayInvoiceIdRoute = PayInvoiceIdRouteImport.update({
+  id: '/pay/$invoiceId',
+  path: '/pay/$invoiceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WalletIndexRoute = WalletIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletBackupRoute = WalletBackupRouteImport.update({
+  id: '/backup',
+  path: '/backup',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletContactsRoute = WalletContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletReceiveRoute = WalletReceiveRouteImport.update({
+  id: '/receive',
+  path: '/receive',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletSendRoute = WalletSendRouteImport.update({
+  id: '/send',
+  path: '/send',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletSettingsRoute = WalletSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletSigninRoute = WalletSigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletWatchAddRoute = WalletWatchAddRouteImport.update({
+  id: '/watch-add',
+  path: '/watch-add',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletWifAddRoute = WalletWifAddRouteImport.update({
+  id: '/wif-add',
+  path: '/wif-add',
+  getParentRoute: () => WalletRoute,
+} as any)
+const ApiEvmChainRoute = ApiEvmChainRouteImport.update({
+  id: '/api/evm/$chain',
+  path: '/api/evm/$chain',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiNectarLinkRoute = ApiNectarLinkRouteImport.update({
+  id: '/api/nectar/link',
+  path: '/api/nectar/link',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicApkRoute = ApiPublicApkRouteImport.update({
+  id: '/api/public/apk',
+  path: '/api/public/apk',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicBuildIdRoute = ApiPublicBuildIdRouteImport.update({
+  id: '/api/public/build-id',
+  path: '/api/public/build-id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicLatestReleaseRoute = ApiPublicLatestReleaseRouteImport.update({
+  id: '/api/public/latest-release',
+  path: '/api/public/latest-release',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicVectorpayOrderStatusRoute =
@@ -293,44 +208,129 @@ const ApiPublicVectorpayOrderStatusRoute =
     path: '/api/public/vectorpay-order-status',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicLatestReleaseRoute = ApiPublicLatestReleaseRouteImport.update({
-  id: '/api/public/latest-release',
-  path: '/api/public/latest-release',
+const ApiTronSplatRoute = ApiTronSplatRouteImport.update({
+  id: '/api/tron/$',
+  path: '/api/tron/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicBuildIdRoute = ApiPublicBuildIdRouteImport.update({
-  id: '/api/public/build-id',
-  path: '/api/public/build-id',
+const ApiTsdLinkRoute = ApiTsdLinkRouteImport.update({
+  id: '/api/tsd/link',
+  path: '/api/tsd/link',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicApkRoute = ApiPublicApkRouteImport.update({
-  id: '/api/public/apk',
-  path: '/api/public/apk',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiNectarLinkRoute = ApiNectarLinkRouteImport.update({
-  id: '/api/nectar/link',
-  path: '/api/nectar/link',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiEvmChainRoute = ApiEvmChainRouteImport.update({
-  id: '/api/evm/$chain',
-  path: '/api/evm/$chain',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WalletWifIdSendRoute = WalletWifIdSendRouteImport.update({
-  id: '/wif/$id/send',
-  path: '/wif/$id/send',
+const WalletBtcReceiveRoute = WalletBtcReceiveRouteImport.update({
+  id: '/btc/receive',
+  path: '/btc/receive',
   getParentRoute: () => WalletRoute,
 } as any)
-const WalletWifIdReceiveRoute = WalletWifIdReceiveRouteImport.update({
-  id: '/wif/$id/receive',
-  path: '/wif/$id/receive',
+const WalletBtcSendRoute = WalletBtcSendRouteImport.update({
+  id: '/btc/send',
+  path: '/btc/send',
   getParentRoute: () => WalletRoute,
 } as any)
-const WalletEvmChainSwapRoute = WalletEvmChainSwapRouteImport.update({
-  id: '/swap',
-  path: '/swap',
+const WalletDogeReceiveRoute = WalletDogeReceiveRouteImport.update({
+  id: '/doge/receive',
+  path: '/doge/receive',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletDogeSendRoute = WalletDogeSendRouteImport.update({
+  id: '/doge/send',
+  path: '/doge/send',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletDogeSwapRoute = WalletDogeSwapRouteImport.update({
+  id: '/doge/swap',
+  path: '/doge/swap',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletEvmChainRoute = WalletEvmChainRouteImport.update({
+  id: '/evm/$chain',
+  path: '/evm/$chain',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletIskReceiveRoute = WalletIskReceiveRouteImport.update({
+  id: '/isk/receive',
+  path: '/isk/receive',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletIskSendRoute = WalletIskSendRouteImport.update({
+  id: '/isk/send',
+  path: '/isk/send',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletLtcReceiveRoute = WalletLtcReceiveRouteImport.update({
+  id: '/ltc/receive',
+  path: '/ltc/receive',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletLtcSendRoute = WalletLtcSendRouteImport.update({
+  id: '/ltc/send',
+  path: '/ltc/send',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletLtcSwapRoute = WalletLtcSwapRouteImport.update({
+  id: '/ltc/swap',
+  path: '/ltc/swap',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletOrderIdRoute = WalletOrderIdRouteImport.update({
+  id: '/order/$id',
+  path: '/order/$id',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletSolanaReceiveRoute = WalletSolanaReceiveRouteImport.update({
+  id: '/solana/receive',
+  path: '/solana/receive',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletSolanaSendRoute = WalletSolanaSendRouteImport.update({
+  id: '/solana/send',
+  path: '/solana/send',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletTronBridgeRoute = WalletTronBridgeRouteImport.update({
+  id: '/tron/bridge',
+  path: '/tron/bridge',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletTronReceiveRoute = WalletTronReceiveRouteImport.update({
+  id: '/tron/receive',
+  path: '/tron/receive',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletTronSendRoute = WalletTronSendRouteImport.update({
+  id: '/tron/send',
+  path: '/tron/send',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletTxcConsolidateRoute = WalletTxcConsolidateRouteImport.update({
+  id: '/txc/consolidate',
+  path: '/txc/consolidate',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletTxcMigrateRoute = WalletTxcMigrateRouteImport.update({
+  id: '/txc/migrate',
+  path: '/txc/migrate',
+  getParentRoute: () => WalletRoute,
+} as any)
+const WalletTxcPathsRoute = WalletTxcPathsRouteImport.update({
+  id: '/txc/paths',
+  path: '/txc/paths',
+  getParentRoute: () => WalletRoute,
+} as any)
+const ApiNectarPayInvoiceIdRoute = ApiNectarPayInvoiceIdRouteImport.update({
+  id: '/api/nectar/pay/$invoiceId',
+  path: '/api/nectar/pay/$invoiceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUtxoCoinSplatRoute = ApiUtxoCoinSplatRouteImport.update({
+  id: '/api/utxo/$coin/$',
+  path: '/api/utxo/$coin/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WalletEvmChainReceiveRoute = WalletEvmChainReceiveRouteImport.update({
+  id: '/receive',
+  path: '/receive',
   getParentRoute: () => WalletEvmChainRoute,
 } as any)
 const WalletEvmChainSendRoute = WalletEvmChainSendRouteImport.update({
@@ -338,20 +338,20 @@ const WalletEvmChainSendRoute = WalletEvmChainSendRouteImport.update({
   path: '/send',
   getParentRoute: () => WalletEvmChainRoute,
 } as any)
-const WalletEvmChainReceiveRoute = WalletEvmChainReceiveRouteImport.update({
-  id: '/receive',
-  path: '/receive',
+const WalletEvmChainSwapRoute = WalletEvmChainSwapRouteImport.update({
+  id: '/swap',
+  path: '/swap',
   getParentRoute: () => WalletEvmChainRoute,
 } as any)
-const ApiUtxoCoinSplatRoute = ApiUtxoCoinSplatRouteImport.update({
-  id: '/api/utxo/$coin/$',
-  path: '/api/utxo/$coin/$',
-  getParentRoute: () => rootRouteImport,
+const WalletWifIdReceiveRoute = WalletWifIdReceiveRouteImport.update({
+  id: '/wif/$id/receive',
+  path: '/wif/$id/receive',
+  getParentRoute: () => WalletRoute,
 } as any)
-const ApiNectarPayInvoiceIdRoute = ApiNectarPayInvoiceIdRouteImport.update({
-  id: '/api/nectar/pay/$invoiceId',
-  path: '/api/nectar/pay/$invoiceId',
-  getParentRoute: () => rootRouteImport,
+const WalletWifIdSendRoute = WalletWifIdSendRouteImport.update({
+  id: '/wif/$id/send',
+  path: '/wif/$id/send',
+  getParentRoute: () => WalletRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -738,46 +738,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/wallet': {
-      id: '/wallet'
-      path: '/wallet'
-      fullPath: '/wallet'
-      preLoaderRoute: typeof WalletRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/manifesto': {
-      id: '/manifesto'
-      path: '/manifesto'
-      fullPath: '/manifesto'
-      preLoaderRoute: typeof ManifestoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/import-key': {
-      id: '/import-key'
-      path: '/import-key'
-      fullPath: '/import-key'
-      preLoaderRoute: typeof ImportKeyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/import': {
-      id: '/import'
-      path: '/import'
-      fullPath: '/import'
-      preLoaderRoute: typeof ImportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create': {
@@ -787,102 +752,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/wallet/': {
-      id: '/wallet/'
-      path: '/'
-      fullPath: '/wallet/'
-      preLoaderRoute: typeof WalletIndexRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/wif-add': {
-      id: '/wallet/wif-add'
-      path: '/wif-add'
-      fullPath: '/wallet/wif-add'
-      preLoaderRoute: typeof WalletWifAddRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/watch-add': {
-      id: '/wallet/watch-add'
-      path: '/watch-add'
-      fullPath: '/wallet/watch-add'
-      preLoaderRoute: typeof WalletWatchAddRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/signin': {
-      id: '/wallet/signin'
-      path: '/signin'
-      fullPath: '/wallet/signin'
-      preLoaderRoute: typeof WalletSigninRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/settings': {
-      id: '/wallet/settings'
-      path: '/settings'
-      fullPath: '/wallet/settings'
-      preLoaderRoute: typeof WalletSettingsRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/send': {
-      id: '/wallet/send'
-      path: '/send'
-      fullPath: '/wallet/send'
-      preLoaderRoute: typeof WalletSendRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/receive': {
-      id: '/wallet/receive'
-      path: '/receive'
-      fullPath: '/wallet/receive'
-      preLoaderRoute: typeof WalletReceiveRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/contacts': {
-      id: '/wallet/contacts'
-      path: '/contacts'
-      fullPath: '/wallet/contacts'
-      preLoaderRoute: typeof WalletContactsRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/backup': {
-      id: '/wallet/backup'
-      path: '/backup'
-      fullPath: '/wallet/backup'
-      preLoaderRoute: typeof WalletBackupRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/pay/$invoiceId': {
-      id: '/pay/$invoiceId'
-      path: '/pay/$invoiceId'
-      fullPath: '/pay/$invoiceId'
-      preLoaderRoute: typeof PayInvoiceIdRouteImport
+    '/import': {
+      id: '/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof ImportRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/legal/terms': {
-      id: '/legal/terms'
-      path: '/legal/terms'
-      fullPath: '/legal/terms'
-      preLoaderRoute: typeof LegalTermsRouteImport
+    '/import-key': {
+      id: '/import-key'
+      path: '/import-key'
+      fullPath: '/import-key'
+      preLoaderRoute: typeof ImportKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/legal/privacy': {
-      id: '/legal/privacy'
-      path: '/legal/privacy'
-      fullPath: '/legal/privacy'
-      preLoaderRoute: typeof LegalPrivacyRouteImport
+    '/manifesto': {
+      id: '/manifesto'
+      path: '/manifesto'
+      fullPath: '/manifesto'
+      preLoaderRoute: typeof ManifestoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/zcu-explorer-base': {
-      id: '/api/zcu-explorer-base'
-      path: '/api/zcu-explorer-base'
-      fullPath: '/api/zcu-explorer-base'
-      preLoaderRoute: typeof ApiZcuExplorerBaseRouteImport
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/solana': {
@@ -892,186 +801,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSolanaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/wallet/txc/paths': {
-      id: '/wallet/txc/paths'
-      path: '/txc/paths'
-      fullPath: '/wallet/txc/paths'
-      preLoaderRoute: typeof WalletTxcPathsRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/txc/migrate': {
-      id: '/wallet/txc/migrate'
-      path: '/txc/migrate'
-      fullPath: '/wallet/txc/migrate'
-      preLoaderRoute: typeof WalletTxcMigrateRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/txc/consolidate': {
-      id: '/wallet/txc/consolidate'
-      path: '/txc/consolidate'
-      fullPath: '/wallet/txc/consolidate'
-      preLoaderRoute: typeof WalletTxcConsolidateRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/tron/send': {
-      id: '/wallet/tron/send'
-      path: '/tron/send'
-      fullPath: '/wallet/tron/send'
-      preLoaderRoute: typeof WalletTronSendRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/tron/receive': {
-      id: '/wallet/tron/receive'
-      path: '/tron/receive'
-      fullPath: '/wallet/tron/receive'
-      preLoaderRoute: typeof WalletTronReceiveRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/tron/bridge': {
-      id: '/wallet/tron/bridge'
-      path: '/tron/bridge'
-      fullPath: '/wallet/tron/bridge'
-      preLoaderRoute: typeof WalletTronBridgeRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/solana/send': {
-      id: '/wallet/solana/send'
-      path: '/solana/send'
-      fullPath: '/wallet/solana/send'
-      preLoaderRoute: typeof WalletSolanaSendRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/solana/receive': {
-      id: '/wallet/solana/receive'
-      path: '/solana/receive'
-      fullPath: '/wallet/solana/receive'
-      preLoaderRoute: typeof WalletSolanaReceiveRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/order/$id': {
-      id: '/wallet/order/$id'
-      path: '/order/$id'
-      fullPath: '/wallet/order/$id'
-      preLoaderRoute: typeof WalletOrderIdRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/ltc/swap': {
-      id: '/wallet/ltc/swap'
-      path: '/ltc/swap'
-      fullPath: '/wallet/ltc/swap'
-      preLoaderRoute: typeof WalletLtcSwapRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/ltc/send': {
-      id: '/wallet/ltc/send'
-      path: '/ltc/send'
-      fullPath: '/wallet/ltc/send'
-      preLoaderRoute: typeof WalletLtcSendRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/ltc/receive': {
-      id: '/wallet/ltc/receive'
-      path: '/ltc/receive'
-      fullPath: '/wallet/ltc/receive'
-      preLoaderRoute: typeof WalletLtcReceiveRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/isk/send': {
-      id: '/wallet/isk/send'
-      path: '/isk/send'
-      fullPath: '/wallet/isk/send'
-      preLoaderRoute: typeof WalletIskSendRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/isk/receive': {
-      id: '/wallet/isk/receive'
-      path: '/isk/receive'
-      fullPath: '/wallet/isk/receive'
-      preLoaderRoute: typeof WalletIskReceiveRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/evm/$chain': {
-      id: '/wallet/evm/$chain'
-      path: '/evm/$chain'
-      fullPath: '/wallet/evm/$chain'
-      preLoaderRoute: typeof WalletEvmChainRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/doge/swap': {
-      id: '/wallet/doge/swap'
-      path: '/doge/swap'
-      fullPath: '/wallet/doge/swap'
-      preLoaderRoute: typeof WalletDogeSwapRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/doge/send': {
-      id: '/wallet/doge/send'
-      path: '/doge/send'
-      fullPath: '/wallet/doge/send'
-      preLoaderRoute: typeof WalletDogeSendRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/doge/receive': {
-      id: '/wallet/doge/receive'
-      path: '/doge/receive'
-      fullPath: '/wallet/doge/receive'
-      preLoaderRoute: typeof WalletDogeReceiveRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/btc/send': {
-      id: '/wallet/btc/send'
-      path: '/btc/send'
-      fullPath: '/wallet/btc/send'
-      preLoaderRoute: typeof WalletBtcSendRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/btc/receive': {
-      id: '/wallet/btc/receive'
-      path: '/btc/receive'
-      fullPath: '/wallet/btc/receive'
-      preLoaderRoute: typeof WalletBtcReceiveRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/api/tsd/link': {
-      id: '/api/tsd/link'
-      path: '/api/tsd/link'
-      fullPath: '/api/tsd/link'
-      preLoaderRoute: typeof ApiTsdLinkRouteImport
+    '/api/zcu-explorer-base': {
+      id: '/api/zcu-explorer-base'
+      path: '/api/zcu-explorer-base'
+      fullPath: '/api/zcu-explorer-base'
+      preLoaderRoute: typeof ApiZcuExplorerBaseRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/tron/$': {
-      id: '/api/tron/$'
-      path: '/api/tron/$'
-      fullPath: '/api/tron/$'
-      preLoaderRoute: typeof ApiTronSplatRouteImport
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/vectorpay-order-status': {
-      id: '/api/public/vectorpay-order-status'
-      path: '/api/public/vectorpay-order-status'
-      fullPath: '/api/public/vectorpay-order-status'
-      preLoaderRoute: typeof ApiPublicVectorpayOrderStatusRouteImport
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/latest-release': {
-      id: '/api/public/latest-release'
-      path: '/api/public/latest-release'
-      fullPath: '/api/public/latest-release'
-      preLoaderRoute: typeof ApiPublicLatestReleaseRouteImport
+    '/pay/$invoiceId': {
+      id: '/pay/$invoiceId'
+      path: '/pay/$invoiceId'
+      fullPath: '/pay/$invoiceId'
+      preLoaderRoute: typeof PayInvoiceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/build-id': {
-      id: '/api/public/build-id'
-      path: '/api/public/build-id'
-      fullPath: '/api/public/build-id'
-      preLoaderRoute: typeof ApiPublicBuildIdRouteImport
-      parentRoute: typeof rootRouteImport
+    '/wallet/': {
+      id: '/wallet/'
+      path: '/'
+      fullPath: '/wallet/'
+      preLoaderRoute: typeof WalletIndexRouteImport
+      parentRoute: typeof WalletRoute
     }
-    '/api/public/apk': {
-      id: '/api/public/apk'
-      path: '/api/public/apk'
-      fullPath: '/api/public/apk'
-      preLoaderRoute: typeof ApiPublicApkRouteImport
+    '/wallet/backup': {
+      id: '/wallet/backup'
+      path: '/backup'
+      fullPath: '/wallet/backup'
+      preLoaderRoute: typeof WalletBackupRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/contacts': {
+      id: '/wallet/contacts'
+      path: '/contacts'
+      fullPath: '/wallet/contacts'
+      preLoaderRoute: typeof WalletContactsRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/receive': {
+      id: '/wallet/receive'
+      path: '/receive'
+      fullPath: '/wallet/receive'
+      preLoaderRoute: typeof WalletReceiveRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/send': {
+      id: '/wallet/send'
+      path: '/send'
+      fullPath: '/wallet/send'
+      preLoaderRoute: typeof WalletSendRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/settings': {
+      id: '/wallet/settings'
+      path: '/settings'
+      fullPath: '/wallet/settings'
+      preLoaderRoute: typeof WalletSettingsRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/signin': {
+      id: '/wallet/signin'
+      path: '/signin'
+      fullPath: '/wallet/signin'
+      preLoaderRoute: typeof WalletSigninRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/watch-add': {
+      id: '/wallet/watch-add'
+      path: '/watch-add'
+      fullPath: '/wallet/watch-add'
+      preLoaderRoute: typeof WalletWatchAddRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/wif-add': {
+      id: '/wallet/wif-add'
+      path: '/wif-add'
+      fullPath: '/wallet/wif-add'
+      preLoaderRoute: typeof WalletWifAddRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/api/evm/$chain': {
+      id: '/api/evm/$chain'
+      path: '/api/evm/$chain'
+      fullPath: '/api/evm/$chain'
+      preLoaderRoute: typeof ApiEvmChainRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/nectar/link': {
@@ -1081,32 +906,207 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNectarLinkRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/evm/$chain': {
-      id: '/api/evm/$chain'
-      path: '/api/evm/$chain'
-      fullPath: '/api/evm/$chain'
-      preLoaderRoute: typeof ApiEvmChainRouteImport
+    '/api/public/apk': {
+      id: '/api/public/apk'
+      path: '/api/public/apk'
+      fullPath: '/api/public/apk'
+      preLoaderRoute: typeof ApiPublicApkRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/wallet/wif/$id/send': {
-      id: '/wallet/wif/$id/send'
-      path: '/wif/$id/send'
-      fullPath: '/wallet/wif/$id/send'
-      preLoaderRoute: typeof WalletWifIdSendRouteImport
+    '/api/public/build-id': {
+      id: '/api/public/build-id'
+      path: '/api/public/build-id'
+      fullPath: '/api/public/build-id'
+      preLoaderRoute: typeof ApiPublicBuildIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/latest-release': {
+      id: '/api/public/latest-release'
+      path: '/api/public/latest-release'
+      fullPath: '/api/public/latest-release'
+      preLoaderRoute: typeof ApiPublicLatestReleaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/vectorpay-order-status': {
+      id: '/api/public/vectorpay-order-status'
+      path: '/api/public/vectorpay-order-status'
+      fullPath: '/api/public/vectorpay-order-status'
+      preLoaderRoute: typeof ApiPublicVectorpayOrderStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/tron/$': {
+      id: '/api/tron/$'
+      path: '/api/tron/$'
+      fullPath: '/api/tron/$'
+      preLoaderRoute: typeof ApiTronSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/tsd/link': {
+      id: '/api/tsd/link'
+      path: '/api/tsd/link'
+      fullPath: '/api/tsd/link'
+      preLoaderRoute: typeof ApiTsdLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wallet/btc/receive': {
+      id: '/wallet/btc/receive'
+      path: '/btc/receive'
+      fullPath: '/wallet/btc/receive'
+      preLoaderRoute: typeof WalletBtcReceiveRouteImport
       parentRoute: typeof WalletRoute
     }
-    '/wallet/wif/$id/receive': {
-      id: '/wallet/wif/$id/receive'
-      path: '/wif/$id/receive'
-      fullPath: '/wallet/wif/$id/receive'
-      preLoaderRoute: typeof WalletWifIdReceiveRouteImport
+    '/wallet/btc/send': {
+      id: '/wallet/btc/send'
+      path: '/btc/send'
+      fullPath: '/wallet/btc/send'
+      preLoaderRoute: typeof WalletBtcSendRouteImport
       parentRoute: typeof WalletRoute
     }
-    '/wallet/evm/$chain/swap': {
-      id: '/wallet/evm/$chain/swap'
-      path: '/swap'
-      fullPath: '/wallet/evm/$chain/swap'
-      preLoaderRoute: typeof WalletEvmChainSwapRouteImport
+    '/wallet/doge/receive': {
+      id: '/wallet/doge/receive'
+      path: '/doge/receive'
+      fullPath: '/wallet/doge/receive'
+      preLoaderRoute: typeof WalletDogeReceiveRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/doge/send': {
+      id: '/wallet/doge/send'
+      path: '/doge/send'
+      fullPath: '/wallet/doge/send'
+      preLoaderRoute: typeof WalletDogeSendRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/doge/swap': {
+      id: '/wallet/doge/swap'
+      path: '/doge/swap'
+      fullPath: '/wallet/doge/swap'
+      preLoaderRoute: typeof WalletDogeSwapRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/evm/$chain': {
+      id: '/wallet/evm/$chain'
+      path: '/evm/$chain'
+      fullPath: '/wallet/evm/$chain'
+      preLoaderRoute: typeof WalletEvmChainRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/isk/receive': {
+      id: '/wallet/isk/receive'
+      path: '/isk/receive'
+      fullPath: '/wallet/isk/receive'
+      preLoaderRoute: typeof WalletIskReceiveRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/isk/send': {
+      id: '/wallet/isk/send'
+      path: '/isk/send'
+      fullPath: '/wallet/isk/send'
+      preLoaderRoute: typeof WalletIskSendRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/ltc/receive': {
+      id: '/wallet/ltc/receive'
+      path: '/ltc/receive'
+      fullPath: '/wallet/ltc/receive'
+      preLoaderRoute: typeof WalletLtcReceiveRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/ltc/send': {
+      id: '/wallet/ltc/send'
+      path: '/ltc/send'
+      fullPath: '/wallet/ltc/send'
+      preLoaderRoute: typeof WalletLtcSendRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/ltc/swap': {
+      id: '/wallet/ltc/swap'
+      path: '/ltc/swap'
+      fullPath: '/wallet/ltc/swap'
+      preLoaderRoute: typeof WalletLtcSwapRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/order/$id': {
+      id: '/wallet/order/$id'
+      path: '/order/$id'
+      fullPath: '/wallet/order/$id'
+      preLoaderRoute: typeof WalletOrderIdRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/solana/receive': {
+      id: '/wallet/solana/receive'
+      path: '/solana/receive'
+      fullPath: '/wallet/solana/receive'
+      preLoaderRoute: typeof WalletSolanaReceiveRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/solana/send': {
+      id: '/wallet/solana/send'
+      path: '/solana/send'
+      fullPath: '/wallet/solana/send'
+      preLoaderRoute: typeof WalletSolanaSendRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/tron/bridge': {
+      id: '/wallet/tron/bridge'
+      path: '/tron/bridge'
+      fullPath: '/wallet/tron/bridge'
+      preLoaderRoute: typeof WalletTronBridgeRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/tron/receive': {
+      id: '/wallet/tron/receive'
+      path: '/tron/receive'
+      fullPath: '/wallet/tron/receive'
+      preLoaderRoute: typeof WalletTronReceiveRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/tron/send': {
+      id: '/wallet/tron/send'
+      path: '/tron/send'
+      fullPath: '/wallet/tron/send'
+      preLoaderRoute: typeof WalletTronSendRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/txc/consolidate': {
+      id: '/wallet/txc/consolidate'
+      path: '/txc/consolidate'
+      fullPath: '/wallet/txc/consolidate'
+      preLoaderRoute: typeof WalletTxcConsolidateRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/txc/migrate': {
+      id: '/wallet/txc/migrate'
+      path: '/txc/migrate'
+      fullPath: '/wallet/txc/migrate'
+      preLoaderRoute: typeof WalletTxcMigrateRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/wallet/txc/paths': {
+      id: '/wallet/txc/paths'
+      path: '/txc/paths'
+      fullPath: '/wallet/txc/paths'
+      preLoaderRoute: typeof WalletTxcPathsRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/api/nectar/pay/$invoiceId': {
+      id: '/api/nectar/pay/$invoiceId'
+      path: '/api/nectar/pay/$invoiceId'
+      fullPath: '/api/nectar/pay/$invoiceId'
+      preLoaderRoute: typeof ApiNectarPayInvoiceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/utxo/$coin/$': {
+      id: '/api/utxo/$coin/$'
+      path: '/api/utxo/$coin/$'
+      fullPath: '/api/utxo/$coin/$'
+      preLoaderRoute: typeof ApiUtxoCoinSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wallet/evm/$chain/receive': {
+      id: '/wallet/evm/$chain/receive'
+      path: '/receive'
+      fullPath: '/wallet/evm/$chain/receive'
+      preLoaderRoute: typeof WalletEvmChainReceiveRouteImport
       parentRoute: typeof WalletEvmChainRoute
     }
     '/wallet/evm/$chain/send': {
@@ -1116,26 +1116,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletEvmChainSendRouteImport
       parentRoute: typeof WalletEvmChainRoute
     }
-    '/wallet/evm/$chain/receive': {
-      id: '/wallet/evm/$chain/receive'
-      path: '/receive'
-      fullPath: '/wallet/evm/$chain/receive'
-      preLoaderRoute: typeof WalletEvmChainReceiveRouteImport
+    '/wallet/evm/$chain/swap': {
+      id: '/wallet/evm/$chain/swap'
+      path: '/swap'
+      fullPath: '/wallet/evm/$chain/swap'
+      preLoaderRoute: typeof WalletEvmChainSwapRouteImport
       parentRoute: typeof WalletEvmChainRoute
     }
-    '/api/utxo/$coin/$': {
-      id: '/api/utxo/$coin/$'
-      path: '/api/utxo/$coin/$'
-      fullPath: '/api/utxo/$coin/$'
-      preLoaderRoute: typeof ApiUtxoCoinSplatRouteImport
-      parentRoute: typeof rootRouteImport
+    '/wallet/wif/$id/receive': {
+      id: '/wallet/wif/$id/receive'
+      path: '/wif/$id/receive'
+      fullPath: '/wallet/wif/$id/receive'
+      preLoaderRoute: typeof WalletWifIdReceiveRouteImport
+      parentRoute: typeof WalletRoute
     }
-    '/api/nectar/pay/$invoiceId': {
-      id: '/api/nectar/pay/$invoiceId'
-      path: '/api/nectar/pay/$invoiceId'
-      fullPath: '/api/nectar/pay/$invoiceId'
-      preLoaderRoute: typeof ApiNectarPayInvoiceIdRouteImport
-      parentRoute: typeof rootRouteImport
+    '/wallet/wif/$id/send': {
+      id: '/wallet/wif/$id/send'
+      path: '/wif/$id/send'
+      fullPath: '/wallet/wif/$id/send'
+      preLoaderRoute: typeof WalletWifIdSendRouteImport
+      parentRoute: typeof WalletRoute
     }
   }
 }
