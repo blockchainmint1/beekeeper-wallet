@@ -7,6 +7,14 @@ const MAX_ITERATIONS = 5_000_000;
 
 const LEGACY_BACKUP_TYPES = ["application/json", "text/json", "text/plain"];
 
+/**
+ * Old BeeKeeper migration prompts: the "Already used the old BeeKeeper wallet?"
+ * card on the activation screen, and the matching notice on the unlock screen.
+ * Nobody is migrating right now, so both are switched off. Flip this to true to
+ * bring them back — the import code itself is untouched.
+ */
+export const SHOW_LEGACY_IMPORT = false;
+
 interface LegacyEncryptedBlob {
   v: 1 | 2 | 3;
   salt: string;

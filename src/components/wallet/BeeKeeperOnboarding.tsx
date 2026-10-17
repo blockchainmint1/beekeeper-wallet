@@ -15,6 +15,7 @@ import { assessPassword } from "@/lib/security/password-strength";
 import { hasWallet, saveWallet, saveWalletToNewProfile } from "@/lib/txc/storage";
 import { DEFAULT_PROFILE_ID, setActiveProfileId } from "@/lib/profiles";
 import {
+  SHOW_LEGACY_IMPORT,
   isSupportedLegacyBackupFile,
   listLegacyBeeKeeperWallets,
   parseLegacyBeeKeeperBackup,
@@ -316,7 +317,7 @@ export function BeeKeeperOnboarding() {
               <Camera className="mr-2 h-5 w-5" /> Scan my copper coin
             </Button>
             {error && <ErrorMessage>{error}</ErrorMessage>}
-            {!isNative() && (
+            {!isNative() && SHOW_LEGACY_IMPORT && (
               <div className="mt-6 rounded-md border border-border bg-muted/30 p-4">
                 <div className="flex items-start gap-3">
                   <WalletCards className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
