@@ -15,6 +15,7 @@ import { assessPassword } from "@/lib/security/password-strength";
 import { hasWallet, saveWallet, saveWalletToNewProfile } from "@/lib/txc/storage";
 import { DEFAULT_PROFILE_ID, setActiveProfileId } from "@/lib/profiles";
 import {
+  SHOW_LEGACY_IMPORT,
   isSupportedLegacyBackupFile,
   listLegacyBeeKeeperWallets,
   parseLegacyBeeKeeperBackup,

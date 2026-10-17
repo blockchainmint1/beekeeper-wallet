@@ -11,7 +11,7 @@ import {
   unlockWithBiometric,
 } from "@/lib/native/biometric";
 import { BeeKeeperOnboarding } from "@/components/wallet/BeeKeeperOnboarding";
-import { listLegacyBeeKeeperWallets } from "@/lib/legacy-beekeeper";
+import { SHOW_LEGACY_IMPORT, listLegacyBeeKeeperWallets } from "@/lib/legacy-beekeeper";
 
 export const Route = createFileRoute("/")({
   head: () => ({
