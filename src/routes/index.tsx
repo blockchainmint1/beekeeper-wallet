@@ -56,6 +56,7 @@ function Home() {
   useEffect(() => {
     try {
       setLegacyNotice(
+        SHOW_LEGACY_IMPORT &&
         listLegacyBeeKeeperWallets().length > 0 &&
           !window.localStorage.getItem(LEGACY_DISMISS_KEY),
       );
