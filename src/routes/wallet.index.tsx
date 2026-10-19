@@ -638,6 +638,7 @@ function WalletHome() {
                       onRefresh={() => account.refetch()}
                       refreshing={account.isFetching}
                       label={unlocked?.label ?? "TXC Wallet"}
+                      addresses={[...ownAddresses]}
                       onOpenDetails={() => {
                         if (longPressFired.current) return;
                         setTileOpen("txc");
@@ -1420,6 +1421,7 @@ function TxcTile({
   refreshing,
   label,
   onOpenDetails,
+  addresses,
 }: {
   balanceSats: number;
   loading: boolean;
@@ -1428,11 +1430,26 @@ function TxcTile({
   refreshing: boolean;
   label: string;
   onOpenDetails: () => void;
+  /** Own TXC addresses, used to sum the TSD balance into the chain total. */
+  addresses: string[];
 }) {
   const [hidden] = useHideBalances();
+  const fetchBalances = useServerFn(getTxcTokenBalancesForAddresses);
+  // TSD (#39) is pegged at $1 — count it in the chain total like HME does.
+  const tsd = useQuery({
+    queryKey: ["txc-tile-tsd", addresses.slice().sort().join(",")],
+    enabled: addresses.length > 0,
+    queryFn: () => fetchBalances({ data: { addresses, propertyIds: [39] } }),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const tsdUsd = Number(BigInt(tsd.data?.[39] ?? "0")) / 1e8;
   const balanceUsd = priceUsd ? satsToTxc(balanceSats) * priceUsd : null;
   const balText = loading ? "..." : formatTxcCompact(balanceSats);
   const fiatText = balanceUsd != null ? formatFiat(balanceUsd) : "Price unavailable";
+  const chainTotal = (balanceUsd ?? 0) + tsdUsd;
+  const totalText =
+    balanceUsd != null || tsdUsd > 0 ? formatFiat(chainTotal) : "Price unavailable";
   return (
     <button
       type="button"
@@ -1465,7 +1482,7 @@ function TxcTile({
       <div className="mt-3 pt-3 border-t border-white/15">
         <p className="text-[10px] uppercase tracking-widest text-amber-100/70">Chain total</p>
         <p className="text-lg font-semibold">
-          {hidden ? maskAmount(fiatText) : fiatText}
+          {hidden ? maskAmount(totalText) : totalText}
         </p>
       </div>
     </button>
