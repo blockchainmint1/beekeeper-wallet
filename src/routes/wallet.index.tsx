@@ -1421,6 +1421,7 @@ function TxcTile({
   refreshing,
   label,
   onOpenDetails,
+  addresses,
 }: {
   balanceSats: number;
   loading: boolean;
