@@ -24,6 +24,7 @@
  * Everything else (Alchemy, CoinMarketCap, LI.FI, Nectar) is called from the
  * server only, so it must NOT be added here.
  */
+import { PROD_ALIASES, PROD_ORIGIN } from "@/lib/native/origins";
 
 const CONNECT_SRC = [
   "'self'",

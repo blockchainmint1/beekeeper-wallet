@@ -2,19 +2,20 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 import { SECURITY_HEADERS } from "./lib/security/headers";
+import { NATIVE_WEBVIEW_ORIGIN } from "./lib/native/origins";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
-// Origins allowed to call server functions / API routes cross-origin. The
-// native Capacitor build is served from https://mobile.honest.money and needs
-// to reach the deployed worker at hme-mobile.lovable.app for prices, history,
-// etc. Add more origins here if we ever ship additional hostnames.
+// Origins allowed to call server functions / API routes cross-origin: the
+// native Capacitor WebView's LOCAL origin (see lib/native/origins.ts) and the
+// iOS capacitor scheme. Plain-http localhost is only allowed in development
+// (audit 2026-11-09 L4).
 const ALLOWED_CORS_ORIGINS = new Set<string>([
-  "https://mobile.honest.money",
+  NATIVE_WEBVIEW_ORIGIN,
   "capacitor://localhost",
-  "http://localhost",
   "https://localhost",
+  ...(IS_PROD ? [] : ["http://localhost"]),
 ]);
 
 function corsHeadersFor(origin: string | null): Record<string, string> {
