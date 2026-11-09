@@ -13,6 +13,10 @@ import {
   toHexAddress,
 } from "./address";
 import { signTxId } from "./sign";
+import { assertTronTxMatches } from "./verify";
+
+/** keccak256("transfer(address,uint256)")[0..4] */
+const TRC20_TRANSFER_SELECTOR = "a9059cbb";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${TRON_API}/${path}`, {
