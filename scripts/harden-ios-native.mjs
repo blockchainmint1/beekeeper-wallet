@@ -22,7 +22,7 @@ const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>honest.money</string>
+	<string>BeeKeeper Wallet</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -43,9 +43,10 @@ const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>money.honest.txcwallet.nectar</string>
+			<string>money.beekeeper.wallet.links</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>beekeeper</string>
 				<string>nectar</string>
 			</array>
 		</dict>
@@ -55,9 +56,9 @@ const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>honest.money uses the camera to scan wallet address and payment QR codes.</string>
+	<string>BeeKeeper Wallet uses the camera to scan wallet address and payment QR codes.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>honest.money uses Face ID to unlock your wallet.</string>
+	<string>BeeKeeper Wallet uses Face ID to unlock your wallet.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -92,8 +93,12 @@ if (existsSync(iosGitignorePath)) {
 
 if (existsSync(pbxprojPath)) {
   const pbx = await readFile(pbxprojPath, "utf8");
-  const patched = pbx.replace(/TARGETED_DEVICE_FAMILY = "1,2";/g, 'TARGETED_DEVICE_FAMILY = "1";');
+  // IDENTITY (audit 2026-11-09 M3): BeeKeeper is its own iOS app. The old
+  // money.honest.txcwallet id would ship as an update to the TXC Wallet app.
+  const patched = pbx
+    .replace(/TARGETED_DEVICE_FAMILY = "1,2";/g, 'TARGETED_DEVICE_FAMILY = "1";')
+    .replace(/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/g, "PRODUCT_BUNDLE_IDENTIFIER = money.beekeeper.wallet;");
   if (patched !== pbx) await writeFile(pbxprojPath, patched);
 }
 
-console.log("Hardened iOS native shell for HME Wallet.");
+console.log("Hardened iOS native shell for BeeKeeper Wallet.");

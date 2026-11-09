@@ -1,6 +1,6 @@
 {
-  "appId": "money.honest.txcwallet",
-  "appName": "honest.money",
+  "appId": "money.beekeeper.wallet",
+  "appName": "BeeKeeper Wallet",
   "webDir": "dist/client",
   "backgroundColor": "#ffffff",
   "server": {
