@@ -143,7 +143,7 @@ export function assertTronTxMatches(
   if (onlyVarint(params, 3) !== intent.callValueSun) fail("TRX value does not match");
   const wantData = hexToBytes(intent.data.replace(/^0x/, "").toLowerCase());
   if (!eqBytes(onlyBytes(params, 4) ?? new Uint8Array(), wantData)) fail("call data does not match");
-  if (onlyVarint(params, 5) !== 0n || onlyBytes(params, 6)) fail("unexpected token value attached");
+  if (onlyVarint(params, 5) !== 0n || onlyVarint(params, 6) !== 0n) fail("unexpected token value attached");
   const feeLimit = onlyVarint(rawFields, 18);
   if (feeLimit > intent.maxFeeLimitSun) fail("fee limit is higher than requested");
 }

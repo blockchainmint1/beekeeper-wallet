@@ -259,6 +259,7 @@ export async function sendTrx(
   amountSun: number,
 ): Promise<string> {
   const tx = await buildTrxTransfer(from, to, amountSun);
+  assertTronTxMatches(tx, { kind: "transfer", owner: from, to, amountSun: BigInt(amountSun) });
   return broadcast(tx, signTxId(tx.txID, privateKey));
 }
 
@@ -271,6 +272,15 @@ export async function sendTrc20(
   amount: bigint,
 ): Promise<string> {
   const tx = await buildTrc20Transfer(token, from, to, amount);
+  assertTronTxMatches(tx, {
+    kind: "trigger",
+    owner: from,
+    contract: token.contract,
+    // transfer(address,uint256) selector + ABI params, exactly what we asked TronGrid to encode.
+    data: TRC20_TRANSFER_SELECTOR + padAddressParam(to) + padUintParam(amount),
+    callValueSun: 0n,
+    maxFeeLimitSun: BigInt(TRC20_FEE_LIMIT_SUN),
+  });
   return broadcast(tx, signTxId(tx.txID, privateKey));
 }
 
@@ -322,6 +332,14 @@ export async function sendRawContractCall(
   if (!tx?.txID) {
     throw new Error(decodeNodeMessage(res.result?.message) ?? "Tron node rejected the call");
   }
+  assertTronTxMatches(tx, {
+    kind: "trigger",
+    owner: from,
+    contract: contractBase58,
+    data,
+    callValueSun: BigInt(opts.callValue ?? 0),
+    maxFeeLimitSun: BigInt(opts.feeLimitSun ?? TRC20_FEE_LIMIT_SUN),
+  });
   return broadcast(tx, signTxId(tx.txID, privateKey));
 }
 
