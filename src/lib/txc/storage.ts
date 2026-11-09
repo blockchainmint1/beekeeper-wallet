@@ -11,6 +11,7 @@ import {
   scopedKey,
   setActiveProfileId,
   unregisterProfile,
+  wipeAllWalletData,
 } from "@/lib/profiles";
 /**
  * Encrypted wallet storage for the TEXITcoin web wallet.
@@ -317,11 +318,18 @@ export function deleteWallet(): void {
   if (typeof window === "undefined") return;
   const id = activeProfileId();
   localStorage.removeItem(walletKey(id));
+  purgeProfileStorage(id);
   if (id !== DEFAULT_PROFILE_ID) {
-    purgeProfileStorage(id);
     unregisterProfile(id);
     setActiveProfileId(DEFAULT_PROFILE_ID);
   }
+  wipeIfNoWalletsLeft();
+}
+
+/** Last wallet gone → clear every wallet-related trace on the device. */
+function wipeIfNoWalletsLeft(): void {
+  const anyLeft = listProfileIds().some((pid) => localStorage.getItem(walletKey(pid)) !== null);
+  if (!anyLeft) wipeAllWalletData();
 }
 
 /**
@@ -332,10 +340,8 @@ export function deleteWallet(): void {
 export function deleteProfileWallet(profileId: string): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(walletKey(profileId));
-  if (profileId !== DEFAULT_PROFILE_ID) {
-    purgeProfileStorage(profileId);
-    unregisterProfile(profileId);
-  }
+  purgeProfileStorage(profileId);
+  if (profileId !== DEFAULT_PROFILE_ID) unregisterProfile(profileId);
   // If the active vault was removed, fall back to whichever profile remains.
   if (profileId === activeProfileId()) {
     const remaining = listProfileIds().find((id) => id !== profileId);
