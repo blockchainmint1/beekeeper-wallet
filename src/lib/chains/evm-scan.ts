@@ -81,11 +81,11 @@ export async function scanEvmAddresses(
     })),
   ]);
 
-  const results = await client.multicall({
+  const results = (await client.multicall({
     contracts: contracts as never,
     allowFailure: true,
     multicallAddress: MULTICALL3_ADDRESS,
-  });
+  })) as ReadonlyArray<{ status: "success" | "failure"; result?: unknown }>;
 
   const perAddress = 1 + tokens.length;
   return addresses.map((a, i) => {
