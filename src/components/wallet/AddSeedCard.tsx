@@ -215,8 +215,8 @@ export function AddSeedCard({ compact }: { compact?: boolean }) {
                         <button
                           type="button"
                           onClick={async () => {
-                            const ok = await copyToClipboard(mnemonic);
-                            if (ok) toast.success("Copied. Clear clipboard after backing up.");
+                            const ok = await copyToClipboard(mnemonic, { autoClearMs: 60_000 });
+                            if (ok) toast.success("Copied. It will be wiped from your clipboard in 60 seconds.");
                             else toast.error("Could not copy.");
                           }}
                           className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
