@@ -5,6 +5,7 @@
  * Allowed chains: eth, bsc, base.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { TRUSTED_CALLER_HOSTS } from "@/lib/native/origins";
 
 const UPSTREAM: Record<string, (key: string) => string> = {
   eth: (k) => `https://eth-mainnet.g.alchemy.com/v2/${k}`,
@@ -78,8 +79,7 @@ function isAllowedCaller(request: Request): boolean {
   if (source === "https://localhost") return true;
 
   // Allowlist our published web origins.
-  const ALLOWED_HOSTS = new Set(["hme-mobile.lovable.app", "mobile.honest.money"]);
-  if (ALLOWED_HOSTS.has(sourceHost)) return true;
+  if (TRUSTED_CALLER_HOSTS.has(sourceHost)) return true;
 
   // Lovable preview subdomains are DEV-only. In production this wildcard is a
   // broad hole (anyone can host a *.lovable.app page), so gate it out.

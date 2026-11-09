@@ -142,10 +142,70 @@ export function scopedKey(base: string, id: string = activeProfileId()): string 
   return id === DEFAULT_PROFILE_ID ? base : `p:${id}:${base}`;
 }
 
-/** Remove every localStorage entry belonging to a non-default profile. */
+/**
+ * Every base key that is stored per profile via scopedKey(). The default
+ * profile keeps these unprefixed, so deleting it must remove them by name.
+ * Keep in sync when a new store starts using scopedKey() (profiles.test.ts
+ * checks the list against the source).
+ */
+export const PROFILE_SCOPED_BASES = [
+  "txc.wallet.v1",
+  "hme.wif.v1",
+  "hme:features",
+  "hme.watch-only.v1",
+  "hme.chains.order.v1",
+  "hme.chains.enabled.v1",
+  "beekeeper.vectorpay.orders.v1",
+  "hme.chain-labels.v1",
+  "hme.rotation-policy",
+  "hme:nectar-links",
+  "hme:tokens:custom:v1",
+  "hme:tokens:hidden:v1",
+  "hme:tsd-account-link",
+] as const;
+
+/**
+ * Device-level keys that survive a full wipe: display theme, the reload
+ * guard, and the OLD BeeKeeper wallet's storage (migration must stay
+ * non-destructive — we never delete the retired wallet's data).
+ */
+export const KEEP_ON_FULL_WIPE: ReadonlySet<string> = new Set([
+  "txc.theme",
+  "beekeeper.reloadedForBuild",
+  "lovable-multi-wallet-vault-v1",
+  "beekeeper-seed-accounts-v1",
+  "hme.legacy-beekeeper-dismissed.v2",
+]);
+
+/**
+ * Remove EVERY wallet-related localStorage entry on this device (links,
+ * TSD Swap API key, VectorPay link, address book, caches, scan hints…).
+ * Used when the last wallet is deleted so "Delete wallet and all data"
+ * means what it says (audit 2026-11-09 M5).
+ */
+export function wipeAllWalletData(): void {
+  const s = ls();
+  if (!s) return;
+  const doomed: string[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const k = s.key(i);
+    if (!k || KEEP_ON_FULL_WIPE.has(k)) continue;
+    // Never touch backend auth sessions (not wallet data).
+    if (k.startsWith("sb-")) continue;
+    doomed.push(k);
+  }
+  for (const k of doomed) s.removeItem(k);
+  emit();
+}
+
+/** Remove every localStorage entry belonging to a profile. */
 export function purgeProfileStorage(id: string): void {
   const s = ls();
-  if (!s || id === DEFAULT_PROFILE_ID) return;
+  if (!s) return;
+  if (id === DEFAULT_PROFILE_ID) {
+    for (const base of PROFILE_SCOPED_BASES) s.removeItem(base);
+    return;
+  }
   const prefix = `p:${id}:`;
   const doomed: string[] = [];
   for (let i = 0; i < s.length; i++) {

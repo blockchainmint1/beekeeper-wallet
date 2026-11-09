@@ -1,6 +1,6 @@
 /**
  * In the native Capacitor app the WebView serves the bundled web assets from
- * the configured hostname (mobile.honest.money). Any relative fetch — including
+ * the configured local hostname (NATIVE_WEBVIEW_ORIGIN). Any relative fetch — including
  * TanStack Start's `/_serverFn/*` RPCs and `/api/*` server routes — is
  * intercepted by Capacitor's local web server and 404s because those endpoints
  * only exist on the deployed origin.
@@ -12,8 +12,11 @@
 import { CapacitorHttp } from "@capacitor/core";
 
 import { isNative } from "./platform";
+import { PROD_ALIASES, PROD_ORIGIN } from "./origins";
 
-const PROD_ORIGIN = "https://mobile.honest.money";
+// SECURITY (audit 2026-11-09 H1): forwards go to BeeKeeper's own deployment.
+// They previously went to mobile.honest.money — the separate HME Wallet
+// deployment — which handed phone users HME's cash-out addresses and feed.
 const FORWARD_PREFIXES = ["/_serverFn/", "/api/"];
 
 let patched = false;
@@ -47,7 +50,8 @@ function serverBackedPath(input: RequestInfo | URL): string | null {
   try {
     const parsed = raw.startsWith("/") ? new URL(raw, window.location.href) : new URL(raw);
     const isLocalWebview = parsed.origin === window.location.origin;
-    const isPublishedApp = parsed.origin === PROD_ORIGIN || parsed.origin === "https://hme-mobile.lovable.app";
+    const isPublishedApp =
+      parsed.origin === PROD_ORIGIN || (PROD_ALIASES as readonly string[]).includes(parsed.origin);
     if (!isLocalWebview && !isPublishedApp) return null;
 
     const path = parsed.pathname + parsed.search;

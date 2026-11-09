@@ -11,6 +11,7 @@ import {
   scopedKey,
   setActiveProfileId,
   unregisterProfile,
+  wipeAllWalletData,
 } from "@/lib/profiles";
 /**
  * Encrypted wallet storage for the TEXITcoin web wallet.
@@ -43,6 +44,14 @@ function walletKey(profileId: string = activeProfileId()): string {
 const PBKDF2_ITERATIONS = 600_000;
 // Envelopes written before this field existed were all PBKDF2-SHA256 @ 600k.
 const LEGACY_ITERATIONS = 600_000;
+
+/**
+ * True only when an envelope's KDF cost is BELOW the current default, so the
+ * unlock path re-encrypts upward and never downgrades a stronger envelope.
+ */
+export function needsKdfUpgrade(iterations: number | undefined): boolean {
+  return (iterations ?? LEGACY_ITERATIONS) < PBKDF2_ITERATIONS;
+}
 
 /**
  * Envelopes written before the SLIP-0044 fix stored kinds like "bip84" that
@@ -141,6 +150,8 @@ async function deriveKey(
 export async function saveWallet(
   unlocked: UnlockedWallet,
   password: string,
+  /** Pin the target vault; defaults to the active one at call time. */
+  profileId: string = activeProfileId(),
 ): Promise<StoredWalletEnvelope> {
   if (typeof window === "undefined") throw new Error("saveWallet requires a browser");
   const keyOnly = unlocked.mode === "keyonly";
@@ -169,8 +180,10 @@ export async function saveWallet(
     pathsV: 2,
     ...(keyOnly ? { mode: "keyonly" as const } : {}),
   };
-  registerProfile(activeProfileId());
-  localStorage.setItem(walletKey(), JSON.stringify(env));
+  // Use the profile captured BEFORE the slow key derivation, so a vault
+  // switch mid-save can never write this envelope into another profile.
+  registerProfile(profileId);
+  localStorage.setItem(walletKey(profileId), JSON.stringify(env));
   return env;
 }
 
@@ -245,7 +258,8 @@ export function isKeyOnlyWallet(): boolean {
 }
 
 export async function unlockWallet(password: string): Promise<UnlockedWallet | null> {
-  const env = loadEnvelope();
+  const profileId = activeProfileId();
+  const env = loadEnvelope(profileId);
   if (!env) return null;
   try {
     const iterations = env.iterations ?? LEGACY_ITERATIONS;
@@ -280,13 +294,15 @@ export async function unlockWallet(password: string): Promise<UnlockedWallet | n
           mode: "seed",
         };
 
-    // Silent KDF normalization: if this envelope wasn't written at the current
-    // cost, re-encrypt at the standard setting now that we hold the correct
-    // password and plaintext. Deliberately NOT awaited — a second key
-    // derivation would double the time the user waits on the unlock button.
-    // Best-effort only; a failure leaves the old envelope in place.
-    if ((env.iterations ?? LEGACY_ITERATIONS) !== PBKDF2_ITERATIONS) {
-      void saveWallet(unlocked, password).catch(() => {
+    // Silent KDF upgrade: if this envelope was written at a LOWER cost than
+    // the current default, re-encrypt now that we hold the correct password
+    // and plaintext. Upgrade-only — an envelope saved at a higher cost (e.g.
+    // 1,000,000) is never weakened back down (audit 2026-11-09 M1).
+    // Deliberately NOT awaited — a second key derivation would double the
+    // time the user waits on the unlock button. Best-effort only; a failure
+    // leaves the old envelope in place.
+    if (needsKdfUpgrade(env.iterations)) {
+      void saveWallet(unlocked, password, profileId).catch(() => {
         /* keep the old envelope; user is still unlocked */
       });
     }
@@ -302,11 +318,18 @@ export function deleteWallet(): void {
   if (typeof window === "undefined") return;
   const id = activeProfileId();
   localStorage.removeItem(walletKey(id));
+  purgeProfileStorage(id);
   if (id !== DEFAULT_PROFILE_ID) {
-    purgeProfileStorage(id);
     unregisterProfile(id);
     setActiveProfileId(DEFAULT_PROFILE_ID);
   }
+  wipeIfNoWalletsLeft();
+}
+
+/** Last wallet gone → clear every wallet-related trace on the device. */
+function wipeIfNoWalletsLeft(): void {
+  const anyLeft = listProfileIds().some((pid) => localStorage.getItem(walletKey(pid)) !== null);
+  if (!anyLeft) wipeAllWalletData();
 }
 
 /**
@@ -317,10 +340,8 @@ export function deleteWallet(): void {
 export function deleteProfileWallet(profileId: string): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(walletKey(profileId));
-  if (profileId !== DEFAULT_PROFILE_ID) {
-    purgeProfileStorage(profileId);
-    unregisterProfile(profileId);
-  }
+  purgeProfileStorage(profileId);
+  if (profileId !== DEFAULT_PROFILE_ID) unregisterProfile(profileId);
   // If the active vault was removed, fall back to whichever profile remains.
   if (profileId === activeProfileId()) {
     const remaining = listProfileIds().find((id) => id !== profileId);

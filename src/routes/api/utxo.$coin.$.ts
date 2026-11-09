@@ -13,6 +13,8 @@
  * through the server-fn bridge, so relative URLs work there too.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { TRUSTED_CALLER_HOSTS } from "@/lib/native/origins";
+import { joinUnderBase, safeProxyPath } from "@/lib/security/proxy-path";
 
 // Ordered upstream lists — first responder wins, the rest are failover.
 // NowNodes is a keyed, rate-limit-free Blockbook; it goes first where we
@@ -62,7 +64,7 @@ function isAllowedCaller(request: Request): boolean {
   if (source === "capacitor://localhost" || source === "ionic://localhost" || source === "https://localhost") {
     return true;
   }
-  if (new Set(["hme-mobile.lovable.app", "mobile.honest.money"]).has(sourceHost)) return true;
+  if (TRUSTED_CALLER_HOSTS.has(sourceHost)) return true;
   if (process.env.NODE_ENV !== "production" && sourceHost.endsWith(".lovable.app")) return true;
   return false;
 }
@@ -78,7 +80,9 @@ function safeOrigin(url: string): string | null {
 async function forward(request: Request, coin: string, path: string, search: string): Promise<Response> {
   const bases = UPSTREAMS[coin];
   if (!bases) return new Response("Unknown chain", { status: 404 });
-  if (!allowedPath(path)) return new Response("Forbidden path", { status: 403 });
+  const clean = safeProxyPath(path);
+  if (clean === null || !allowedPath(clean)) return new Response("Forbidden path", { status: 403 });
+  path = clean;
 
   const method = request.method === "POST" ? "POST" : "GET";
   const body = method === "POST" ? await request.text() : undefined;
@@ -89,7 +93,9 @@ async function forward(request: Request, coin: string, path: string, search: str
   for (const { base, key } of bases) {
     if (key && !nowNodesKey) continue;
     try {
-      const upstream = await fetch(`${base}/${path}${search}`, {
+      const target = joinUnderBase(base, path, search);
+      if (!target) return new Response("Forbidden path", { status: 403 });
+      const upstream = await fetch(target, {
         method,
         headers: {
           accept: "application/json, text/plain, */*",

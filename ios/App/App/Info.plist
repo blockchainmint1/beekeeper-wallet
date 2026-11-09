@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>honest.money</string>
+	<string>BeeKeeper Wallet</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -28,9 +28,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>money.honest.txcwallet.nectar</string>
+			<string>money.beekeeper.wallet.links</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>beekeeper</string>
 				<string>nectar</string>
 			</array>
 		</dict>
@@ -40,9 +41,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>honest.money uses the camera to scan wallet address and payment QR codes.</string>
+	<string>BeeKeeper Wallet uses the camera to scan wallet address and payment QR codes.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>honest.money uses Face ID to unlock your wallet.</string>
+	<string>BeeKeeper Wallet uses Face ID to unlock your wallet.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

@@ -22,3 +22,25 @@
 - [x] VectorPay wallet linking: redeem one-time dashboard code (QR `beekeeper://link-vectorpay?code=…` or typed code) via signed call to /api/public/beekeeper/link; cash out now requires a linked VectorPay account first
 - [ ] Bonfire link format — slot into Ecosystem link box once VectorPay/Bonfire defines it
 - [x] Hide the "Already used the old BeeKeeper wallet?" migration card on the activation screen and the matching unlock-screen notice (SHOW_LEGACY_IMPORT = false in src/lib/legacy-beekeeper.ts; flip to true to restore both)
+
+## Security audit 2026-11-09 (docs/security-audit-2026-11-09.md)
+- [x] C1 Removed keystore-generator workflow; store password no longer inlined in the APK build script (never ran on this repo)
+- [x] H1 Phone app now talks to beekeeper.money (was the HME deployment); one shared origin list + test
+- [x] M1 Encryption strength re-encrypt is upgrade-only; background re-save pinned to the right vault
+- [x] M2 Tron sends verified against the signed bytes before signing (+ tests on real TronGrid output)
+- [x] M3 iOS project renamed to money.beekeeper.wallet / BeeKeeper Wallet (+ beekeeper:// scheme)
+- [x] M5 Delete wallet wipes everything (TSD key, VectorPay link, address book, links) when the last wallet goes; keeps old-BeeKeeper data
+- [x] M6 Confirmed release table only allows public reads
+- [x] M7 Unlocked wallet no longer written to session storage
+- [x] L1 Explorer/Tron proxies block path tricks
+- [x] L2 Seed copy auto-clears clipboard after 60s
+- [x] L4 Plain-http localhost no longer allowed in production; security headers confirmed live on beekeeper.money
+- [x] L6 bs58check declared
+- [ ] H2 Biometric unlock bound to the phone's fingerprint/face hardware — needs a native plugin + new APK
+- [ ] M1b Argon2id for new wallets — needs a migration plan and phone speed testing
+- [ ] M4/L5 Request signing for cash-out calls, link-status lookups and webhook timestamps — needs VectorPay to change their side too
+- [ ] M6b APK file fingerprint (SHA-256) check in the updater
+- [ ] L3 Allow-list of known swap/bridge contracts
+- [ ] TSD Swap API key stored encrypted inside the wallet
+- [ ] Rotate Android signing key IF the current key was ever made by the old generator workflow in the previous repo (Bobby to confirm)
+

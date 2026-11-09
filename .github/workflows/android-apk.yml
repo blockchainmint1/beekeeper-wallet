@@ -13,7 +13,7 @@ name: Android APK
 #   for testing on your device — just enable "Install unknown apps").
 #
 # Required secrets for release signing (Settings → Secrets → Actions):
-#   ANDROID_KEYSTORE_BASE64    base64 of your keystore.jks (see generate-keystore.yml)
+#   ANDROID_KEYSTORE_BASE64    base64 of your keystore.jks (generate it offline, never in CI)
 #   ANDROID_STORE_PASSWORD     store password used when creating the keystore
 #   ANDROID_KEY_ALIAS          alias used when creating the keystore
 #   ANDROID_KEY_PASSWORD       alias password (usually same as store password)
@@ -127,6 +127,7 @@ jobs:
         if: steps.mode.outputs.mode == 'release'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
         run: |
           # Strip CR/LF/spaces the secret may have picked up when pasted, then
           # decode. `-i` tells GNU base64 to ignore any remaining non-alphabet
@@ -135,7 +136,7 @@ jobs:
             | tr -d '\r\n \t' \
             | base64 -d -i > "$RUNNER_TEMP/keystore.jks"
           if ! keytool -list -keystore "$RUNNER_TEMP/keystore.jks" \
-                 -storepass "${{ secrets.ANDROID_STORE_PASSWORD }}" >/dev/null 2>&1; then
+                 -storepass:env ANDROID_STORE_PASSWORD >/dev/null 2>&1; then
             echo "::error::Decoded keystore is invalid. Re-encode with: base64 -w0 keystore.jks | pbcopy"
             exit 1
           fi

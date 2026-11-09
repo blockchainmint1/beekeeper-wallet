@@ -32,3 +32,8 @@ Current gates:
 If the user asks for a feature and does not explicitly say it should be on iOS,
 default to excluding it from iOS. Ask the user for confirmation when unsure.
 - Cash-out deposits are attributed by txid + sending-address signature (docs/vectorpay-cashout-proof.md), never by amount — VectorPay uses one shared deposit address per chain.
+- Trusted origins live only in `src/lib/native/origins.ts` (native bridge target, CSP, CORS, proxy caller checks import it) — the native app once forwarded money-moving calls to the separate HME deployment.
+- Every Tron transaction built by TronGrid goes through `assertTronTxMatches` (src/lib/tron/verify.ts) before signing — the wallet signs a node-supplied hash.
+- Store any new per-wallet localStorage key via `scopedKey()` and list its base in `PROFILE_SCOPED_BASES` (src/lib/profiles.ts) — delete-wallet relies on it; tests enforce the list.
+- Release signing keys are never generated or echoed in CI — the repo is public and Actions logs are readable.
+- Run `bunx vitest run` for unit tests (src/**/*.test.ts).
