@@ -79,45 +79,19 @@ async function ensureKey(): Promise<CryptoKey | null> {
 }
 
 export async function saveSession(wallet: UnlockedWallet, password?: string): Promise<void> {
-  const payload: CachedPlain = {
+  memPayload = {
     wallet,
     password: password ?? memPayload?.password,
     lastActiveAt: Date.now(),
   };
-  memPayload = payload;
-  const key = await ensureKey();
-  const s = safeSession();
-  if (!key || !s) return;
-  try {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const enc = new TextEncoder().encode(JSON.stringify(payload));
-    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc);
-    const wire: CachedWire = {
-      v: 2,
-      iv: b64(iv),
-      ct: b64(ct),
-      lastActiveAt: payload.lastActiveAt,
-    };
-    s.setItem(KEY, JSON.stringify(wire));
-  } catch {
-    /* memory-only fallback is fine */
-  }
+  // Memory only (audit 2026-11-09 M7). The old encrypted sessionStorage copy
+  // could never be decrypted after a reload (its key lived in memory too), so
+  // it only left ciphertext of the seed + password behind. Drop any leftover.
+  dropStoredSession();
 }
 
 export function touchSession(): void {
-  const now = Date.now();
-  if (memPayload) memPayload.lastActiveAt = now;
-  const s = safeSession();
-  if (!s) return;
-  const raw = s.getItem(KEY);
-  if (!raw) return;
-  try {
-    const parsed = JSON.parse(raw) as CachedWire;
-    parsed.lastActiveAt = now;
-    s.setItem(KEY, JSON.stringify(parsed));
-  } catch {
-    s.removeItem(KEY);
-  }
+  if (memPayload) memPayload.lastActiveAt = Date.now();
 }
 
 /** The session password, when the session is still alive. */
@@ -128,60 +102,26 @@ export function getSessionPassword(): string | null {
 }
 
 export async function loadSession(): Promise<UnlockedWallet | null> {
-  // Prefer in-memory (same JS context).
-  if (memPayload) {
-    if (Date.now() - memPayload.lastActiveAt > AUTO_LOCK_MS) {
-      clearSession();
-      return null;
-    }
-    return memPayload.wallet;
-  }
-  const s = safeSession();
-  if (!s) return null;
-  const raw = s.getItem(KEY);
-  if (!raw) return null;
-  try {
-    const wire = JSON.parse(raw) as CachedWire;
-    if (wire?.v !== 2 || typeof wire.lastActiveAt !== "number") {
-      s.removeItem(KEY);
-      return null;
-    }
-    if (Date.now() - wire.lastActiveAt > AUTO_LOCK_MS) {
-      s.removeItem(KEY);
-      return null;
-    }
-    const key = await ensureKey();
-    if (!key) {
-      // No key in this JS context — ciphertext is unrecoverable. Drop it.
-      s.removeItem(KEY);
-      return null;
-    }
-    // Because the AES key is regenerated per process, a decryption failure
-    // here is expected after a full reload — treat as no session.
-    const pt = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: unb64(wire.iv).slice().buffer as ArrayBuffer },
-      key,
-      unb64(wire.ct).slice().buffer as ArrayBuffer,
-    );
-    const parsed = JSON.parse(new TextDecoder().decode(pt)) as CachedPlain;
-    memPayload = parsed;
-    return parsed.wallet;
-  } catch {
-    s.removeItem(KEY);
+  if (!memPayload) return null;
+  if (Date.now() - memPayload.lastActiveAt > AUTO_LOCK_MS) {
+    clearSession();
     return null;
+  }
+  return memPayload.wallet;
+}
+
+function dropStoredSession(): void {
+  const s = safeSession();
+  if (!s) return;
+  try {
+    s.removeItem(KEY);
+    s.removeItem("txc.wallet.session.v1");
+  } catch {
+    /* noop */
   }
 }
 
 export function clearSession(): void {
   memPayload = null;
-  memKey = null;
-  const s = safeSession();
-  if (!s) return;
-  try {
-    s.removeItem(KEY);
-    // Also nuke legacy v1 key from earlier builds.
-    s.removeItem("txc.wallet.session.v1");
-  } catch {
-    /* noop */
-  }
+  dropStoredSession();
 }
