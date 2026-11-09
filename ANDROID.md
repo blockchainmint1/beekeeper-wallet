@@ -23,10 +23,12 @@ Two workflows ship in `.github/workflows/`:
   - manual "Run workflow" → choose `debug` or `release`
   - No secrets? Falls back to debug signing (still sideloadable for testing).
 
-- **`generate-keystore.yml`** — one-time helper. Run manually to generate a
-  release keystore + the four `ANDROID_*` secrets you paste into repo settings.
-  Download the `.jks` artifact and store it safely (1Password + offline). If
-  you lose it you can never update existing installs on the Play Store.
+- The release keystore is generated OFFLINE, never in CI. (The old
+  `generate-keystore.yml` helper printed the keystore and its password into
+  the public Actions log, so it was removed in the Nov 2026 security audit.)
+  Only the four `ANDROID_*` secrets go into GitHub. Keep the `.jks` safe
+  (password manager + offline copy): if you lose it you can never update
+  existing installs.
 
 Recommended flow for the first APK on your device:
 
