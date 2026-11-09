@@ -10,7 +10,7 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { TRUSTED_CALLER_HOSTS } from "@/lib/native/origins";
-import { safeProxyPath } from "@/lib/security/proxy-path";
+import { joinUnderBase, safeProxyPath } from "@/lib/security/proxy-path";
 
 const UPSTREAM = "https://api.trongrid.io";
 
@@ -67,14 +67,18 @@ function isAllowedCaller(request: Request): boolean {
 }
 
 async function forward(request: Request, path: string, search: string): Promise<Response> {
-  if (!allowedPath(path)) return new Response("Forbidden path", { status: 403 });
+  const clean = safeProxyPath(path);
+  if (clean === null || !allowedPath(clean)) return new Response("Forbidden path", { status: 403 });
+  path = clean;
 
   const key = process.env.TRON_API ?? process.env.TRON_PRO_API_KEY ?? process.env.TRONGRID_API_KEY;
   const method = request.method === "POST" ? "POST" : "GET";
   const body = method === "POST" ? await request.text() : undefined;
 
   try {
-    const upstream = await fetch(`${UPSTREAM}/${path.replace(/^\/+/, "")}${search}`, {
+    const target = joinUnderBase(UPSTREAM, path, search);
+    if (!target) return new Response("Forbidden path", { status: 403 });
+    const upstream = await fetch(target, {
       method,
       headers: {
         accept: "application/json",

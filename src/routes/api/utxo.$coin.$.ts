@@ -14,7 +14,7 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { TRUSTED_CALLER_HOSTS } from "@/lib/native/origins";
-import { safeProxyPath } from "@/lib/security/proxy-path";
+import { joinUnderBase, safeProxyPath } from "@/lib/security/proxy-path";
 
 // Ordered upstream lists — first responder wins, the rest are failover.
 // NowNodes is a keyed, rate-limit-free Blockbook; it goes first where we
@@ -80,7 +80,9 @@ function safeOrigin(url: string): string | null {
 async function forward(request: Request, coin: string, path: string, search: string): Promise<Response> {
   const bases = UPSTREAMS[coin];
   if (!bases) return new Response("Unknown chain", { status: 404 });
-  if (!allowedPath(path)) return new Response("Forbidden path", { status: 403 });
+  const clean = safeProxyPath(path);
+  if (clean === null || !allowedPath(clean)) return new Response("Forbidden path", { status: 403 });
+  path = clean;
 
   const method = request.method === "POST" ? "POST" : "GET";
   const body = method === "POST" ? await request.text() : undefined;
@@ -91,7 +93,9 @@ async function forward(request: Request, coin: string, path: string, search: str
   for (const { base, key } of bases) {
     if (key && !nowNodesKey) continue;
     try {
-      const upstream = await fetch(`${base}/${path}${search}`, {
+      const target = joinUnderBase(base, path, search);
+      if (!target) return new Response("Forbidden path", { status: 403 });
+      const upstream = await fetch(target, {
         method,
         headers: {
           accept: "application/json, text/plain, */*",
