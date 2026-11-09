@@ -280,12 +280,14 @@ export async function unlockWallet(password: string): Promise<UnlockedWallet | n
           mode: "seed",
         };
 
-    // Silent KDF normalization: if this envelope wasn't written at the current
-    // cost, re-encrypt at the standard setting now that we hold the correct
-    // password and plaintext. Deliberately NOT awaited — a second key
-    // derivation would double the time the user waits on the unlock button.
-    // Best-effort only; a failure leaves the old envelope in place.
-    if ((env.iterations ?? LEGACY_ITERATIONS) !== PBKDF2_ITERATIONS) {
+    // Silent KDF upgrade: if this envelope was written at a LOWER cost than
+    // the current default, re-encrypt now that we hold the correct password
+    // and plaintext. Upgrade-only — an envelope saved at a higher cost (e.g.
+    // 1,000,000) is never weakened back down (audit 2026-11-09 M1).
+    // Deliberately NOT awaited — a second key derivation would double the
+    // time the user waits on the unlock button. Best-effort only; a failure
+    // leaves the old envelope in place.
+    if (needsKdfUpgrade(env.iterations)) {
       void saveWallet(unlocked, password).catch(() => {
         /* keep the old envelope; user is still unlocked */
       });
