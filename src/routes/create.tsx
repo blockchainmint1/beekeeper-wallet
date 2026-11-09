@@ -276,10 +276,12 @@ function CreatePage() {
               type="button"
               disabled={!mnemonic}
               onClick={async () => {
-                const ok = await copyToClipboard(mnemonic);
+                // Auto-clear after 60s so a clipboard manager or keyboard
+                // sync can't keep the seed (audit 2026-11-09 L2).
+                const ok = await copyToClipboard(mnemonic, { autoClearMs: 60_000 });
                 if (ok) {
                   toast.success(
-                    "Seed copied. Paste into a paper-only backup, then clear clipboard.",
+                    "Seed copied. It will be wiped from your clipboard in 60 seconds.",
                   );
                 } else {
                   toast.error(
