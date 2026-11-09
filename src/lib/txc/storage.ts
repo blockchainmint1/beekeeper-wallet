@@ -45,6 +45,14 @@ const PBKDF2_ITERATIONS = 600_000;
 const LEGACY_ITERATIONS = 600_000;
 
 /**
+ * True only when an envelope's KDF cost is BELOW the current default, so the
+ * unlock path re-encrypts upward and never downgrades a stronger envelope.
+ */
+export function needsKdfUpgrade(iterations: number | undefined): boolean {
+  return (iterations ?? LEGACY_ITERATIONS) < PBKDF2_ITERATIONS;
+}
+
+/**
  * Envelopes written before the SLIP-0044 fix stored kinds like "bip84" that
  * meant Bitcoin's coin type (m/84'/0'/0'). Those users' funds live on that
  * path, so map them onto the explicit "-legacy" kinds. `pathsV` marks
