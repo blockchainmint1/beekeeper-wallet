@@ -9,6 +9,8 @@
  * make the proxy act as a signing service is allowed (Tron signs locally).
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { TRUSTED_CALLER_HOSTS } from "@/lib/native/origins";
+import { safeProxyPath } from "@/lib/security/proxy-path";
 
 const UPSTREAM = "https://api.trongrid.io";
 
@@ -59,7 +61,7 @@ function isAllowedCaller(request: Request): boolean {
   ) {
     return true;
   }
-  if (new Set(["hme-mobile.lovable.app", "mobile.honest.money"]).has(sourceHost)) return true;
+  if (TRUSTED_CALLER_HOSTS.has(sourceHost)) return true;
   if (process.env.NODE_ENV !== "production" && sourceHost.endsWith(".lovable.app")) return true;
   return false;
 }

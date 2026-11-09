@@ -13,6 +13,8 @@
  * through the server-fn bridge, so relative URLs work there too.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { TRUSTED_CALLER_HOSTS } from "@/lib/native/origins";
+import { safeProxyPath } from "@/lib/security/proxy-path";
 
 // Ordered upstream lists — first responder wins, the rest are failover.
 // NowNodes is a keyed, rate-limit-free Blockbook; it goes first where we
@@ -62,7 +64,7 @@ function isAllowedCaller(request: Request): boolean {
   if (source === "capacitor://localhost" || source === "ionic://localhost" || source === "https://localhost") {
     return true;
   }
-  if (new Set(["hme-mobile.lovable.app", "mobile.honest.money"]).has(sourceHost)) return true;
+  if (TRUSTED_CALLER_HOSTS.has(sourceHost)) return true;
   if (process.env.NODE_ENV !== "production" && sourceHost.endsWith(".lovable.app")) return true;
   return false;
 }

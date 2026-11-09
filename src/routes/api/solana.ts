@@ -1,5 +1,6 @@
 /** Same-origin JSON-RPC proxy for Solana mainnet. */
 import { createFileRoute } from "@tanstack/react-router";
+import { TRUSTED_CALLER_HOSTS } from "@/lib/native/origins";
 
 const UPSTREAM = "https://api.mainnet-beta.solana.com";
 const ALLOWED = new Set([
@@ -25,7 +26,7 @@ function isAllowedCaller(request: Request): boolean {
   try { sourceHost = new URL(source).host; } catch { return false; }
   if (sourceHost === host) return true;
   if (["capacitor://localhost", "ionic://localhost", "https://localhost"].includes(source)) return true;
-  if (["hme-mobile.lovable.app", "mobile.honest.money"].includes(sourceHost)) return true;
+  if (TRUSTED_CALLER_HOSTS.has(sourceHost)) return true;
   return process.env.NODE_ENV !== "production" && sourceHost.endsWith(".lovable.app");
 }
 
