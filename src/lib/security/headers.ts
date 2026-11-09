@@ -29,12 +29,10 @@ const CONNECT_SRC = [
   "'self'",
   "https://mempool.texitcoin.org",
   "https://mempool.iskandercoin.com",
-  // Native Capacitor build (origin https://mobile.honest.money) forwards
-  // server-fn / API calls to the deployed worker so they reach a real backend
-  // instead of being intercepted by the local webview server.
-  "https://hme-mobile.lovable.app",
-  // Fixed release feed used by the "check for updates" card.
-  "https://mobile.honest.money",
+  // BeeKeeper's own deployment: the native app's server calls and the
+  // release feed. (The old HME hosts were removed in the 2026-11-09 audit.)
+  PROD_ORIGIN,
+  ...PROD_ALIASES,
 ].join(" ");
 
 const CSP_DIRECTIVES: Record<string, string> = {
