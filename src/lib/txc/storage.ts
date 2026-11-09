@@ -149,6 +149,8 @@ async function deriveKey(
 export async function saveWallet(
   unlocked: UnlockedWallet,
   password: string,
+  /** Pin the target vault; defaults to the active one at call time. */
+  profileId: string = activeProfileId(),
 ): Promise<StoredWalletEnvelope> {
   if (typeof window === "undefined") throw new Error("saveWallet requires a browser");
   const keyOnly = unlocked.mode === "keyonly";
@@ -177,8 +179,10 @@ export async function saveWallet(
     pathsV: 2,
     ...(keyOnly ? { mode: "keyonly" as const } : {}),
   };
-  registerProfile(activeProfileId());
-  localStorage.setItem(walletKey(), JSON.stringify(env));
+  // Use the profile captured BEFORE the slow key derivation, so a vault
+  // switch mid-save can never write this envelope into another profile.
+  registerProfile(profileId);
+  localStorage.setItem(walletKey(profileId), JSON.stringify(env));
   return env;
 }
 
@@ -253,6 +257,7 @@ export function isKeyOnlyWallet(): boolean {
 }
 
 export async function unlockWallet(password: string): Promise<UnlockedWallet | null> {
+  const profileId = activeProfileId();
   const env = loadEnvelope();
   if (!env) return null;
   try {
@@ -296,7 +301,7 @@ export async function unlockWallet(password: string): Promise<UnlockedWallet | n
     // time the user waits on the unlock button. Best-effort only; a failure
     // leaves the old envelope in place.
     if (needsKdfUpgrade(env.iterations)) {
-      void saveWallet(unlocked, password).catch(() => {
+      void saveWallet(unlocked, password, profileId).catch(() => {
         /* keep the old envelope; user is still unlocked */
       });
     }
