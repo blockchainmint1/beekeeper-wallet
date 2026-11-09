@@ -258,7 +258,7 @@ export function isKeyOnlyWallet(): boolean {
 
 export async function unlockWallet(password: string): Promise<UnlockedWallet | null> {
   const profileId = activeProfileId();
-  const env = loadEnvelope();
+  const env = loadEnvelope(profileId);
   if (!env) return null;
   try {
     const iterations = env.iterations ?? LEGACY_ITERATIONS;
