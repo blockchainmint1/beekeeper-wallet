@@ -26,13 +26,13 @@
     "@bitcoinerlab/secp256k1": "^1.2.0",
     "@capacitor-community/barcode-scanner": "^4.0.1",
     "@capacitor-community/privacy-screen": "^8.0.0",
-    "@capacitor/android": "^8.4.1",
+    "@capacitor/android": "^8.4.3",
     "@capacitor/app": "^8.1.0",
     "@capacitor/app-launcher": "^8.0.1",
     "@capacitor/browser": "^8.0.3",
-    "@capacitor/cli": "^8.4.1",
+    "@capacitor/cli": "^8.4.3",
     "@capacitor/clipboard": "^8.0.1",
-    "@capacitor/core": "^8.4.1",
+    "@capacitor/core": "^8.4.3",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/keyboard": "^8.0.5",
     "@capacitor/network": "^8.0.1",
@@ -107,7 +107,7 @@
     "vaul": "^1.1.2",
     "viem": "^2.53.1",
     "vite-tsconfig-paths": "^6.0.2",
-    "zod": "^3.24.2"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
@@ -131,5 +131,22 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.16",
     "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "seroval": "^1.6.11",
+    "seroval-plugins": "^1.6.11",
+    "ws": "^8.21.0",
+    "js-yaml": "^4.3.2",
+    "browserslist": "^4.28.7",
+    "stream-json": "^3.6.0",
+    "uuid": "^11.1.1",
+    "valibot": "^1.4.2",
+    "source-map-js": "^1.2.2",
+    "brace-expansion": "^5.0.12",
+    "tar": "^7.5.21",
+    "@xmldom/xmldom": "^0.9.12",
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1",
+    "baseline-browser-mapping": "^2.11.0"
   }
 }
