@@ -9,6 +9,7 @@
  * host>. GET reads the link manifest, POST submits the signed keys.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { isTsdLinkPath } from "@/lib/rewards/tsd-link-path";
 
 const TRUSTED_HOSTS = new Set(["tsd.honest.money", "app.tsdswap.com"]);
 
@@ -20,6 +21,7 @@ function targetFrom(request: Request): URL | null {
     if (target.protocol !== "https:") return null;
     if (!TRUSTED_HOSTS.has(target.hostname) || target.port || target.username || target.password)
       return null;
+    if (!isTsdLinkPath(target.pathname)) return null;
     return target;
   } catch {
     return null;
