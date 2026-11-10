@@ -359,10 +359,6 @@ function RootComponent() {
     import("../lib/native/ui").then(({ initNativeChrome }) => {
       initNativeChrome();
     });
-    // Fire-and-forget observability init (no-op when VITE_SENTRY_DSN is unset).
-    import("../lib/native/observability").then(({ initObservability }) => {
-      initObservability();
-    });
   }, []);
 
   // Android hardware back button: navigate in-app when we can, otherwise
