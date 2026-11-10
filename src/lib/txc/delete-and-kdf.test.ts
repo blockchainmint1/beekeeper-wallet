@@ -53,9 +53,8 @@ describe("KDF re-encryption is upgrade-only (audit M1)", () => {
 describe("Delete wallet and all data (audit M5)", () => {
   beforeEach(() => store.clear());
 
-  it("removes the TSD Swap API key, VectorPay link, address book and links when the last wallet goes", () => {
+  it("removes the VectorPay link, address book and links when the last wallet goes", () => {
     store.setItem("txc.wallet.v1", "{}");
-    store.setItem("hme:tsd-cashout-key", "secret-api-key");
     store.setItem("beekeeper.vectorpay.link.v1", "{}");
     store.setItem("hme:address-book:v1", "[]");
     store.setItem("beekeeper.ecosystem.links.v1", "[]");

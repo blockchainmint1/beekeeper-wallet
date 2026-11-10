@@ -6,12 +6,8 @@
  * the TSD trusted hosts and proxy. The wallet hands over watch-only account
  * xpubs (TXC + EVM + the rest), signed by the TXC identity key. No seed, no
  * private keys, no spending authority.
- *
- * The claim response may issue a TSD Swap API key, which we store locally so
- * cash-out lights up automatically.
  */
 import { canonicalJson, deriveWalletKeys } from "@/lib/nectar/link";
-import { setCashoutApiKey } from "@/lib/cashout/api-key";
 import { scopedKey } from "@/lib/profiles";
 import { signMessageWithSeed } from "@/lib/txc/message-sign";
 
@@ -190,7 +186,6 @@ export async function submitTsdLink(args: {
     );
   }
   const apiKey = (body?.["api_key"] as string | undefined) ?? undefined;
-  if (apiKey) setCashoutApiKey(apiKey);
   return {
     ok: true,
     account_id: (body?.["account_id"] as string | undefined) ?? undefined,
