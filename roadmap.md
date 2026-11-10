@@ -37,15 +37,16 @@
 - [x] L6 bs58check declared
 - [ ] M1b Argon2id for new wallets — needs a migration plan
 - [ ] M4/L5 Request signing for cash-out calls, link-status lookups and webhook timestamps — needs VectorPay to change their side too
-- [ ] L3 Allow-list of known swap/bridge contracts
 - [ ] TSD Swap API key stored encrypted inside the wallet
 ## Pre-audit cleanup (2026-11-10)
 - [ ] Patch vulnerable add-on libraries (Capacitor, seroval, ws, zod, etc.)
 - [ ] M4 server checks the cash-out proofs itself before signing to VectorPay; link proxies limited to exact partner paths; tap-to-pay lookup rate-limited
 - [ ] TSD Swap API key stored encrypted
-- [ ] L3 allow-list LI.FI / Relay contracts and show spender before approval
 - [ ] L6 remove dead `new Function` loader; CI security workflow; HKDF for WIF wrapping
 - [ ] Mark app_releases public-read finding as intentional
+
+## Dropped — swaps and bridges removed (2026-11-10)
+BeeKeeper is a simple merchant entry point: no in-app swap or bridge. The swap screens (EVM via LI.FI, LTC/DOGE via THORChain), the Tron bridge screen (Relay), their support code, the Swap buttons on the chain tiles and the two Settings toggles are gone. Merchants who want to swap or bridge use the HME Wallet.
 
 ## Dropped — Android APK discontinued (2026-11-10)
 BeeKeeper is the web merchant entry point; merchants who want a native mobile app move to the HME Wallet. The APK endpoint (`/api/public/apk`), native bridge and in-app update card stay in place for installs already out there, but nothing new is built or shipped for Android.
