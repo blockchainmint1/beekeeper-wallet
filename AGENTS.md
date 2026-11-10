@@ -19,3 +19,4 @@
 - Release signing keys are never generated or echoed in CI — the repo is public and Actions logs are readable.
 - Run `bunx vitest run` for unit tests (src/**/*.test.ts).
 - Android APK support is discontinued — BeeKeeper is the web merchant entry point and merchants who want a native mobile app use the HME Wallet. Don't build Android-only features or chase APK work; leave the APK endpoint, native bridge and update card untouched so existing installs keep working.
+- Cash-out defaults to one tap (`runOneTap` in CashoutActions.tsx, plan in src/lib/cashout/one-tap.ts) and reuses the same order/send/confirm functions as the step-by-step picker — one code path for money movement.
