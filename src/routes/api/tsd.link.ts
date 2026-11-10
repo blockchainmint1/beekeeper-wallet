@@ -28,7 +28,9 @@ async function forward(request: Request, init: RequestInit): Promise<Response> {
   if (limited(request)) return jsonError(429, "rate_limited");
   const target = safePartnerUrl(new URL(request.url).searchParams.get("url"), TRUSTED_HOSTS);
   if (!target || !isTsdLinkPath(target.pathname)) return jsonError(400, "untrusted_url");
-  const res = await fetch(target.toString(), { ...init, redirect: "manual" });
+  const res = await fetch(target.toString(), init);
+  // A redirect must not carry the request off the trusted hosts.
+  if (res.url && !TRUSTED_HOSTS.has(new URL(res.url).hostname)) return jsonError(502, "untrusted_redirect");
   const body = await res.text();
   return new Response(body, {
     status: res.status,

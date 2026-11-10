@@ -31,7 +31,7 @@ async function forward(req: Request, invoiceId: string, init: RequestInit): Prom
   if (limited(req)) return jsonError(429, "rate_limited");
   if (!INVOICE_ID.test(invoiceId)) return jsonError(400, "bad_invoice_id");
   const url = new URL(req.url);
-  const res = await fetch(buildUpstreamUrl(invoiceId, url.search), { ...init, redirect: "manual" });
+  const res = await fetch(buildUpstreamUrl(invoiceId, url.search), init);
   const body = await res.text();
   return new Response(body, {
     status: res.status,
