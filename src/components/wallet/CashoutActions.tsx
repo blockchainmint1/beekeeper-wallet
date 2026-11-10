@@ -338,6 +338,12 @@ export function CashoutActions({
   const cashableByKey = useMemo(() => new Map(cashable.map((r) => [r.key, r])), [cashable]);
   // Rows with a manually lowered amount ("cash out only part of this balance").
   const cashableEff = useMemo(() => cashable.map((r) => appliedAmount(r, amounts)), [cashable, amounts]);
+  // What the one-tap button will send.
+  const oneTap = useMemo(() => planOneTap(cashable, ORDER_MAX_USD), [cashable]);
+  const oneTapQuote = quoteCashout(oneTap.total, feeBps);
+  const availableUsd = cashable
+    .filter((r) => !r.blocked && !(r.chain === "eth" && r.usd < 10))
+    .reduce((sum, r) => sum + r.usd, 0);
 
   // Default: everything sendable, except tiny Ethereum balances the fee would eat.
   useEffect(() => {
