@@ -7,13 +7,14 @@
  *   Part 2 (VectorPay) identity verification, bank linking through Plaid and
  *                      the dollar payout.
  *
- * The order is registered with VectorPay *after* the transfers, for the amount
- * that actually went out — a partial run still produces a valid order.
+ * The order is created with VectorPay before any coins move, then confirmed
+ * with the txids for what actually went out — a partial run is still valid.
+ *
+ * Default is one tap: "Cash out $X" picks everything sendable (biggest first,
+ * up to the order maximum), creates the order and sends every line in a row.
+ * "Choose what to cash out" opens the step-by-step picker instead.
  *
  * NectarPay merchants pay no service fee; everyone else pays 1%.
- *
- * Exchange/off-ramp feature — gated by `useExchangeFeaturesAllowed()` and
- * therefore absent from the iOS build. See AGENTS.md.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -76,6 +77,9 @@ import {
   type VectorPayLink,
 } from "@/lib/vectorpay-link";
 import { redeemVectorPayLink, vectorPayLinkStatus } from "@/lib/vectorpay-link.functions";
+import { hasAcceptedCashoutTerms, planOneTap, rememberCashoutTerms } from "@/lib/cashout/one-tap";
+
+const ALL_TERM_IDS = CASHOUT_DISCLOSURES.map((d) => d.id) as string[];
 
 type Step = "intro" | "holdings" | "review" | "transfers" | "done";
 const STEPS: Step[] = ["intro", "holdings", "review", "transfers", "done"];
@@ -197,6 +201,17 @@ export function CashoutActions({
   const [result, setResult] = useState<{ orderId: string; checkoutUrl: string | null; detail: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState("");
+  // Cash-out terms are agreed once per wallet, then remembered.
+  const [termsOk, setTermsOk] = useState(false);
+  const [agreeNow, setAgreeNow] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [autoRun, setAutoRun] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const ok = hasAcceptedCashoutTerms(ALL_TERM_IDS);
+    setTermsOk(ok);
+    if (ok) setAccepted((current) => (current.length ? current : ALL_TERM_IDS));
+  }, [open]);
 
   // Restore an in-progress cash-out (e.g. after sending TSD on its own screen).
   useEffect(() => {
@@ -323,6 +338,12 @@ export function CashoutActions({
   const cashableByKey = useMemo(() => new Map(cashable.map((r) => [r.key, r])), [cashable]);
   // Rows with a manually lowered amount ("cash out only part of this balance").
   const cashableEff = useMemo(() => cashable.map((r) => appliedAmount(r, amounts)), [cashable, amounts]);
+  // What the one-tap button will send.
+  const oneTap = useMemo(() => planOneTap(cashable, ORDER_MAX_USD), [cashable]);
+  const oneTapQuote = quoteCashout(oneTap.total, feeBps);
+  const availableUsd = cashable
+    .filter((r) => !r.blocked && !(r.chain === "eth" && r.usd < 10))
+    .reduce((sum, r) => sum + r.usd, 0);
 
   // Default: everything sendable, except tiny Ethereum balances the fee would eat.
   useEffect(() => {
@@ -376,74 +397,88 @@ export function CashoutActions({
     }
   }
 
-  /** Send one selected EVM balance to its deposit address (tops up gas first if needed). */
-  async function sendOne(row: Holding) {
-    if (!root || running || !row.evm) return;
+  /** Send one EVM balance to its deposit address (tops up gas first if needed). */
+  async function sendEvmRow(row: Holding, pending: Holding[], partial: Record<string, string>): Promise<RowStatus> {
     const e = row.evm;
-    const to = destinations[e.chain] as Address | null;
-    if (!to) return;
-    setRunning(true);
-    setError(null);
+    const to = e ? (destinations[e.chain] as Address | null) : null;
+    if (!root || !e || !to) return { state: "failed", error: "No cash-out address for this chain" };
     setStatus((s) => ({ ...s, [row.key]: { state: "sending" } }));
+    let next: RowStatus;
     try {
-      const count = evmPending.filter((r) => r.evm!.chain === e.chain && r.evm!.index === e.index).length || 1;
+      const count = pending.filter((r) => r.evm && r.evm.chain === e.chain && r.evm.index === e.index).length || 1;
       await ensureGas(root, e.chain, e.index, count);
-      const txid = await sendCashRow(root, e, to, partialRaw(row, amounts));
-      setStatus((s) => ({ ...s, [row.key]: { state: "sent", txid } }));
+      const txid = await sendCashRow(root, e, to, partialRaw(row, partial));
+      next = { state: "sent", txid };
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message.split("\n")[0] : "Send failed";
-      setStatus((s) => ({ ...s, [row.key]: { state: "failed", error: msg } }));
-    } finally {
-      setRunning(false);
+      next = { state: "failed", error: cause instanceof Error ? cause.message.split("\n")[0] : "Send failed" };
     }
+    setStatus((s) => ({ ...s, [row.key]: next }));
+    return next;
   }
 
   /** Send TSD right here — same Omni logic as the Send screen, no page change. */
-  async function sendTsdRow(row: Holding) {
-    if (!root || !unlocked || running || !row.propertyId) return;
+  async function sendTsd(row: Holding): Promise<RowStatus> {
     const to = destinations.txc;
-    if (!to) return;
-    setRunning(true);
-    setError(null);
+    if (!root || !unlocked || !row.propertyId || !to) return { state: "failed", error: "Wallet locked or no TSD cash-out address" };
     setStatus((s) => ({ ...s, [row.key]: { state: "sending" } }));
+    let next: RowStatus;
     try {
-      const units = BigInt(Math.round(row.coinAmount * 1e8));
       const txid = await sendOmniToken({
         root,
         kind: unlocked.kind,
         propertyId: row.propertyId,
-        amountUnits: units,
+        amountUnits: BigInt(Math.round(row.coinAmount * 1e8)),
         to,
         fetchPerAddress: (addresses, propertyIds) => fetchTsdPerAddr({ data: { addresses, propertyIds } }),
         onProgress: setTsdProgress,
       });
-      setStatus((s) => ({ ...s, [row.key]: { state: "sent", txid } }));
+      next = { state: "sent", txid };
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message.split("\n")[0] : "Send failed";
-      setStatus((s) => ({ ...s, [row.key]: { state: "failed", error: msg } }));
+      next = { state: "failed", error: cause instanceof Error ? cause.message.split("\n")[0] : "Send failed" };
     } finally {
       setTsdProgress(null);
+    }
+    setStatus((s) => ({ ...s, [row.key]: next }));
+    return next;
+  }
+
+  /** Manual "Send" / "Try again" button on one line. */
+  async function sendOne(row: Holding) {
+    if (running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      if (row.evm) await sendEvmRow(row, evmPending, amounts);
+      else await sendTsd(row);
+    } finally {
       setRunning(false);
     }
   }
 
   /**
    * Called twice with the same reference: first before any coins move (no
-   * txids, opens VectorPay), then after sending with fresh proofs that carry
-   * the txids — VectorPay looks EVM deposits up by txid and dedupes repeats.
+   * txids), then after sending with fresh proofs that carry the txids —
+   * VectorPay looks EVM deposits up by txid and dedupes repeats.
+   * Returns true when VectorPay accepted the order.
    */
-  async function placeOrder(final = false) {
-    if (!root || !allAccepted || chosen.length === 0) return;
-    if (final && sentRows.length === 0) return;
+  async function submitOrder(
+    final: boolean,
+    rows: Holding[],
+    st: Record<string, RowStatus>,
+    acceptedIds: string[],
+  ): Promise<boolean> {
+    if (!root || rows.length === 0) return false;
     setSubmitting(true);
     setError(null);
     try {
+      const total = rows.reduce((sum, row) => sum + row.usd, 0);
+      const q = quoteCashout(Math.min(total, ORDER_MAX_USD), feeBps);
       const proofs: Array<TransferProof & { usd: number }> = [];
       // Order first: proofs sign the sending wallet before any coins move, so
       // VectorPay matches deposits that arrive later from these addresses.
-      for (const row of final ? sentRows : chosen) {
+      for (const row of rows) {
         const to = destinations[row.chain] ?? "";
-        const txids = final && status[row.key]?.txid ? [status[row.key]!.txid!] : [];
+        const txids = final && st[row.key]?.txid ? [st[row.key]!.txid!] : [];
         const amount = String(row.coinAmount);
         const proof = row.evm
           ? await signEvmProof(root, { reference, chain: row.evm.chain, asset: row.asset, index: row.evm.index, to, txids, amount })
@@ -453,9 +488,9 @@ export function CashoutActions({
       const response = await startCashout({
         data: {
           reference,
-          usd: Math.round(Math.min(final ? sentTotal : chosenTotal, ORDER_MAX_USD) * 100) / 100,
+          usd: q.usd,
           customerId: await cashoutCustomerId(root),
-          acceptedDisclaimers: accepted,
+          acceptedDisclaimers: acceptedIds,
           ...(merchantId ? { merchantId } : {}),
           transfers: proofs.map((p) => ({
             chain: p.chain as CashoutChain,
@@ -474,10 +509,10 @@ export function CashoutActions({
         side: "sell",
         createdAt: Date.now(),
         status: response.registered ? "ready" : "registration_failed",
-        usd: (final ? finalQuote : quote).usd,
+        usd: q.usd,
         feeUsd: response.feeUsd,
-        settlementUsd: (final ? finalQuote : quote).settlementUsd,
-        assetAmount: (final ? finalQuote : quote).assetAmount,
+        settlementUsd: q.settlementUsd,
+        assetAmount: q.assetAmount,
         asset: response.asset ?? "TSD",
         chain: response.chain ?? "txc",
         checkoutUrl: response.handoffUrl,
@@ -487,7 +522,7 @@ export function CashoutActions({
       setResult({ orderId: response.orderId, checkoutUrl: response.handoffUrl, detail: response.detail });
       if (!response.registered || !response.handoffUrl) {
         setError(response.detail || "VectorPay couldn't create the order. Nothing was sent.");
-        return;
+        return false;
       }
       if (final) {
         setStep("done");
@@ -496,14 +531,58 @@ export function CashoutActions({
         } catch {
           /* noop */
         }
-        return;
+        return true;
       }
       // Already linked at VectorPay — no checkout bounce; go straight to sending.
       setStep("transfers");
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create the order.");
+      return false;
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  /** Step-by-step flow buttons ("Create order…" and "Complete cash-out"). */
+  async function placeOrder(final = false) {
+    if (!allAccepted || chosen.length === 0) return;
+    if (final && sentRows.length === 0) return;
+    rememberCashoutTerms(accepted);
+    await submitOrder(final, final ? sentRows : chosen, status, accepted);
+  }
+
+  /**
+   * The one-tap cash-out: pick everything, create the order, send each line
+   * in a row, then confirm. If a line fails, stop on the send list so the
+   * merchant can try it again or skip it — the order covers only what landed.
+   */
+  async function runOneTap() {
+    if (!root || running || oneTap.total < ORDER_MIN_USD) return;
+    if (!termsOk && !agreeNow) return;
+    rememberCashoutTerms(ALL_TERM_IDS);
+    setTermsOk(true);
+    const rows = cashable.filter((r) => oneTap.keys.includes(r.key)).map((r) => appliedAmount(r, oneTap.amounts));
+    setAccepted(ALL_TERM_IDS);
+    setSelected(oneTap.keys);
+    setAmounts(oneTap.amounts);
+    setStatus({});
+    setError(null);
+    setRunning(true);
+    setAutoRun(true);
+    try {
+      if (!(await submitOrder(false, rows, {}, ALL_TERM_IDS))) return;
+      const st: Record<string, RowStatus> = {};
+      for (const row of rows) {
+        const pending = rows.filter((r) => r.evm && !st[r.key]);
+        st[row.key] = row.evm ? await sendEvmRow(row, pending, oneTap.amounts) : await sendTsd(row);
+      }
+      if (rows.every((r) => st[r.key]?.state === "sent")) {
+        await submitOrder(true, rows, st, ALL_TERM_IDS);
+      }
+    } finally {
+      setRunning(false);
+      setAutoRun(false);
     }
   }
 
@@ -523,13 +602,105 @@ export function CashoutActions({
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <p className="text-xs font-semibold uppercase text-primary">
-              Cash out · {STEPS.indexOf(step) + 1} of {STEPS.length}
+              {step === "intro" || autoRun || step === "done" ? "Cash out" : `Cash out · ${STEPS.indexOf(step) + 1} of ${STEPS.length}`}
             </p>
             <DialogTitle>{step === "done" ? "Cash-out sent" : "Cash out to your bank"}</DialogTitle>
             <DialogDescription>Turn your USDC, USDT and TSD into dollars in your bank account.</DialogDescription>
           </DialogHeader>
 
-          {step === "intro" && (
+          {step === "intro" && vpLink?.bank && (
+            <div className="space-y-4 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
+                <p className="text-xs font-medium uppercase">Ready to cash out</p>
+                {scanning ? (
+                  <p className="mt-2 flex items-center justify-center gap-2 text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Checking every chain and your first 20 addresses…
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-1 text-4xl font-semibold text-foreground">${fmt(oneTap.total, 2)}</p>
+                    <p className="mt-1 text-xs">
+                      You get about <span className="font-semibold text-foreground">${oneTapQuote.settlementUsd.toFixed(2)}</span>
+                      {" "}in {vpLink.bank.institution ?? "your bank"} ····{vpLink.bank.mask}
+                    </p>
+                    <p className="mt-1 text-xs">
+                      {feeBps === 0 ? "No service fee (NectarPay merchant)" : `1% service fee ($${oneTapQuote.feeUsd.toFixed(2)})`} · 1–3 business days
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {!scanning && oneTap.total < ORDER_MIN_USD && (
+                <p className="text-center text-sm text-destructive">
+                  {cashable.length === 0
+                    ? "No USDC, USDT or TSD to cash out yet."
+                    : `You need at least $${ORDER_MIN_USD} that can pay its own network fee.`}
+                </p>
+              )}
+              {!scanning && availableUsd > oneTap.total + 0.01 && oneTap.total >= ORDER_MIN_USD && (
+                <p className="text-center text-xs">
+                  You have ${fmt(availableUsd, 2)}. Orders top out at ${ORDER_MAX_USD}, so this sends the first $
+                  {ORDER_MAX_USD} — tap again afterwards for the rest.
+                </p>
+              )}
+
+              {!termsOk && (
+                <div className="space-y-2 rounded-md border border-border/60 p-3">
+                  <label className="flex items-start gap-3 text-xs leading-relaxed">
+                    <Checkbox checked={agreeNow} onCheckedChange={(v) => setAgreeNow(v === true)} />
+                    <span>
+                      I agree to the cash-out terms.{" "}
+                      <button type="button" className="text-primary underline" onClick={() => setShowTerms((v) => !v)}>
+                        {showTerms ? "Hide" : "Read them"}
+                      </button>
+                    </span>
+                  </label>
+                  {showTerms && (
+                    <ul className="list-disc space-y-1 pl-9 text-xs leading-relaxed">
+                      {CASHOUT_DISCLOSURES.map((item) => (
+                        <li key={item.id}>
+                          {item.text}
+                          {item.id === "terms" && (
+                            <>
+                              {" "}
+                              <Link to="/legal/terms" target="_blank" className="text-primary underline">Terms</Link> ·{" "}
+                              <Link to="/legal/privacy" target="_blank" className="text-primary underline">Privacy</Link>
+                            </>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="pl-7 text-[11px]">Asked once — BeeKeeper remembers it for this wallet.</p>
+                </div>
+              )}
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <Button
+                size="lg"
+                className="h-14 w-full text-base"
+                disabled={scanning || running || submitting || oneTap.total < ORDER_MIN_USD || (!termsOk && !agreeNow)}
+                onClick={() => void runOneTap()}
+              >
+                {submitting || running ? (
+                  <><Loader2 className="animate-spin" /> Starting…</>
+                ) : (
+                  <><ArrowUpFromLine /> Cash out ${fmt(oneTap.total, 2)}</>
+                )}
+              </Button>
+              <button
+                type="button"
+                className="w-full text-center text-xs text-primary underline disabled:opacity-50"
+                disabled={scanning || running}
+                onClick={() => setStep("holdings")}
+              >
+                Choose what to cash out instead
+              </button>
+            </div>
+          )}
+
+          {step === "intro" && !vpLink?.bank && (
             <div className="space-y-4 text-sm text-muted-foreground">
               <p>
                 BeeKeeper rounds up every USDC, USDT and TSD you hold — on every chain and your first 20 addresses —
@@ -757,10 +928,11 @@ export function CashoutActions({
           {step === "transfers" && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium">Send each one</p>
+                <p className="text-sm font-medium">{autoRun ? "Sending everything now" : "Send each one"}</p>
                 <p className="text-xs text-muted-foreground">
-                  Your order {reference} is waiting at VectorPay. Tap Send on each line. If one fails, tap it again or
-                  skip it — the order only covers what actually went out.
+                  {autoRun
+                    ? `Order ${reference} is open at VectorPay. Keep this window open — each line ticks off as it goes.`
+                    : `Your order ${reference} is waiting at VectorPay. Tap Send on each line. If one fails, tap it again or skip it — the order only covers what actually went out.`}
                 </p>
               </div>
 
@@ -833,7 +1005,7 @@ export function CashoutActions({
                             size="sm"
                             className="flex-1"
                             disabled={running || !root || !unlocked || !to}
-                            onClick={() => void sendTsdRow(row)}
+                            onClick={() => void sendOne(row)}
                           >
                             {st?.state === "sending" ? <><Loader2 className="animate-spin" /> {tsdProgress ?? "Sending…"}</> : <><Send /> {st?.state === "failed" ? "Try again" : `Send ${row.asset}`}</>}
                           </Button>

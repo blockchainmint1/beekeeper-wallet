@@ -162,6 +162,7 @@ export const PROFILE_SCOPED_BASES = [
   "hme:tokens:custom:v1",
   "hme:tokens:hidden:v1",
   "hme:tsd-account-link",
+  "beekeeper.cashout.terms.v1",
 ] as const;
 
 /**
