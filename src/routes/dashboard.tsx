@@ -43,9 +43,8 @@ import { useTokenHolderTopUp } from "@/lib/txc/topup";
 import { getTxcTokenBalancesForAddresses, getOmniTxValidity } from "@/lib/txc/tokens.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowDown, ArrowUp, ArrowLeftRight, ChevronRight, RefreshCw, Send, QrCode, Eye, Trash2, Lock, Key, Loader2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, RefreshCw, Send, QrCode, Eye, Trash2, Lock, Key, Loader2 } from "lucide-react";
 import { useFeature } from "@/lib/feature-prefs";
-import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { usePendingTxs, removePendingTx } from "@/lib/pending-tx";
 import { getAddressStats, getAddressTxs, type MempoolTx } from "@/lib/txc/mempool";
 import { decodeOmniSend } from "@/lib/txc/omni-decode";
@@ -1697,9 +1696,6 @@ function BtcForkTile({
   onOpenDetails: () => void;
 }) {
   const [hidden] = useHideBalances();
-  const [utxoSwapPref] = useFeature("utxoSwap");
-  const exchangeAllowed = useExchangeFeaturesAllowed();
-  const utxoSwapEnabled = utxoSwapPref && exchangeAllowed;
   const v = BTC_FORK_VARIANTS[variant];
   const balanceUsd = priceUsd ? v.toCoin(balanceSats) * priceUsd : null;
   const balText = loading ? "..." : v.formatCompact(balanceSats);
@@ -1713,16 +1709,6 @@ function BtcForkTile({
       <div className="flex items-center justify-between">
         <p className={`text-sm ${v.subText}`}>{label}</p>
         <div className="flex items-center gap-2">
-          {utxoSwapEnabled && (variant === "ltc" || variant === "doge") && (
-            <Link
-              to={variant === "ltc" ? "/wallet/ltc/swap" : "/wallet/doge/swap"}
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 rounded-full bg-white/15 hover:bg-white/25 px-2.5 py-1 text-[11px] font-medium"
-              aria-label={`Swap ${v.ticker}`}
-            >
-              <ArrowLeftRight className="h-3 w-3" /> Swap
-            </Link>
-          )}
           <span
             role="button"
             tabIndex={0}
@@ -1881,11 +1867,6 @@ function EvmTile({
 }) {
   const [hidden] = useHideBalances();
   const [refreshing, setRefreshing] = useState(false);
-  const [evmSwapPref] = useFeature("evmSwap");
-  const exchangeAllowed = useExchangeFeaturesAllowed();
-  // Zero Chill has no DEX aggregator coverage yet — no swap entry point.
-  const swapEnabled = evmSwapPref && exchangeAllowed && chainId !== "zcu";
-
 
   const meta = EVM_CHAINS[chainId];
   const balanceEth = balanceWei != null ? Number(balanceWei) / 1e18 : null;
@@ -1927,17 +1908,6 @@ function EvmTile({
       <div className="flex items-center justify-between">
         <p className="text-sm opacity-80 truncate">{label}</p>
         <div className="flex items-center gap-2">
-          {swapEnabled && (
-            <Link
-              to="/wallet/evm/$chain/swap"
-              params={{ chain: chainId }}
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 rounded-full bg-white/15 hover:bg-white/25 px-2.5 py-1 text-[11px] font-medium"
-              aria-label="Swap"
-            >
-              <ArrowLeftRight className="h-3 w-3" /> Swap
-            </Link>
-          )}
           <span
             role="button"
             tabIndex={0}

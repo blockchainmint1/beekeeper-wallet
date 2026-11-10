@@ -7,16 +7,12 @@ import { useEffect, useState } from "react";
  * that can go wrong or confuse a first-time user.
  */
 export type FeatureId =
-  | "evmSwap"
-  | "utxoSwap"
   | "confirmLast4"
   | "hideSpamTokens"
   | "tsdConsolidateNudge";
 
 /** Default value when the user hasn't set the toggle yet. */
 const DEFAULTS: Record<FeatureId, boolean> = {
-  evmSwap: false,
-  utxoSwap: true,
   confirmLast4: true,
   hideSpamTokens: true,
   tsdConsolidateNudge: true,
