@@ -602,7 +602,7 @@ export function CashoutActions({
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <p className="text-xs font-semibold uppercase text-primary">
-              Cash out · {STEPS.indexOf(step) + 1} of {STEPS.length}
+              {step === "intro" || autoRun || step === "done" ? "Cash out" : `Cash out · ${STEPS.indexOf(step) + 1} of ${STEPS.length}`}
             </p>
             <DialogTitle>{step === "done" ? "Cash-out sent" : "Cash out to your bank"}</DialogTitle>
             <DialogDescription>Turn your USDC, USDT and TSD into dollars in your bank account.</DialogDescription>
@@ -836,10 +836,11 @@ export function CashoutActions({
           {step === "transfers" && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium">Send each one</p>
+                <p className="text-sm font-medium">{autoRun ? "Sending everything now" : "Send each one"}</p>
                 <p className="text-xs text-muted-foreground">
-                  Your order {reference} is waiting at VectorPay. Tap Send on each line. If one fails, tap it again or
-                  skip it — the order only covers what actually went out.
+                  {autoRun
+                    ? `Order ${reference} is open at VectorPay. Keep this window open — each line ticks off as it goes.`
+                    : `Your order ${reference} is waiting at VectorPay. Tap Send on each line. If one fails, tap it again or skip it — the order only covers what actually went out.`}
                 </p>
               </div>
 
