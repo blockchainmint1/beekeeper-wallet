@@ -323,6 +323,18 @@ function RootComponent() {
   }, []);
 
 
+  // The TSD Swap API key and its off-ramp were removed from BeeKeeper. Drop any
+  // key a device saved earlier so a dead credential isn't left sitting in the
+  // browser.
+  useEffect(() => {
+    try {
+      window.localStorage.removeItem("hme:tsd-cashout-key");
+    } catch {
+      /* noop */
+    }
+  }, []);
+
+
   // Wire up Nectar.Pay tap-to-pay deep links (nectar:// + https universal
   // link). Native-only — no-op on web. See lib/native/deeplink.ts.
   useEffect(() => {
