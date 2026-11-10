@@ -133,6 +133,8 @@
     "vitest": "^5.1.0"
   },
   "overrides": {
+    "zod": "^4.6.7",
+    "@capacitor/ios": "^8.4.3",
     "seroval": "^1.6.11",
     "seroval-plugins": "^1.6.11",
     "ws": "^8.21.0",
