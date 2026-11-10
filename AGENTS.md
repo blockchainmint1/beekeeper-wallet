@@ -9,28 +9,7 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-## iOS App Store compliance — features that must NOT appear on iOS
-
-The iOS App Store build is produced with `VITE_DISABLE_EXCHANGE=true`
-(`bun run build:ios`). Any feature that could be classified as crypto
-exchange, swap, bridge, trading, or off-ramp must be hidden on iOS.
-
-Before adding such a feature:
-
-1. Add a gate in `src/lib/native/capabilities.ts` (or extend an existing one).
-2. Wrap the UI entry point(s) with that gate so the feature is unreachable
-   when the gate returns `false`.
-3. Ensure the feature's route/component does not appear in iOS screenshots or
-   navigation when gated.
-4. Build iOS with `bun run build:ios` and verify the feature is absent.
-
-Current gates:
-
-- `exchangeFeaturesAllowed()` / `useExchangeFeaturesAllowed()` — swap and
-  bridge features (LI.FI EVM swaps, THORChain LTC/DOGE swaps, Tron bridge).
-
-If the user asks for a feature and does not explicitly say it should be on iOS,
-default to excluding it from iOS. Ask the user for confirmation when unsure.
+- There is no iOS app and never will be (ios/ project and build:ios scripts removed) — BeeKeeper is web-only; no App Store gating is needed for new features. `exchangeFeaturesAllowed()` in src/lib/native/capabilities.ts stays as a harmless always-true-on-web switch.
 - Cash-out deposits are attributed by txid + sending-address signature (docs/vectorpay-cashout-proof.md), never by amount — VectorPay uses one shared deposit address per chain.
 - Trusted origins live only in `src/lib/native/origins.ts` (native bridge target, CSP, CORS, proxy caller checks import it) — the native app once forwarded money-moving calls to the separate HME deployment.
 - Every Tron transaction built by TronGrid goes through `assertTronTxMatches` (src/lib/tron/verify.ts) before signing — the wallet signs a node-supplied hash.

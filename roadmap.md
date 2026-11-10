@@ -47,3 +47,6 @@ BeeKeeper is the web merchant entry point; merchants who want a native mobile ap
 - [x] Rotate the Android signing key (only mattered for signing future APK builds — revisit if Android builds ever resume)
 - [x] Footer "APK" download link hidden (APK_DOWNLOAD_ENABLED = false in src/lib/app-release.ts; flip to true to restore)
 
+## Dropped — iPhone app (2026-11-10)
+There will never be an iOS version. Removed the iOS native project, the iOS build/setup commands and the iOS Capacitor package. BeeKeeper is web-only (plus the frozen Android installs above).
+
