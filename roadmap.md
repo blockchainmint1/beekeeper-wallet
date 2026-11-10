@@ -38,10 +38,11 @@
 - [ ] M1b Argon2id for new wallets — needs a migration plan
 - [ ] M4/L5 Request signing for cash-out calls, link-status lookups and webhook timestamps — needs VectorPay to change their side too
 ## Pre-audit cleanup (2026-11-10)
-- [ ] Patch vulnerable add-on libraries (Capacitor, seroval, ws, zod, etc.)
-- [ ] M4 server checks the cash-out proofs itself before signing to VectorPay; link proxies limited to exact partner paths; tap-to-pay lookup rate-limited
-- [ ] L6 remove dead `new Function` loader; CI security workflow; HKDF for WIF wrapping
-- [ ] Mark app_releases public-read finding as intentional
+- [x] Patched vulnerable libraries: zod 4.6.7, Capacitor iOS 8.6.0 (pulled in by plugins), 18 build-tool fixes via `bun audit fix`; no critical or high issues left in the libraries the website ships
+- [x] M4 server checks every cash-out proof before signing to VectorPay; partner pass-throughs guarded (trusted host, no path tricks, TSD exact link paths, rate limit, own-app POSTs, 32 KB cap); tap-to-pay invoice ids restricted + rate-limited
+- [x] L6 removed dead `new Function` loader; added CI security workflow (types, tests, dependency audit); imported keys (WIF) now locked with HKDF v2, old ones upgrade on first open
+- [x] Marked app_releases public-read finding as intentional
+- [x] Audit packet for the auditor (source ZIP + change summary)
 
 ## Dropped — TSD Swap API key and off-ramp removed (2026-11-10)
 BeeKeeper no longer stores a TSD Swap API key and the Send screen no longer offers the TSD → USDC off-ramp. TSD leaves the wallet only through the VectorPay cash-out roundup. The TSD Swap account link (watch-only keys) stays in Ecosystem link.

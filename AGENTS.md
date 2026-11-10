@@ -20,3 +20,5 @@
 - Run `bunx vitest run` for unit tests (src/**/*.test.ts).
 - Android APK support is discontinued — BeeKeeper is the web merchant entry point and merchants who want a native mobile app use the HME Wallet. Don't build Android-only features or chase APK work; leave the APK endpoint, native bridge and update card untouched so existing installs keep working.
 - Cash-out defaults to one tap (`runOneTap` in CashoutActions.tsx, plan in src/lib/cashout/one-tap.ts) and reuses the same order/send/confirm functions as the step-by-step picker — one code path for money movement.
+- Partner pass-through routes (/api/nectar/link, /api/nectar/pay/*, /api/tsd/link) must use `src/lib/security/proxy-guard.ts` (trusted host, no path tricks, rate limit, own-app POSTs, 32 KB bodies) — the auditor flagged them as open relays.
+- Imported-key (WIF) encryption is versioned in src/lib/wif/store.ts: new entries use the HKDF v2 key; keep the legacy v1 read path, because keys saved before the change still need it to open and upgrade.
