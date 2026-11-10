@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isNative } from "@/lib/native/platform";
-import { APK_URL } from "@/lib/app-release";
+import { APK_DOWNLOAD_ENABLED, APK_URL } from "@/lib/app-release";
 
 async function openExternal(url: string) {
   if (isNative()) {
@@ -65,13 +65,15 @@ export function SiteFooter() {
           >
             GitHub
           </button>
-          <button
-            type="button"
-            onClick={() => openExternal(APK_URL)}
-            className="hover:text-foreground"
-          >
-            APK
-          </button>
+          {APK_DOWNLOAD_ENABLED && (
+            <button
+              type="button"
+              onClick={() => openExternal(APK_URL)}
+              className="hover:text-foreground"
+            >
+              APK
+            </button>
+          )}
         </nav>
       </div>
     </footer>

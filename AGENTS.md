@@ -37,3 +37,4 @@ default to excluding it from iOS. Ask the user for confirmation when unsure.
 - Store any new per-wallet localStorage key via `scopedKey()` and list its base in `PROFILE_SCOPED_BASES` (src/lib/profiles.ts) — delete-wallet relies on it; tests enforce the list.
 - Release signing keys are never generated or echoed in CI — the repo is public and Actions logs are readable.
 - Run `bunx vitest run` for unit tests (src/**/*.test.ts).
+- Android APK support is discontinued — BeeKeeper is the web merchant entry point and merchants who want a native mobile app use the HME Wallet. Don't build Android-only features or chase APK work; leave the APK endpoint, native bridge and update card untouched so existing installs keep working.

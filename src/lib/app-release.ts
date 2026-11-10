@@ -17,6 +17,15 @@ export const APP_VERSION = "0.1.202609050547";
  */
 export const APK_URL = "https://beekeeper.money/api/public/apk";
 
+/**
+ * Android APK distribution is discontinued (2026-11-10): BeeKeeper is the web
+ * merchant entry point, and merchants who want a native mobile app move to the
+ * HME Wallet. The download endpoint and native shell stay live for installs
+ * already out there, but the app no longer hands the APK to new users.
+ * Flip to true to re-advertise it.
+ */
+export const APK_DOWNLOAD_ENABLED = false;
+
 
 export type ReleasePlatform = "android" | "ios" | "web";
 
