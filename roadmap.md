@@ -36,11 +36,14 @@
 - [x] L2 Seed copy auto-clears clipboard after 60s
 - [x] L4 Plain-http localhost no longer allowed in production; security headers confirmed live on beekeeper.money
 - [x] L6 bs58check declared
-- [ ] H2 Biometric unlock bound to the phone's fingerprint/face hardware — needs a native plugin + new APK
-- [ ] M1b Argon2id for new wallets — needs a migration plan and phone speed testing
+- [ ] M1b Argon2id for new wallets — needs a migration plan
 - [ ] M4/L5 Request signing for cash-out calls, link-status lookups and webhook timestamps — needs VectorPay to change their side too
-- [ ] M6b APK file fingerprint (SHA-256) check in the updater
 - [ ] L3 Allow-list of known swap/bridge contracts
 - [ ] TSD Swap API key stored encrypted inside the wallet
-- [ ] Rotate Android signing key IF the current key was ever made by the old generator workflow in the previous repo (Bobby to confirm)
+## Dropped — Android APK discontinued (2026-11-10)
+BeeKeeper is the web merchant entry point; merchants who want a native mobile app move to the HME Wallet. The APK endpoint (`/api/public/apk`), native bridge and in-app update card stay in place for installs already out there, but nothing new is built or shipped for Android.
+- [x] H2 Biometric unlock bound to the phone's fingerprint/face hardware
+- [x] M6b APK file fingerprint (SHA-256) check in the updater
+- [x] Rotate the Android signing key (only mattered for signing future APK builds — revisit if Android builds ever resume)
+- [x] Footer "APK" download link hidden (APK_DOWNLOAD_ENABLED = false in src/lib/app-release.ts; flip to true to restore)
 
