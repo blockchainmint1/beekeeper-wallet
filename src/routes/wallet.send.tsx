@@ -56,11 +56,7 @@ import {
   isOmniCompatibleAddress,
 } from "@/lib/txc/tokens";
 import { useTxcTokenProps } from "@/lib/txc/token-props";
-import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
-import { TsdCashoutPanel, type CashoutPlan } from "@/components/wallet/TsdCashoutPanel";
 import { CASHOUT_SESSION_KEY } from "@/components/wallet/CashoutActions";
-import { useCashoutApiKey } from "@/lib/cashout/api-key";
-import { TSD_PROPERTY_ID, formatUsd, payoutFor } from "@/lib/cashout/tsd";
 
 
 import {
@@ -214,21 +210,9 @@ function SendPage() {
   const [busy, setBusy] = useState(false);
   /** Human-readable step shown on the send button while a payment is in flight. */
   const [progress, setProgress] = useState<string | null>(null);
-  /**
-   * Set once the user has created a TSD → USDC cash-out order. The recipient
-   * and amount are then locked to the order's inbox so the payment can't drift
-   * away from what the bridge is waiting for.
-   */
-  const [cashout, setCashout] = useState<CashoutPlan | null>(null);
-  const exchangeAllowed = useExchangeFeaturesAllowed();
-
   const activeToken: TxcTokenMeta | null =
     typeof asset === "number" ? (tokens.find((t) => t.id === asset) ?? null) : null;
   const isTokenSend = activeToken !== null;
-  const [cashoutApiKey] = useCashoutApiKey();
-  // The off-ramp only exists once the user has linked their TSD Swap account.
-  const canCashOut =
-    exchangeAllowed && !!cashoutApiKey && activeToken?.id === TSD_PROPERTY_ID;
 
   function applyUri(raw: string) {
     const { address, amount: amt, tokenId } = parseWalletUri(raw);
@@ -681,23 +665,7 @@ function SendPage() {
         <h1 className="mt-4 text-2xl font-bold">Sent</h1>
         <p className="mt-2 text-muted-foreground">Your transaction was broadcast to the network.</p>
 
-        {cashout && (
-          <div className="mx-auto mt-4 max-w-sm rounded-lg border border-primary/40 bg-primary/5 p-4 text-left text-sm">
-            <div className="flex items-center gap-2 font-medium">
-              <ArrowDownUp className="h-4 w-4 text-primary" /> Cashing out to USDC
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {cashout.amount} TSD → {formatUsd(payoutFor(cashout.amount, cashout.feeBps))} USDC to{" "}
-              <span className="font-mono break-all">{cashout.payoutAddress}</span>
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              TSD Swap pays out once the TSD transfer confirms — usually a few minutes. You can
-              close the app; it keeps running on their side.
-            </p>
-          </div>
-        )}
-
-        {isTokenSend && activeToken && !cashout && (
+        {isTokenSend && activeToken && (
           <p className="mx-auto mt-3 max-w-sm rounded-lg border border-border/60 bg-card/40 p-3 text-sm text-muted-foreground">
             Token transfers are only applied once the transaction confirms — usually a few minutes
             on TEXITcoin. Your {activeToken.symbol} balance and the recipient's will update then, so
@@ -796,7 +764,6 @@ function SendPage() {
                     className="font-mono flex-1"
                     autoComplete="off"
                     spellCheck={false}
-                    disabled={!!cashout}
                   />
                   <QrScanButton onScan={applyUri} />
                   <AddressBookButton chain="txc" onPick={(a) => setTo(a)} />
@@ -842,7 +809,7 @@ function SendPage() {
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder={sendAll ? "All available (minus fee)" : "0.0"}
                   className="mt-1"
-                  disabled={sendAll || !!cashout}
+                  disabled={sendAll}
                 />
                 {isTokenSend && activeToken && (
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -850,53 +817,6 @@ function SendPage() {
                   </p>
                 )}
               </div>
-
-              {/* TSD → USDC off-ramp. Hidden on iOS (exchange feature gate). */}
-              {canCashOut && !cashout && (
-                <TsdCashoutPanel
-                  amount={amount}
-                  apiKey={cashoutApiKey!}
-                  onReady={(plan) => {
-                    setCashout(plan);
-                    setTo(plan.depositAddress);
-                    setAmount(String(plan.amount));
-                    setSendAll(false);
-                    setError(null);
-                  }}
-                />
-              )}
-
-              {cashout && (
-                <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
-                  <div className="flex items-start gap-2">
-                    <ArrowDownUp className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <div className="flex-1">
-                      <p className="font-medium">Cashing out to USDC on Ethereum</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {cashout.amount} TSD →{" "}
-                        {formatUsd(payoutFor(cashout.amount, cashout.feeBps))} USDC to{" "}
-                        <span className="font-mono break-all">{cashout.payoutAddress}</span>
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        The recipient above is your TSD Swap deposit address. Refunds return to your
-                        wallet automatically.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="mt-2 h-auto px-2 py-1 text-xs"
-                    onClick={() => {
-                      setCashout(null);
-                      setTo("");
-                    }}
-                  >
-                    Cancel cash-out
-                  </Button>
-                </div>
-              )}
 
               <div>
                 <Label>Fee speed</Label>

@@ -31,7 +31,6 @@ import { NectarLinkCard } from "@/components/wallet/NectarLinkCard";
 
 import { EcosystemLinkCard } from "@/components/wallet/EcosystemLinkCard";
 import { UpdateCheckCard } from "@/components/wallet/UpdateCheckCard";
-import { TsdCashoutKeyCard } from "@/components/wallet/TsdCashoutKeyCard";
 import { TsdAccountLinkCard } from "@/components/wallet/TsdAccountLinkCard";
 import { TsdNudgeToggleCard } from "@/components/wallet/TsdNudgeToggleCard";
 import { AddSeedCard } from "@/components/wallet/AddSeedCard";
@@ -206,7 +205,6 @@ function SettingsPage() {
         >
           <div className="space-y-6">
             <EcosystemLinkCard />
-            <TsdCashoutKeyCard compact />
             <TsdNudgeToggleCard compact />
           </div>
         </SettingsSection>

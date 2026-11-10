@@ -190,7 +190,6 @@ export async function submitTsdLink(args: {
     );
   }
   const apiKey = (body?.["api_key"] as string | undefined) ?? undefined;
-  if (apiKey) setCashoutApiKey(apiKey);
   return {
     ok: true,
     account_id: (body?.["account_id"] as string | undefined) ?? undefined,

@@ -37,11 +37,9 @@
 - [x] L6 bs58check declared
 - [ ] M1b Argon2id for new wallets — needs a migration plan
 - [ ] M4/L5 Request signing for cash-out calls, link-status lookups and webhook timestamps — needs VectorPay to change their side too
-- [ ] TSD Swap API key stored encrypted inside the wallet
 ## Pre-audit cleanup (2026-11-10)
 - [ ] Patch vulnerable add-on libraries (Capacitor, seroval, ws, zod, etc.)
 - [ ] M4 server checks the cash-out proofs itself before signing to VectorPay; link proxies limited to exact partner paths; tap-to-pay lookup rate-limited
-- [ ] TSD Swap API key stored encrypted
 - [ ] L6 remove dead `new Function` loader; CI security workflow; HKDF for WIF wrapping
 - [ ] Mark app_releases public-read finding as intentional
 
