@@ -331,7 +331,6 @@ export function BeeKeeperOnboarding() {
             )}
             <div className="mt-8 flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
               <p>Don&apos;t have one yet? <a href="https://coldstoragecoins.com" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">Get a Cold Storage Coin</a></p>
-              <p>Really know what you&apos;re doing? <a href="https://words.honest.money" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">Get some words</a></p>
             </div>
           </div>
         )}
