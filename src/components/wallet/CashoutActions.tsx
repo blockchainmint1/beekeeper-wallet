@@ -608,7 +608,99 @@ export function CashoutActions({
             <DialogDescription>Turn your USDC, USDT and TSD into dollars in your bank account.</DialogDescription>
           </DialogHeader>
 
-          {step === "intro" && (
+          {step === "intro" && vpLink?.bank && (
+            <div className="space-y-4 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
+                <p className="text-xs font-medium uppercase">Ready to cash out</p>
+                {scanning ? (
+                  <p className="mt-2 flex items-center justify-center gap-2 text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Checking every chain and your first 20 addresses…
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-1 text-4xl font-semibold text-foreground">${fmt(oneTap.total, 2)}</p>
+                    <p className="mt-1 text-xs">
+                      You get about <span className="font-semibold text-foreground">${oneTapQuote.settlementUsd.toFixed(2)}</span>
+                      {" "}in {vpLink.bank.institution ?? "your bank"} ····{vpLink.bank.mask}
+                    </p>
+                    <p className="mt-1 text-xs">
+                      {feeBps === 0 ? "No service fee (NectarPay merchant)" : `1% service fee ($${oneTapQuote.feeUsd.toFixed(2)})`} · 1–3 business days
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {!scanning && oneTap.total < ORDER_MIN_USD && (
+                <p className="text-center text-sm text-destructive">
+                  {cashable.length === 0
+                    ? "No USDC, USDT or TSD to cash out yet."
+                    : `You need at least $${ORDER_MIN_USD} that can pay its own network fee.`}
+                </p>
+              )}
+              {!scanning && availableUsd > oneTap.total + 0.01 && oneTap.total >= ORDER_MIN_USD && (
+                <p className="text-center text-xs">
+                  You have ${fmt(availableUsd, 2)}. Orders top out at ${ORDER_MAX_USD}, so this sends the first $
+                  {ORDER_MAX_USD} — tap again afterwards for the rest.
+                </p>
+              )}
+
+              {!termsOk && (
+                <div className="space-y-2 rounded-md border border-border/60 p-3">
+                  <label className="flex items-start gap-3 text-xs leading-relaxed">
+                    <Checkbox checked={agreeNow} onCheckedChange={(v) => setAgreeNow(v === true)} />
+                    <span>
+                      I agree to the cash-out terms.{" "}
+                      <button type="button" className="text-primary underline" onClick={() => setShowTerms((v) => !v)}>
+                        {showTerms ? "Hide" : "Read them"}
+                      </button>
+                    </span>
+                  </label>
+                  {showTerms && (
+                    <ul className="list-disc space-y-1 pl-9 text-xs leading-relaxed">
+                      {CASHOUT_DISCLOSURES.map((item) => (
+                        <li key={item.id}>
+                          {item.text}
+                          {item.id === "terms" && (
+                            <>
+                              {" "}
+                              <Link to="/legal/terms" target="_blank" className="text-primary underline">Terms</Link> ·{" "}
+                              <Link to="/legal/privacy" target="_blank" className="text-primary underline">Privacy</Link>
+                            </>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="pl-7 text-[11px]">Asked once — BeeKeeper remembers it for this wallet.</p>
+                </div>
+              )}
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <Button
+                size="lg"
+                className="h-14 w-full text-base"
+                disabled={scanning || running || submitting || oneTap.total < ORDER_MIN_USD || (!termsOk && !agreeNow)}
+                onClick={() => void runOneTap()}
+              >
+                {submitting || running ? (
+                  <><Loader2 className="animate-spin" /> Starting…</>
+                ) : (
+                  <><ArrowUpFromLine /> Cash out ${fmt(oneTap.total, 2)}</>
+                )}
+              </Button>
+              <button
+                type="button"
+                className="w-full text-center text-xs text-primary underline disabled:opacity-50"
+                disabled={scanning || running}
+                onClick={() => setStep("holdings")}
+              >
+                Choose what to cash out instead
+              </button>
+            </div>
+          )}
+
+          {step === "intro" && !vpLink?.bank && (
             <div className="space-y-4 text-sm text-muted-foreground">
               <p>
                 BeeKeeper rounds up every USDC, USDT and TSD you hold — on every chain and your first 20 addresses —
