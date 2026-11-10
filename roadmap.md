@@ -38,7 +38,7 @@
 - [ ] M1b Argon2id for new wallets — needs a migration plan
 - [ ] M4/L5 Request signing for cash-out calls, link-status lookups and webhook timestamps — needs VectorPay to change their side too
 ## Pre-audit cleanup (2026-11-10)
-- [x] Patched vulnerable libraries: zod 4.6.7, Capacitor iOS 8.6.0 (pulled in by plugins), 18 build-tool fixes via `bun audit fix`; 0 critical/high left in shipped libraries
+- [x] Patched vulnerable libraries: zod 4.6.7, Capacitor iOS 8.6.0 (pulled in by plugins), 18 build-tool fixes via `bun audit fix`; no critical or high issues left in the libraries the website ships
 - [x] M4 server checks every cash-out proof before signing to VectorPay; partner pass-throughs guarded (trusted host, no path tricks, TSD exact link paths, rate limit, own-app POSTs, 32 KB cap); tap-to-pay invoice ids restricted + rate-limited
 - [x] L6 removed dead `new Function` loader; added CI security workflow (types, tests, dependency audit); imported keys (WIF) now locked with HKDF v2, old ones upgrade on first open
 - [x] Marked app_releases public-read finding as intentional
