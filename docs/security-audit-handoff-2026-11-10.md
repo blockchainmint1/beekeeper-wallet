@@ -85,7 +85,7 @@ New entries use an AES-GCM key from HKDF-SHA256 over the root private key with t
 ```
 bun install --frozen-lockfile
 bunx tsc --noEmit -p .        # type check
-bunx vitest run               # 35 tests across 9 files
+bunx vitest run               # 35 tests across 8 files
 bun audit --prod --audit-level=critical
 ```
 
