@@ -169,7 +169,7 @@ function Home() {
     <main className="mx-auto max-w-3xl px-4 pt-16 pb-12">
       <header className="text-center mb-12">
         <img
-          src="/icon-512.webp"
+          src="/icons/beekeeper-192.png"
           alt="BeeKeeper Wallet"
           width={64}
           height={64}
