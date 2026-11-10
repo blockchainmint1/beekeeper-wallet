@@ -43,6 +43,9 @@
 - [ ] L6 remove dead `new Function` loader; CI security workflow; HKDF for WIF wrapping
 - [ ] Mark app_releases public-read finding as intentional
 
+## Dropped — TSD Swap API key and off-ramp removed (2026-11-10)
+BeeKeeper no longer stores a TSD Swap API key and the Send screen no longer offers the TSD → USDC off-ramp. TSD leaves the wallet only through the VectorPay cash-out roundup. The TSD Swap account link (watch-only keys) stays in Ecosystem link.
+
 ## Dropped — swaps and bridges removed (2026-11-10)
 BeeKeeper is a simple merchant entry point: no in-app swap or bridge. The swap screens (EVM via LI.FI, LTC/DOGE via THORChain), the Tron bridge screen (Relay), their support code, the Swap buttons on the chain tiles and the two Settings toggles are gone. Merchants who want to swap or bridge use the HME Wallet.
 
