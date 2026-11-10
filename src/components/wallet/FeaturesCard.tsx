@@ -7,17 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFeature } from "@/lib/feature-prefs";
 import { useHideBalances } from "@/lib/hide-balances";
-import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { unlockWallet } from "@/lib/txc/storage";
 import { disableBiometric, enableBiometric, getBiometricStatus } from "@/lib/native/biometric";
 
 export function FeaturesCard({ compact }: { compact?: boolean }) {
-  const [evmSwap, setEvmSwap] = useFeature("evmSwap");
-  const [utxoSwap, setUtxoSwap] = useFeature("utxoSwap");
   const [confirmLast4, setConfirmLast4] = useFeature("confirmLast4");
   const [hideSpam, setHideSpam] = useFeature("hideSpamTokens");
   const [hiddenBalances, setHiddenBalances] = useHideBalances();
-  const exchangeAllowed = useExchangeFeaturesAllowed();
 
   const [bio, setBio] = useState({ available: false, enabled: false });
   const [bioBusy, setBioBusy] = useState(false);
