@@ -179,45 +179,6 @@ export function FeaturesCard({ compact }: { compact?: boolean }) {
           )}
         </div>
 
-        {exchangeAllowed && (
-          <>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <Label htmlFor="feat-evm-swap" className="text-sm font-medium">
-                  In-app Swap
-                </Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Adds a Swap button on Ethereum, Base, and BSC tiles. Quotes and routing
-                  are powered by LI.FI; transactions are signed on this device and
-                  broadcast through BeeKeeper Wallet — no external wallet connect required.
-                </p>
-              </div>
-              <Switch
-                id="feat-evm-swap"
-                checked={evmSwap}
-                onCheckedChange={setEvmSwap}
-              />
-            </div>
-
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <Label htmlFor="feat-utxo-swap" className="text-sm font-medium">
-                  Swap LTC / DOGE to stablecoins
-                </Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Adds a Swap button on the Litecoin and Dogecoin tiles. Swaps run natively
-                  over THORChain — your coins are signed on this device and the stablecoin is
-                  paid out to this wallet's EVM address. No bridge, no custodian.
-                </p>
-              </div>
-              <Switch
-                id="feat-utxo-swap"
-                checked={utxoSwap}
-                onCheckedChange={setUtxoSwap}
-              />
-            </div>
-          </>
-        )}
       </CardContent>
     </Card>
   );
