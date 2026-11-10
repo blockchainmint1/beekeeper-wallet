@@ -7,13 +7,14 @@
  *   Part 2 (VectorPay) identity verification, bank linking through Plaid and
  *                      the dollar payout.
  *
- * The order is registered with VectorPay *after* the transfers, for the amount
- * that actually went out — a partial run still produces a valid order.
+ * The order is created with VectorPay before any coins move, then confirmed
+ * with the txids for what actually went out — a partial run is still valid.
+ *
+ * Default is one tap: "Cash out $X" picks everything sendable (biggest first,
+ * up to the order maximum), creates the order and sends every line in a row.
+ * "Choose what to cash out" opens the step-by-step picker instead.
  *
  * NectarPay merchants pay no service fee; everyone else pays 1%.
- *
- * Exchange/off-ramp feature — gated by `useExchangeFeaturesAllowed()` and
- * therefore absent from the iOS build. See AGENTS.md.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -76,6 +77,9 @@ import {
   type VectorPayLink,
 } from "@/lib/vectorpay-link";
 import { redeemVectorPayLink, vectorPayLinkStatus } from "@/lib/vectorpay-link.functions";
+import { hasAcceptedCashoutTerms, planOneTap, rememberCashoutTerms } from "@/lib/cashout/one-tap";
+
+const ALL_TERM_IDS = CASHOUT_DISCLOSURES.map((d) => d.id) as string[];
 
 type Step = "intro" | "holdings" | "review" | "transfers" | "done";
 const STEPS: Step[] = ["intro", "holdings", "review", "transfers", "done"];
@@ -197,6 +201,17 @@ export function CashoutActions({
   const [result, setResult] = useState<{ orderId: string; checkoutUrl: string | null; detail: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState("");
+  // Cash-out terms are agreed once per wallet, then remembered.
+  const [termsOk, setTermsOk] = useState(false);
+  const [agreeNow, setAgreeNow] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [autoRun, setAutoRun] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const ok = hasAcceptedCashoutTerms(ALL_TERM_IDS);
+    setTermsOk(ok);
+    if (ok) setAccepted((current) => (current.length ? current : ALL_TERM_IDS));
+  }, [open]);
 
   // Restore an in-progress cash-out (e.g. after sending TSD on its own screen).
   useEffect(() => {
