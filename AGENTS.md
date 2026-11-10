@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 - There is no iOS app and never will be (ios/ project and build:ios scripts removed) — BeeKeeper is web-only; no App Store gating is needed for new features. `exchangeFeaturesAllowed()` in src/lib/native/capabilities.ts stays as a harmless always-true-on-web switch.
+- No swap or bridge features in BeeKeeper — the LI.FI / THORChain / Relay screens, the Swap buttons on chain tiles and the Settings toggles were removed. Don't re-add them; merchants who want to swap or bridge use the HME Wallet.
 - Cash-out deposits are attributed by txid + sending-address signature (docs/vectorpay-cashout-proof.md), never by amount — VectorPay uses one shared deposit address per chain.
 - Trusted origins live only in `src/lib/native/origins.ts` (native bridge target, CSP, CORS, proxy caller checks import it) — the native app once forwarded money-moving calls to the separate HME deployment.
 - Every Tron transaction built by TronGrid goes through `assertTronTxMatches` (src/lib/tron/verify.ts) before signing — the wallet signs a node-supplied hash.

@@ -3,12 +3,10 @@
  * so it gets its own small set of components instead of reusing BtcForkTile
  * or EvmTile.
  */
-import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { useMemo, useSyncExternalStore } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, RefreshCw } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useHideBalances, maskAmount } from "@/lib/hide-balances";
 import { formatFiat } from "@/lib/txc/units";
@@ -79,7 +77,6 @@ export function TronTile({
   onOpenDetails: () => void;
 }) {
   const [hidden] = useHideBalances();
-  const exchangeAllowed = useExchangeFeaturesAllowed();
   const accent = CHAIN_META.tron.accent;
   const balText = loading ? "..." : formatTrxCompact(balanceSun);
   const nativeUsd = priceUsd != null ? sunToTrx(balanceSun) * priceUsd : null;
@@ -104,16 +101,6 @@ export function TronTile({
       <div className="flex items-center justify-between">
         <p className="text-sm opacity-80 truncate">{label}</p>
         <div className="flex items-center gap-2">
-          {exchangeAllowed && (
-            <Link
-              to="/wallet/tron/bridge"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 rounded-full bg-white/15 hover:bg-white/25 px-2.5 py-1 text-[11px] font-medium"
-              aria-label="Bridge off Tron"
-            >
-              <ArrowLeftRight className="h-3 w-3" /> Bridge
-            </Link>
-          )}
           <span
             role="button"
             tabIndex={0}

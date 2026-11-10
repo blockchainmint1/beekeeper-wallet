@@ -43,17 +43,14 @@ import { Route as WalletBtcReceiveRouteImport } from './routes/wallet.btc.receiv
 import { Route as WalletBtcSendRouteImport } from './routes/wallet.btc.send'
 import { Route as WalletDogeReceiveRouteImport } from './routes/wallet.doge.receive'
 import { Route as WalletDogeSendRouteImport } from './routes/wallet.doge.send'
-import { Route as WalletDogeSwapRouteImport } from './routes/wallet.doge.swap'
 import { Route as WalletEvmChainRouteImport } from './routes/wallet.evm.$chain'
 import { Route as WalletIskReceiveRouteImport } from './routes/wallet.isk.receive'
 import { Route as WalletIskSendRouteImport } from './routes/wallet.isk.send'
 import { Route as WalletLtcReceiveRouteImport } from './routes/wallet.ltc.receive'
 import { Route as WalletLtcSendRouteImport } from './routes/wallet.ltc.send'
-import { Route as WalletLtcSwapRouteImport } from './routes/wallet.ltc.swap'
 import { Route as WalletOrderIdRouteImport } from './routes/wallet.order.$id'
 import { Route as WalletSolanaReceiveRouteImport } from './routes/wallet.solana.receive'
 import { Route as WalletSolanaSendRouteImport } from './routes/wallet.solana.send'
-import { Route as WalletTronBridgeRouteImport } from './routes/wallet.tron.bridge'
 import { Route as WalletTronReceiveRouteImport } from './routes/wallet.tron.receive'
 import { Route as WalletTronSendRouteImport } from './routes/wallet.tron.send'
 import { Route as WalletTxcConsolidateRouteImport } from './routes/wallet.txc.consolidate'
@@ -63,7 +60,6 @@ import { Route as ApiNectarPayInvoiceIdRouteImport } from './routes/api/nectar.p
 import { Route as ApiUtxoCoinSplatRouteImport } from './routes/api/utxo.$coin.$'
 import { Route as WalletEvmChainReceiveRouteImport } from './routes/wallet.evm.$chain.receive'
 import { Route as WalletEvmChainSendRouteImport } from './routes/wallet.evm.$chain.send'
-import { Route as WalletEvmChainSwapRouteImport } from './routes/wallet.evm.$chain.swap'
 import { Route as WalletWifIdReceiveRouteImport } from './routes/wallet.wif.$id.receive'
 import { Route as WalletWifIdSendRouteImport } from './routes/wallet.wif.$id.send'
 
@@ -238,11 +234,6 @@ const WalletDogeSendRoute = WalletDogeSendRouteImport.update({
   path: '/doge/send',
   getParentRoute: () => WalletRoute,
 } as any)
-const WalletDogeSwapRoute = WalletDogeSwapRouteImport.update({
-  id: '/doge/swap',
-  path: '/doge/swap',
-  getParentRoute: () => WalletRoute,
-} as any)
 const WalletEvmChainRoute = WalletEvmChainRouteImport.update({
   id: '/evm/$chain',
   path: '/evm/$chain',
@@ -268,11 +259,6 @@ const WalletLtcSendRoute = WalletLtcSendRouteImport.update({
   path: '/ltc/send',
   getParentRoute: () => WalletRoute,
 } as any)
-const WalletLtcSwapRoute = WalletLtcSwapRouteImport.update({
-  id: '/ltc/swap',
-  path: '/ltc/swap',
-  getParentRoute: () => WalletRoute,
-} as any)
 const WalletOrderIdRoute = WalletOrderIdRouteImport.update({
   id: '/order/$id',
   path: '/order/$id',
@@ -286,11 +272,6 @@ const WalletSolanaReceiveRoute = WalletSolanaReceiveRouteImport.update({
 const WalletSolanaSendRoute = WalletSolanaSendRouteImport.update({
   id: '/solana/send',
   path: '/solana/send',
-  getParentRoute: () => WalletRoute,
-} as any)
-const WalletTronBridgeRoute = WalletTronBridgeRouteImport.update({
-  id: '/tron/bridge',
-  path: '/tron/bridge',
   getParentRoute: () => WalletRoute,
 } as any)
 const WalletTronReceiveRoute = WalletTronReceiveRouteImport.update({
@@ -336,11 +317,6 @@ const WalletEvmChainReceiveRoute = WalletEvmChainReceiveRouteImport.update({
 const WalletEvmChainSendRoute = WalletEvmChainSendRouteImport.update({
   id: '/send',
   path: '/send',
-  getParentRoute: () => WalletEvmChainRoute,
-} as any)
-const WalletEvmChainSwapRoute = WalletEvmChainSwapRouteImport.update({
-  id: '/swap',
-  path: '/swap',
   getParentRoute: () => WalletEvmChainRoute,
 } as any)
 const WalletWifIdReceiveRoute = WalletWifIdReceiveRouteImport.update({
@@ -389,17 +365,14 @@ export interface FileRoutesByFullPath {
   '/wallet/btc/send': typeof WalletBtcSendRoute
   '/wallet/doge/receive': typeof WalletDogeReceiveRoute
   '/wallet/doge/send': typeof WalletDogeSendRoute
-  '/wallet/doge/swap': typeof WalletDogeSwapRoute
   '/wallet/evm/$chain': typeof WalletEvmChainRouteWithChildren
   '/wallet/isk/receive': typeof WalletIskReceiveRoute
   '/wallet/isk/send': typeof WalletIskSendRoute
   '/wallet/ltc/receive': typeof WalletLtcReceiveRoute
   '/wallet/ltc/send': typeof WalletLtcSendRoute
-  '/wallet/ltc/swap': typeof WalletLtcSwapRoute
   '/wallet/order/$id': typeof WalletOrderIdRoute
   '/wallet/solana/receive': typeof WalletSolanaReceiveRoute
   '/wallet/solana/send': typeof WalletSolanaSendRoute
-  '/wallet/tron/bridge': typeof WalletTronBridgeRoute
   '/wallet/tron/receive': typeof WalletTronReceiveRoute
   '/wallet/tron/send': typeof WalletTronSendRoute
   '/wallet/txc/consolidate': typeof WalletTxcConsolidateRoute
@@ -409,7 +382,6 @@ export interface FileRoutesByFullPath {
   '/api/utxo/$coin/$': typeof ApiUtxoCoinSplatRoute
   '/wallet/evm/$chain/receive': typeof WalletEvmChainReceiveRoute
   '/wallet/evm/$chain/send': typeof WalletEvmChainSendRoute
-  '/wallet/evm/$chain/swap': typeof WalletEvmChainSwapRoute
   '/wallet/wif/$id/receive': typeof WalletWifIdReceiveRoute
   '/wallet/wif/$id/send': typeof WalletWifIdSendRoute
 }
@@ -447,17 +419,14 @@ export interface FileRoutesByTo {
   '/wallet/btc/send': typeof WalletBtcSendRoute
   '/wallet/doge/receive': typeof WalletDogeReceiveRoute
   '/wallet/doge/send': typeof WalletDogeSendRoute
-  '/wallet/doge/swap': typeof WalletDogeSwapRoute
   '/wallet/evm/$chain': typeof WalletEvmChainRouteWithChildren
   '/wallet/isk/receive': typeof WalletIskReceiveRoute
   '/wallet/isk/send': typeof WalletIskSendRoute
   '/wallet/ltc/receive': typeof WalletLtcReceiveRoute
   '/wallet/ltc/send': typeof WalletLtcSendRoute
-  '/wallet/ltc/swap': typeof WalletLtcSwapRoute
   '/wallet/order/$id': typeof WalletOrderIdRoute
   '/wallet/solana/receive': typeof WalletSolanaReceiveRoute
   '/wallet/solana/send': typeof WalletSolanaSendRoute
-  '/wallet/tron/bridge': typeof WalletTronBridgeRoute
   '/wallet/tron/receive': typeof WalletTronReceiveRoute
   '/wallet/tron/send': typeof WalletTronSendRoute
   '/wallet/txc/consolidate': typeof WalletTxcConsolidateRoute
@@ -467,7 +436,6 @@ export interface FileRoutesByTo {
   '/api/utxo/$coin/$': typeof ApiUtxoCoinSplatRoute
   '/wallet/evm/$chain/receive': typeof WalletEvmChainReceiveRoute
   '/wallet/evm/$chain/send': typeof WalletEvmChainSendRoute
-  '/wallet/evm/$chain/swap': typeof WalletEvmChainSwapRoute
   '/wallet/wif/$id/receive': typeof WalletWifIdReceiveRoute
   '/wallet/wif/$id/send': typeof WalletWifIdSendRoute
 }
@@ -507,17 +475,14 @@ export interface FileRoutesById {
   '/wallet/btc/send': typeof WalletBtcSendRoute
   '/wallet/doge/receive': typeof WalletDogeReceiveRoute
   '/wallet/doge/send': typeof WalletDogeSendRoute
-  '/wallet/doge/swap': typeof WalletDogeSwapRoute
   '/wallet/evm/$chain': typeof WalletEvmChainRouteWithChildren
   '/wallet/isk/receive': typeof WalletIskReceiveRoute
   '/wallet/isk/send': typeof WalletIskSendRoute
   '/wallet/ltc/receive': typeof WalletLtcReceiveRoute
   '/wallet/ltc/send': typeof WalletLtcSendRoute
-  '/wallet/ltc/swap': typeof WalletLtcSwapRoute
   '/wallet/order/$id': typeof WalletOrderIdRoute
   '/wallet/solana/receive': typeof WalletSolanaReceiveRoute
   '/wallet/solana/send': typeof WalletSolanaSendRoute
-  '/wallet/tron/bridge': typeof WalletTronBridgeRoute
   '/wallet/tron/receive': typeof WalletTronReceiveRoute
   '/wallet/tron/send': typeof WalletTronSendRoute
   '/wallet/txc/consolidate': typeof WalletTxcConsolidateRoute
@@ -527,7 +492,6 @@ export interface FileRoutesById {
   '/api/utxo/$coin/$': typeof ApiUtxoCoinSplatRoute
   '/wallet/evm/$chain/receive': typeof WalletEvmChainReceiveRoute
   '/wallet/evm/$chain/send': typeof WalletEvmChainSendRoute
-  '/wallet/evm/$chain/swap': typeof WalletEvmChainSwapRoute
   '/wallet/wif/$id/receive': typeof WalletWifIdReceiveRoute
   '/wallet/wif/$id/send': typeof WalletWifIdSendRoute
 }
@@ -568,17 +532,14 @@ export interface FileRouteTypes {
     | '/wallet/btc/send'
     | '/wallet/doge/receive'
     | '/wallet/doge/send'
-    | '/wallet/doge/swap'
     | '/wallet/evm/$chain'
     | '/wallet/isk/receive'
     | '/wallet/isk/send'
     | '/wallet/ltc/receive'
     | '/wallet/ltc/send'
-    | '/wallet/ltc/swap'
     | '/wallet/order/$id'
     | '/wallet/solana/receive'
     | '/wallet/solana/send'
-    | '/wallet/tron/bridge'
     | '/wallet/tron/receive'
     | '/wallet/tron/send'
     | '/wallet/txc/consolidate'
@@ -588,7 +549,6 @@ export interface FileRouteTypes {
     | '/api/utxo/$coin/$'
     | '/wallet/evm/$chain/receive'
     | '/wallet/evm/$chain/send'
-    | '/wallet/evm/$chain/swap'
     | '/wallet/wif/$id/receive'
     | '/wallet/wif/$id/send'
   fileRoutesByTo: FileRoutesByTo
@@ -626,17 +586,14 @@ export interface FileRouteTypes {
     | '/wallet/btc/send'
     | '/wallet/doge/receive'
     | '/wallet/doge/send'
-    | '/wallet/doge/swap'
     | '/wallet/evm/$chain'
     | '/wallet/isk/receive'
     | '/wallet/isk/send'
     | '/wallet/ltc/receive'
     | '/wallet/ltc/send'
-    | '/wallet/ltc/swap'
     | '/wallet/order/$id'
     | '/wallet/solana/receive'
     | '/wallet/solana/send'
-    | '/wallet/tron/bridge'
     | '/wallet/tron/receive'
     | '/wallet/tron/send'
     | '/wallet/txc/consolidate'
@@ -646,7 +603,6 @@ export interface FileRouteTypes {
     | '/api/utxo/$coin/$'
     | '/wallet/evm/$chain/receive'
     | '/wallet/evm/$chain/send'
-    | '/wallet/evm/$chain/swap'
     | '/wallet/wif/$id/receive'
     | '/wallet/wif/$id/send'
   id:
@@ -685,17 +641,14 @@ export interface FileRouteTypes {
     | '/wallet/btc/send'
     | '/wallet/doge/receive'
     | '/wallet/doge/send'
-    | '/wallet/doge/swap'
     | '/wallet/evm/$chain'
     | '/wallet/isk/receive'
     | '/wallet/isk/send'
     | '/wallet/ltc/receive'
     | '/wallet/ltc/send'
-    | '/wallet/ltc/swap'
     | '/wallet/order/$id'
     | '/wallet/solana/receive'
     | '/wallet/solana/send'
-    | '/wallet/tron/bridge'
     | '/wallet/tron/receive'
     | '/wallet/tron/send'
     | '/wallet/txc/consolidate'
@@ -705,7 +658,6 @@ export interface FileRouteTypes {
     | '/api/utxo/$coin/$'
     | '/wallet/evm/$chain/receive'
     | '/wallet/evm/$chain/send'
-    | '/wallet/evm/$chain/swap'
     | '/wallet/wif/$id/receive'
     | '/wallet/wif/$id/send'
   fileRoutesById: FileRoutesById
@@ -976,13 +928,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletDogeSendRouteImport
       parentRoute: typeof WalletRoute
     }
-    '/wallet/doge/swap': {
-      id: '/wallet/doge/swap'
-      path: '/doge/swap'
-      fullPath: '/wallet/doge/swap'
-      preLoaderRoute: typeof WalletDogeSwapRouteImport
-      parentRoute: typeof WalletRoute
-    }
     '/wallet/evm/$chain': {
       id: '/wallet/evm/$chain'
       path: '/evm/$chain'
@@ -1018,13 +963,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletLtcSendRouteImport
       parentRoute: typeof WalletRoute
     }
-    '/wallet/ltc/swap': {
-      id: '/wallet/ltc/swap'
-      path: '/ltc/swap'
-      fullPath: '/wallet/ltc/swap'
-      preLoaderRoute: typeof WalletLtcSwapRouteImport
-      parentRoute: typeof WalletRoute
-    }
     '/wallet/order/$id': {
       id: '/wallet/order/$id'
       path: '/order/$id'
@@ -1044,13 +982,6 @@ declare module '@tanstack/react-router' {
       path: '/solana/send'
       fullPath: '/wallet/solana/send'
       preLoaderRoute: typeof WalletSolanaSendRouteImport
-      parentRoute: typeof WalletRoute
-    }
-    '/wallet/tron/bridge': {
-      id: '/wallet/tron/bridge'
-      path: '/tron/bridge'
-      fullPath: '/wallet/tron/bridge'
-      preLoaderRoute: typeof WalletTronBridgeRouteImport
       parentRoute: typeof WalletRoute
     }
     '/wallet/tron/receive': {
@@ -1116,13 +1047,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletEvmChainSendRouteImport
       parentRoute: typeof WalletEvmChainRoute
     }
-    '/wallet/evm/$chain/swap': {
-      id: '/wallet/evm/$chain/swap'
-      path: '/swap'
-      fullPath: '/wallet/evm/$chain/swap'
-      preLoaderRoute: typeof WalletEvmChainSwapRouteImport
-      parentRoute: typeof WalletEvmChainRoute
-    }
     '/wallet/wif/$id/receive': {
       id: '/wallet/wif/$id/receive'
       path: '/wif/$id/receive'
@@ -1143,13 +1067,11 @@ declare module '@tanstack/react-router' {
 interface WalletEvmChainRouteChildren {
   WalletEvmChainReceiveRoute: typeof WalletEvmChainReceiveRoute
   WalletEvmChainSendRoute: typeof WalletEvmChainSendRoute
-  WalletEvmChainSwapRoute: typeof WalletEvmChainSwapRoute
 }
 
 const WalletEvmChainRouteChildren: WalletEvmChainRouteChildren = {
   WalletEvmChainReceiveRoute: WalletEvmChainReceiveRoute,
   WalletEvmChainSendRoute: WalletEvmChainSendRoute,
-  WalletEvmChainSwapRoute: WalletEvmChainSwapRoute,
 }
 
 const WalletEvmChainRouteWithChildren = WalletEvmChainRoute._addFileChildren(
@@ -1170,17 +1092,14 @@ interface WalletRouteChildren {
   WalletBtcSendRoute: typeof WalletBtcSendRoute
   WalletDogeReceiveRoute: typeof WalletDogeReceiveRoute
   WalletDogeSendRoute: typeof WalletDogeSendRoute
-  WalletDogeSwapRoute: typeof WalletDogeSwapRoute
   WalletEvmChainRoute: typeof WalletEvmChainRouteWithChildren
   WalletIskReceiveRoute: typeof WalletIskReceiveRoute
   WalletIskSendRoute: typeof WalletIskSendRoute
   WalletLtcReceiveRoute: typeof WalletLtcReceiveRoute
   WalletLtcSendRoute: typeof WalletLtcSendRoute
-  WalletLtcSwapRoute: typeof WalletLtcSwapRoute
   WalletOrderIdRoute: typeof WalletOrderIdRoute
   WalletSolanaReceiveRoute: typeof WalletSolanaReceiveRoute
   WalletSolanaSendRoute: typeof WalletSolanaSendRoute
-  WalletTronBridgeRoute: typeof WalletTronBridgeRoute
   WalletTronReceiveRoute: typeof WalletTronReceiveRoute
   WalletTronSendRoute: typeof WalletTronSendRoute
   WalletTxcConsolidateRoute: typeof WalletTxcConsolidateRoute
@@ -1204,17 +1123,14 @@ const WalletRouteChildren: WalletRouteChildren = {
   WalletBtcSendRoute: WalletBtcSendRoute,
   WalletDogeReceiveRoute: WalletDogeReceiveRoute,
   WalletDogeSendRoute: WalletDogeSendRoute,
-  WalletDogeSwapRoute: WalletDogeSwapRoute,
   WalletEvmChainRoute: WalletEvmChainRouteWithChildren,
   WalletIskReceiveRoute: WalletIskReceiveRoute,
   WalletIskSendRoute: WalletIskSendRoute,
   WalletLtcReceiveRoute: WalletLtcReceiveRoute,
   WalletLtcSendRoute: WalletLtcSendRoute,
-  WalletLtcSwapRoute: WalletLtcSwapRoute,
   WalletOrderIdRoute: WalletOrderIdRoute,
   WalletSolanaReceiveRoute: WalletSolanaReceiveRoute,
   WalletSolanaSendRoute: WalletSolanaSendRoute,
-  WalletTronBridgeRoute: WalletTronBridgeRoute,
   WalletTronReceiveRoute: WalletTronReceiveRoute,
   WalletTronSendRoute: WalletTronSendRoute,
   WalletTxcConsolidateRoute: WalletTxcConsolidateRoute,
