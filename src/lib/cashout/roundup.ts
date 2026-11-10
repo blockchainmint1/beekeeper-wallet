@@ -163,18 +163,8 @@ export interface TransferProof {
   signature: string;
 }
 
-/** Exact text that gets signed. VectorPay must rebuild it byte-for-byte. */
-export function proofMessage(p: { reference: string; chain: string; asset: string; from: string; to: string; txids: string[] }) {
-  return [
-    "BeeKeeper cash-out proof",
-    `order: ${p.reference}`,
-    `chain: ${p.chain}`,
-    `asset: ${p.asset}`,
-    `from: ${p.from}`,
-    `to: ${p.to}`,
-    `txids: ${p.txids.join(",")}`,
-  ].join("\n");
-}
+import { proofMessage } from "./proof";
+export { proofMessage };
 
 /** EIP-191 personal_sign from the derived sending address. */
 export async function signEvmProof(

@@ -89,6 +89,26 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
       }
     }
 
+    // Proof of possession (audit M4): every transfer must carry a signature
+    // from its sending address over the exact proof text for THIS order and
+    // OUR deposit address. Without it the server would HMAC-sign anything.
+    const { checkCashoutProof } = await import("./cashout/proof");
+    for (const t of data.transfers) {
+      const problem = await checkCashoutProof({
+        reference: orderId,
+        chain: t.chain,
+        asset: t.asset,
+        to: cashoutDepositAddress(t.chain)!,
+        from: t.from,
+        txids: t.txids,
+        message: t.message,
+        signature: t.signature,
+      });
+      if (problem) {
+        return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: `The ${t.asset} on ${t.chain} proof didn't check out (${problem}). Nothing was sent.`, transfers: data.transfers };
+      }
+    }
+
     // Use the largest transfer as the order's headline asset/chain.
     const primary = [...data.transfers].sort((a, b) => b.usd - a.usd)[0];
     const chain = primary.chain;
