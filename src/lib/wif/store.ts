@@ -9,6 +9,7 @@ import { scopedKey } from "@/lib/profiles";
  */
 import type { BIP32Interface } from "bip32";
 import type { WifAddressKind, WifChain } from "./decode";
+import { deriveRootAesKey } from "@/lib/security/hkdf";
 
 export interface WifWalletEntry {
   id: string;
@@ -24,7 +25,15 @@ export interface WifWalletEntry {
   iv: string;
   /** last 4 hex chars of the wrapping key fingerprint, for sanity check on unwrap */
   fp: string;
+  /**
+   * Wrapping-key version. Missing/1 = legacy SHA-256(root key); 2 = HKDF with
+   * a WIF-only label (audit 2026-11-09 L6). Legacy entries are upgraded to 2
+   * the first time they decrypt successfully.
+   */
+  v?: 2;
 }
+
+const WIF_HKDF_LABEL = "beekeeper/wif-wrap/v2";
 
 const STORAGE_KEY_BASE = "hme.wif.v1";
 /** Namespaced per wallet profile (default profile keeps the original key). */
@@ -50,7 +59,14 @@ function toAB(u: Uint8Array): ArrayBuffer {
   return out;
 }
 
+/** Current wrapping key (v2, HKDF). */
 async function wrapKeyFromRoot(root: BIP32Interface): Promise<{ key: CryptoKey; fp: string }> {
+  if (!root.privateKey) throw new Error("Wallet must be unlocked to store WIF wallets.");
+  return deriveRootAesKey(root, WIF_HKDF_LABEL);
+}
+
+/** Legacy wrapping key (v1): bare SHA-256 of the root private key. Read-only. */
+async function legacyWrapKeyFromRoot(root: BIP32Interface): Promise<{ key: CryptoKey; fp: string }> {
   if (!root.privateKey) throw new Error("Wallet must be unlocked to store WIF wallets.");
   const material = await crypto.subtle.digest("SHA-256", toAB(root.privateKey));
   const key = await crypto.subtle.importKey(
@@ -133,13 +149,15 @@ export async function addWifWallet(
     ct: b64enc(ct),
     iv: b64enc(iv),
     fp,
+    v: 2,
   };
   persist([...list, entry]);
   return entry;
 }
 
 export async function revealWif(entry: WifWalletEntry, root: BIP32Interface): Promise<string> {
-  const { key, fp } = await wrapKeyFromRoot(root);
+  const isV2 = entry.v === 2;
+  const { key, fp } = isV2 ? await wrapKeyFromRoot(root) : await legacyWrapKeyFromRoot(root);
   if (entry.fp && entry.fp !== fp) {
     throw new Error("This imported key was saved with a different seed. Unlock that seed to use it.");
   }
@@ -148,7 +166,31 @@ export async function revealWif(entry: WifWalletEntry, root: BIP32Interface): Pr
     key,
     toAB(b64dec(entry.ct)),
   );
-  return new TextDecoder().decode(pt);
+  const wif = new TextDecoder().decode(pt);
+  if (!isV2) await upgradeEntry(entry, wif, root);
+  return wif;
+}
+
+/**
+ * Upgrade-only: re-wrap a legacy entry with the v2 key, but only after it
+ * decrypted successfully, and only if the stored entry is still the one we
+ * read (never clobbers a concurrent change). Failure leaves the legacy entry.
+ */
+async function upgradeEntry(entry: WifWalletEntry, wif: string, root: BIP32Interface): Promise<void> {
+  try {
+    const { key, fp } = await wrapKeyFromRoot(root);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(
+      await crypto.subtle.encrypt({ name: "AES-GCM", iv: toAB(iv) }, key, toAB(new TextEncoder().encode(wif))),
+    );
+    const list = listWifWallets();
+    const idx = list.findIndex((w) => w.id === entry.id && w.ct === entry.ct && w.v !== 2);
+    if (idx < 0) return;
+    list[idx] = { ...list[idx]!, ct: b64enc(ct), iv: b64enc(iv), fp, v: 2 };
+    persist(list);
+  } catch {
+    /* keep the legacy entry; it still decrypts */
+  }
 }
 
 /**
@@ -177,7 +219,7 @@ export async function reencryptAllWifs(
     const ct = new Uint8Array(
       await crypto.subtle.encrypt({ name: "AES-GCM", iv: toAB(iv) }, key, toAB(pt)),
     );
-    next.push({ ...entry, ct: b64enc(ct), iv: b64enc(iv), fp });
+    next.push({ ...entry, ct: b64enc(ct), iv: b64enc(iv), fp, v: 2 });
   }
   persist(next);
 }
