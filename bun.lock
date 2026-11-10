@@ -18,7 +18,6 @@
         "@capacitor/clipboard": "^8.0.1",
         "@capacitor/core": "^8.4.1",
         "@capacitor/haptics": "^8.0.2",
-        "@capacitor/ios": "^8.4.1",
         "@capacitor/keyboard": "^8.0.5",
         "@capacitor/network": "^8.0.1",
         "@capacitor/share": "^8.0.1",
