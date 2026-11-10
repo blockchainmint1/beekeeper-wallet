@@ -20,7 +20,6 @@
 - [x] Cash-out round-up: one-tap send of USDC/USDT (20 addresses, eth/base/bsc) + TSD, signed proofs to VectorPay
 - [x] Merge Merchant link + TSD settings into one Settings "Ecosystem link" section with a single paste/scan box and a Linked apps list
 - [x] VectorPay wallet linking: redeem one-time dashboard code (QR `beekeeper://link-vectorpay?code=…` or typed code) via signed call to /api/public/beekeeper/link; cash out now requires a linked VectorPay account first
-- [ ] Bonfire link format — slot into Ecosystem link box once VectorPay/Bonfire defines it
 - [x] Hide the "Already used the old BeeKeeper wallet?" migration card on the activation screen and the matching unlock-screen notice (SHOW_LEGACY_IMPORT = false in src/lib/legacy-beekeeper.ts; flip to true to restore both)
 
 ## Security audit 2026-11-09 (docs/security-audit-2026-11-09.md)

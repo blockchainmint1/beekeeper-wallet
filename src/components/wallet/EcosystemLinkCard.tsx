@@ -72,8 +72,8 @@ export function EcosystemLinkCard() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Link this wallet to apps in the honest.money ecosystem — NectarPay, TSD Swap, streamTXC,
-        Bonfire and more. Paste the link or scan the QR code the app shows you. Only public
+        Link this wallet to apps in the honest.money ecosystem — NectarPay, TSD Swap, streamTXC
+        and more. Paste the link or scan the QR code the app shows you. Only public
         (watch-only) keys or a sign-in signature are shared — your seed phrase and private keys
         never leave this device.
       </p>

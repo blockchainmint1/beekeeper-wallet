@@ -202,7 +202,7 @@ function SettingsPage() {
           value="ecosystem-link"
           icon={Link2}
           title="Ecosystem link"
-          description="NectarPay, TSD Swap, streamTXC, Bonfire and more."
+          description="NectarPay, TSD Swap, streamTXC and more."
         >
           <div className="space-y-6">
             <EcosystemLinkCard />

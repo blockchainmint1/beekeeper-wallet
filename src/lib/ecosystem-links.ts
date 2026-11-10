@@ -1,6 +1,6 @@
 /**
  * Ecosystem link registry — one list of every app this wallet has linked to
- * (NectarPay, TSD Swap, streamTXC, Bonfire, …).
+ * (NectarPay, TSD Swap, streamTXC, …).
  *
  * NectarPay and TSD keep their own storage (other code reads it, e.g. the
  * cash-out fee check); everything else lands in a generic per-device list.
