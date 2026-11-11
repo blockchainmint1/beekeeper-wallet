@@ -10,6 +10,7 @@ import { buildAndSignTx, DUST_SATS, type UtxoInput } from "@/lib/txc/wallet";
 import { filterReserved, reserveOutpoints } from "@/lib/txc/spent-outpoints";
 import { scriptKindOf, DERIVATION_PATHS, TXC_NETWORK, type DerivationKind } from "@/lib/txc/network";
 import { broadcastTx, getFeeEstimates, getOutspend } from "@/lib/txc/mempool";
+import { MEMPOOL_API } from "@/lib/txc/network";
 import { buildSimpleSendPayload, isOmniCompatibleAddress } from "@/lib/txc/tokens";
 
 const VBYTES = {
@@ -57,11 +58,18 @@ export async function sendOmniToken(opts: {
   to: string;
   fetchPerAddress: (addresses: string[], propertyIds: number[]) => Promise<PerAddressTokenBalances>;
   onProgress?: (msg: string) => void;
+  /** Cash-out reference + line: a retry re-uses a send that already went out. */
+  tag?: string;
 }): Promise<string> {
   const { root, kind, propertyId, amountUnits, onProgress } = opts;
   const to = opts.to.trim();
   if (!isOmniCompatibleAddress(to)) throw new Error("The cash-out address can't receive tokens.");
   if (amountUnits <= 0n) throw new Error("Nothing to send.");
+  if (opts.tag) {
+    onProgress?.("Checking for an earlier attempt…");
+    const prior = await findLiveTagged(opts.tag);
+    if (prior) return prior;
+  }
 
   onProgress?.("Checking coins…");
   const [account, fees] = await Promise.all([scanAccount(root, kind), getFeeEstimates().catch(() => null)]);
@@ -166,7 +174,59 @@ export async function sendOmniToken(opts: {
     feeSats,
     opReturnData: buildSimpleSendPayload(propertyId, amountUnits),
   });
+  if (opts.tag) rememberTagged(opts.tag, built.txid, built.hex);
   const txid = await broadcastTx(built.hex);
   reserveOutpoints(inputs.map((u) => ({ txid: u.txid, vout: u.vout })));
   return txid;
+}
+
+/* ------------------------------------------------------------------ */
+/* Retry safety (round-2 audit 2.2)                                    */
+/* ------------------------------------------------------------------ */
+
+const TAGGED_KEY = "beekeeper.omni-tagged.v1";
+type Tagged = Record<string, { txid: string; hex: string; at: number }>;
+
+function readTagged(): Tagged {
+  try {
+    const s = JSON.parse(localStorage.getItem(TAGGED_KEY) ?? "{}") as Tagged;
+    const now = Date.now();
+    for (const k of Object.keys(s)) if (now - s[k]!.at > 7 * 24 * 60 * 60_000) delete s[k];
+    return s;
+  } catch {
+    return {};
+  }
+}
+
+function rememberTagged(tag: string, txid: string, hex: string) {
+  try {
+    const s = readTagged();
+    s[tag] = { txid, hex, at: Date.now() };
+    localStorage.setItem(TAGGED_KEY, JSON.stringify(s));
+  } catch {
+    /* noop */
+  }
+}
+
+/**
+ * The TSD send saved under this tag, if the network has it or still takes it
+ * — so "Try again" after a broadcast that only looked failed re-uses it
+ * instead of sending the TSD twice. Null means a fresh send is safe.
+ */
+async function findLiveTagged(tag: string): Promise<string | null> {
+  const entry = readTagged()[tag];
+  if (!entry) return null;
+  const res = await fetch(`${MEMPOOL_API}/tx/${entry.txid}`, { headers: { accept: "application/json" } }).catch(() => null);
+  if (res?.ok) return entry.txid;
+  if (!res || (res.status !== 404 && res.status !== 400)) {
+    throw new Error("Couldn't check the network for the earlier TSD send — try again in a moment.");
+  }
+  try {
+    await broadcastTx(entry.hex);
+    return entry.txid;
+  } catch (cause) {
+    const msg = String((cause as Error)?.message ?? cause).toLowerCase();
+    if (msg.includes("already") || msg.includes("txn-already")) return entry.txid;
+    return null; // inputs spent elsewhere / rejected — it can never confirm
+  }
 }

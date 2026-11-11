@@ -84,3 +84,84 @@ export function jsonError(status: number, error: string): Response {
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 }
+
+/** Largest upstream response the pass-throughs will read (round-2 audit 2.4). */
+export const MAX_UPSTREAM_BYTES = 256 * 1024;
+
+/**
+ * Fetch a partner URL and hand back ONLY JSON (round-2 audit 2.4):
+ *  - redirects are refused outright, never followed;
+ *  - the upstream body is read up to MAX_UPSTREAM_BYTES;
+ *  - it must parse as JSON and is re-serialised, always served as
+ *    application/json — partner HTML can never run on beekeeper.money.
+ */
+export async function relayJson(target: URL, init: RequestInit): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(target.toString(), { ...init, redirect: "manual", signal: AbortSignal.timeout(15_000) });
+  } catch {
+    return jsonError(502, "upstream_unreachable");
+  }
+  if ((res.status >= 300 && res.status < 400) || res.type === "opaqueredirect") {
+    return jsonError(502, "upstream_redirect");
+  }
+  const text = await readCapped(res, MAX_UPSTREAM_BYTES);
+  if (text === null) return jsonError(502, "upstream_too_large");
+  let parsed: unknown;
+  try {
+    parsed = text.trim() === "" ? {} : JSON.parse(text);
+  } catch {
+    return jsonError(502, "upstream_not_json");
+  }
+  return new Response(JSON.stringify(parsed), {
+    status: res.status >= 200 && res.status < 600 ? res.status : 502,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+async function readCapped(res: Response, max: number): Promise<string | null> {
+  const declared = Number(res.headers.get("content-length") ?? "0");
+  if (declared > max) return null;
+  if (!res.body) return "";
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size);
+  let off = 0;
+  for (const c of chunks) {
+    all.set(c, off);
+    off += c.byteLength;
+  }
+  return new TextDecoder().decode(all);
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const NECTAR_LINK_PATH = /^\/api\/public\/v1\/wallet-link(\/status)?$/;
+
+/**
+ * The only shapes /api/nectar/link forwards (round-2 audit 2.4): the
+ * NectarPay store-link manifest (`/api/public/v1/wallet-link?token=…`) and a
+ * website sign-in callback, which always carries `id=<uuid>` (the same check
+ * src/lib/nectar/auth.ts does before signing). Anything else is refused.
+ */
+export function isLinkProxyShape(url: URL): boolean {
+  if (NECTAR_LINK_PATH.test(url.pathname)) {
+    const token = url.searchParams.get("token");
+    return url.pathname.endsWith("/status") || (!!token && /^[A-Za-z0-9._~-]{8,512}$/.test(token));
+  }
+  return UUID_RE.test(url.searchParams.get("id") ?? "");
+}

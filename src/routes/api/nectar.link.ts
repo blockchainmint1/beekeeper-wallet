@@ -11,6 +11,8 @@
  *
  * Guards (audit 2026-11-09 M4): trusted host + no path tricks, per-IP rate
  * limit, POSTs must come from our own app, bodies capped at 32 KB.
+ * Round 2: only the documented link/sign-in URL shapes, redirects refused,
+ * upstream replies capped and always re-served as JSON.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { TRUSTED_LOGIN_HOSTS } from "@/lib/web-login-hosts";
@@ -19,7 +21,9 @@ import {
   isAllowedCaller,
   jsonError,
   makeRateLimiter,
+  relayJson,
   safePartnerUrl,
+  isLinkProxyShape,
 } from "@/lib/security/proxy-guard";
 
 const limited = makeRateLimiter(60);
@@ -27,18 +31,8 @@ const limited = makeRateLimiter(60);
 async function forward(request: Request, init: RequestInit): Promise<Response> {
   if (limited(request)) return jsonError(429, "rate_limited");
   const target = safePartnerUrl(new URL(request.url).searchParams.get("url"), TRUSTED_LOGIN_HOSTS);
-  if (!target) return jsonError(400, "untrusted_url");
-  const res = await fetch(target.toString(), init);
-  // A redirect must not carry the request off the trusted hosts.
-  if (res.url && !TRUSTED_LOGIN_HOSTS.has(new URL(res.url).hostname)) return jsonError(502, "untrusted_redirect");
-  const body = await res.text();
-  return new Response(body, {
-    status: res.status,
-    headers: {
-      "Content-Type": res.headers.get("content-type") ?? "application/json",
-      "Cache-Control": "no-store",
-    },
-  });
+  if (!target || !isLinkProxyShape(target)) return jsonError(400, "untrusted_url");
+  return relayJson(target, init);
 }
 
 export const Route = createFileRoute("/api/nectar/link")({

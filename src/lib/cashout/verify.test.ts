@@ -54,3 +54,16 @@ describe("cash-out amounts come from the blockchain, not the wallet", () => {
     expect(decodeErc20TransferInput("0x095ea7b3" + "0".repeat(128))).toBeNull();
   });
 });
+
+describe("only confirmed transfers count (round-2 audit 2.1)", () => {
+  it("a transfer that hasn't been mined yet isn't counted until it confirms", () => {
+    const tx = { from: FROM, to: USDC_BASE, input: transferInput(DEPOSIT, 10_000_000n) };
+    expect(checkEvmTransferTx(tx, null, { from: FROM, to: DEPOSIT, token: USDC_BASE })).toEqual({ ok: false, reason: "pending" });
+  });
+
+  it("a look-alike token sent to the deposit address counts for nothing", () => {
+    const FAKE = "0x4444444444444444444444444444444444444444";
+    const tx = { from: FROM, to: FAKE, input: transferInput(DEPOSIT, 1_000_000_000n) };
+    expect(checkEvmTransferTx(tx, "0x1", { from: FROM, to: DEPOSIT, token: USDC_BASE })).toEqual({ ok: false, reason: "not a transfer of this coin" });
+  });
+});

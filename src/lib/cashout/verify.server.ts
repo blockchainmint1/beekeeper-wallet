@@ -80,7 +80,10 @@ export interface SettleLine {
 }
 
 /** Real dollar amount for one line, or a reason it can't be confirmed. */
-export async function settleLine(line: SettleLine, seen: Set<string>): Promise<{ usd: number } | { error: string }> {
+export async function settleLine(
+  line: SettleLine,
+  seen: Set<string>,
+): Promise<{ usd: number } | { error: string; retryable?: boolean }> {
   if (!line.from) return { error: "missing sender" };
   const txids = (line.txids ?? []).map((t) => t.toLowerCase().replace(/^0x/, ""));
 
@@ -105,16 +108,13 @@ export async function settleLine(line: SettleLine, seen: Set<string>): Promise<{
       } catch {
         result = { ok: false, reason: "not found" };
       }
-      if (result.ok || result.reason !== "not found") break;
+      if (result.ok || (result.reason !== "not found" && result.reason !== "pending")) break;
       await sleep(2000);
     }
     if (!result.ok) {
-      return {
-        error:
-          result.reason === "not found"
-            ? "the send isn't visible on the blockchain yet — try again in a minute"
-            : `the send was ${result.reason}`,
-      };
+      if (result.reason === "not found") return { error: "the send isn't visible on the blockchain yet — try again in a minute", retryable: true };
+      if (result.reason === "pending") return { error: "the send is still confirming — try again in a minute", retryable: true };
+      return { error: `the send was ${result.reason}` };
     }
     const decimals = line.chain === "txc" ? 8 : tokenFor(line.chain, line.asset)!.decimals;
     total += unitsToUsd(result.raw, decimals);

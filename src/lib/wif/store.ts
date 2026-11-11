@@ -33,7 +33,8 @@ export interface WifWalletEntry {
   v?: 2;
 }
 
-const WIF_HKDF_LABEL = "beekeeper/wif-wrap/v2";
+/** Part of the stored data format — never change (store.test.ts pins it). */
+export const WIF_HKDF_LABEL = "beekeeper/wif-wrap/v2";
 
 const STORAGE_KEY_BASE = "hme.wif.v1";
 /** Namespaced per wallet profile (default profile keeps the original key). */
@@ -155,19 +156,32 @@ export async function addWifWallet(
   return entry;
 }
 
+async function tryUnwrap(entry: WifWalletEntry, k: { key: CryptoKey; fp: string }): Promise<string | null> {
+  if (entry.fp && entry.fp !== k.fp) return null;
+  try {
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: toAB(b64dec(entry.iv)) }, k.key, toAB(b64dec(entry.ct)));
+    return new TextDecoder().decode(pt);
+  } catch {
+    return null;
+  }
+}
+
 export async function revealWif(entry: WifWalletEntry, root: BIP32Interface): Promise<string> {
   const isV2 = entry.v === 2;
-  const { key, fp } = isV2 ? await wrapKeyFromRoot(root) : await legacyWrapKeyFromRoot(root);
-  if (entry.fp && entry.fp !== fp) {
+  // Each version is checked with its OWN fingerprint (round-2 audit 2.3).
+  const first = isV2 ? await wrapKeyFromRoot(root) : await legacyWrapKeyFromRoot(root);
+  let wif = await tryUnwrap(entry, first);
+  let wasLegacy = !isV2;
+  if (wif === null && isV2) {
+    // An entry tagged v2 that is really v1 (e.g. a half-finished write):
+    // try the legacy key once before giving up.
+    wif = await tryUnwrap(entry, await legacyWrapKeyFromRoot(root));
+    wasLegacy = wif !== null;
+  }
+  if (wif === null) {
     throw new Error("This imported key was saved with a different seed. Unlock that seed to use it.");
   }
-  const pt = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: toAB(b64dec(entry.iv)) },
-    key,
-    toAB(b64dec(entry.ct)),
-  );
-  const wif = new TextDecoder().decode(pt);
-  if (!isV2) await upgradeEntry(entry, wif, root);
+  if (wasLegacy) await upgradeEntry(entry, wif, root);
   return wif;
 }
 
@@ -184,7 +198,8 @@ async function upgradeEntry(entry: WifWalletEntry, wif: string, root: BIP32Inter
       await crypto.subtle.encrypt({ name: "AES-GCM", iv: toAB(iv) }, key, toAB(new TextEncoder().encode(wif))),
     );
     const list = listWifWallets();
-    const idx = list.findIndex((w) => w.id === entry.id && w.ct === entry.ct && w.v !== 2);
+    // Compare-and-swap on the whole stored entry, re-read right before writing.
+    const idx = list.findIndex((w) => JSON.stringify(w) === JSON.stringify(entry));
     if (idx < 0) return;
     list[idx] = { ...list[idx]!, ct: b64enc(ct), iv: b64enc(iv), fp, v: 2 };
     persist(list);

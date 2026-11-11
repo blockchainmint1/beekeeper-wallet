@@ -46,6 +46,20 @@
 - [x] Deep scan: cash-out amounts now settled from the blockchain on the server (balance cap before sending, exact tx amount after)
 - [ ] Deep scan: 0% merchant fee is still wallet-claimed — waiting on VectorPay to confirm merchants with NectarPay (note sent: vectorpay-merchant-fee-note.md)
 
+## Security audit round 2 interim (2026-11-11, docs/security-audit-round2-response-2026-11-11.md)
+- [x] Partner pass-throughs: JSON-only replies, no redirects, 256 KB cap, NectarPay/streamTXC URL shapes pinned
+- [x] Cash-out counts only mined, successful EVM transfers; wallet waits and retries while they confirm
+- [x] Cash-out txids saved per wallet the moment each send returns; reload resumes the same order
+- [x] "Try again" re-uses a send that already went out (EVM, gas top-up, TSD)
+- [x] VectorPay link stored per wallet
+- [x] WIF v2: mislabeled-entry fallback, whole-entry compare-and-swap, key recipe pinned by test
+- [x] app_releases read-only rule written into a migration
+- [x] New audit ZIP + reply for the auditor; bundled VectorPay request (vectorpay-requests_v2.md)
+- [ ] Proof message v2 (payee binding), VectorPay-computed fee, webhook timestamp — waiting on VectorPay
+- [ ] One-tap: show deposit addresses / re-confirm password above a threshold — not started
+- [ ] Edge rate limits on /api/nectar/* and /api/tsd/* — hosting setting
+- [ ] Frozen Android installs: mobile.honest.money owner to keep it up + mandatory "move" release — outside this project
+
 ## Dropped — TSD Swap API key and off-ramp removed (2026-11-10)
 BeeKeeper no longer stores a TSD Swap API key and the Send screen no longer offers the TSD → USDC off-ramp. TSD leaves the wallet only through the VectorPay cash-out roundup. The TSD Swap account link (watch-only keys) stays in Ecosystem link.
 

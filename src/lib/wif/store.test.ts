@@ -70,4 +70,22 @@ describe("imported key (WIF) wrapping", () => {
     await expect(revealWif(legacy!, rootB)).rejects.toThrow(/different seed/);
     expect(mem.get("hme.wif.v1")).toBe(before);
   });
+
+  it("opens a key mislabeled v2 that was really saved the old way", async () => {
+    await writeLegacyEntry(rootA);
+    const [legacy] = listWifWallets();
+    const mislabeled = { ...legacy!, v: 2 as const };
+    mem.set("hme.wif.v1", JSON.stringify([mislabeled]));
+    expect(await revealWif(mislabeled, rootA)).toBe(WIF);
+  });
+
+  it("keeps the v2 key recipe frozen (label + salt are part of the saved data)", async () => {
+    const { deriveRootAesKey } = await import("@/lib/security/hkdf");
+    const { WIF_HKDF_LABEL } = await import("./store");
+    expect(WIF_HKDF_LABEL).toBe("beekeeper/wif-wrap/v2");
+    const { key, fp } = await deriveRootAesKey(rootA, WIF_HKDF_LABEL);
+    expect(fp).toBe("9437");
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: new Uint8Array(12) }, key, new TextEncoder().encode("pin")));
+    expect(btoa(String.fromCharCode(...ct))).toBe("Lm3eKCbJuXpNPayYzAAVcy93zg==");
+  });
 });

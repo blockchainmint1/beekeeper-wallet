@@ -56,7 +56,7 @@ import {
   isOmniCompatibleAddress,
 } from "@/lib/txc/tokens";
 import { useTxcTokenProps } from "@/lib/txc/token-props";
-import { CASHOUT_SESSION_KEY } from "@/components/wallet/CashoutActions";
+import { recordCashoutLine } from "@/lib/cashout/session";
 
 
 import {
@@ -610,16 +610,7 @@ function SendPage() {
       // Part of a VectorPay cash-out: mark that row sent so the cash-out
       // screen picks up where it left off when we return.
       if (search.cashout) {
-        try {
-          const raw = sessionStorage.getItem(CASHOUT_SESSION_KEY);
-          if (raw) {
-            const session = JSON.parse(raw);
-            session.status = { ...(session.status ?? {}), [search.cashout]: { state: "sent", txid } };
-            sessionStorage.setItem(CASHOUT_SESSION_KEY, JSON.stringify(session));
-          }
-        } catch {
-          /* noop */
-        }
+        recordCashoutLine(search.cashout, { state: "sent", txid });
       }
       hapticSuccess();
       void qc.invalidateQueries({ queryKey: ["account"] });

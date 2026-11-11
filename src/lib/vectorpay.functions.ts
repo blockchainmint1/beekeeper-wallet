@@ -124,7 +124,7 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
         seenTxids,
       );
       if ("error" in result) {
-        return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: `Couldn't confirm the ${t.asset} on ${t.chain}: ${result.error}.`, transfers: data.transfers };
+        return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, retryable: !!result.retryable, detail: `Couldn't confirm the ${t.asset} on ${t.chain}: ${result.error}.`, transfers: data.transfers };
       }
       if (result.usd <= 0) continue;
       settled.push({ ...t, usd: result.usd, amount: result.usd.toFixed(2) });

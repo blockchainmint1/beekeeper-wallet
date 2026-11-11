@@ -48,6 +48,34 @@ export function planOneTap(rows: OneTapCandidate[], maxUsd: number): OneTapPlan 
   return { keys, amounts, total: Math.round(total * 100) / 100 };
 }
 
+/** Shape appliedAmount needs (a cash-out row, TSD or EVM token). */
+export interface PartialRow {
+  key: string;
+  usd: number;
+  coinAmount: number;
+  evm?: { raw: bigint; token: { decimals: number } };
+}
+
+/**
+ * A row with its manually lowered / one-tap-cut amount applied, or unchanged
+ * when the typed amount is blank or not below the full balance. Used for
+ * both TSD and EVM lines, so a cut TSD line sends only the cut amount.
+ */
+export function appliedAmount<T extends PartialRow>(row: T, amounts: Record<string, string>): T {
+  const txt = amounts[row.key];
+  if (!txt) return row;
+  const v = Number(txt);
+  if (!Number.isFinite(v) || v <= 0 || v >= row.usd) return row;
+  if (row.evm) {
+    const raw = BigInt(Math.round(v * 10 ** row.evm.token.decimals));
+    if (raw <= 0n || raw >= row.evm.raw) return row;
+    const coin = Number(raw) / 10 ** row.evm.token.decimals;
+    return { ...row, usd: coin, coinAmount: coin };
+  }
+  const coin = Math.min(Math.round((v / row.usd) * row.coinAmount * 1e8) / 1e8, row.coinAmount);
+  return { ...row, usd: coin, coinAmount: coin };
+}
+
 /* ------------------------------------------------------------------ */
 /* "I agree to the cash-out terms" — asked once per wallet             */
 /* ------------------------------------------------------------------ */

@@ -53,7 +53,20 @@ function writeReserved(chain: EvmChainId, address: string, nonce: number) {
 }
 
 /** Signed raw txs we may need to re-broadcast (public data only). */
-type RawStore = Record<string, { chain: EvmChainId; raw: Hex; nonce: number; from: string; at: number }>;
+type RawStore = Record<
+  string,
+  {
+    chain: EvmChainId;
+    raw: Hex;
+    nonce: number;
+    from: string;
+    at: number;
+    /** Caller's label for this send (e.g. cash-out reference + line) so a retry can find it. */
+    tag?: string;
+    /** false until the node accepted it at least once. */
+    broadcast?: boolean;
+  }
+>;
 
 function readRaw(): RawStore {
   try {
@@ -107,6 +120,8 @@ export async function sendEvmTransaction(
   chainId: EvmChainId,
   walletClient: WalletClient,
   tx: EvmTxRequest,
+  /** Optional label; see findLiveEvmTx. */
+  tag?: string,
 ): Promise<`0x${string}`> {
   const pub = evmClient(chainId);
   const account = walletClient.account;
@@ -139,18 +154,27 @@ export async function sendEvmTransaction(
       const raw = await walletClient.signTransaction(
         request as Parameters<WalletClient["signTransaction"]>[0],
       );
-      let hash: Hex;
+      // Keep the signed tx BEFORE broadcasting (round-2 audit 2.2): if the
+      // broadcast call errors after the node actually took it, a retry finds
+      // this exact tx instead of signing a second transfer.
+      const { keccak256 } = await import("viem");
+      const hash: Hex = keccak256(raw);
+      {
+        const s = readRaw();
+        s[hash.toLowerCase()] = { chain: chainId, raw, nonce, from: address, at: Date.now(), tag, broadcast: false };
+        writeRaw(s);
+      }
       try {
-        hash = await pub.sendRawTransaction({ serializedTransaction: raw });
+        await pub.sendRawTransaction({ serializedTransaction: raw });
       } catch (e) {
         if (!isAlreadyKnown(msgOf(e))) throw e;
-        const { keccak256 } = await import("viem");
-        hash = keccak256(raw);
       }
       if (chainId === "zcu") writeReserved(chainId, address, nonce);
-      const s = readRaw();
-      s[hash.toLowerCase()] = { chain: chainId, raw, nonce, from: address, at: Date.now() };
-      writeRaw(s);
+      {
+        const s = readRaw();
+        if (s[hash.toLowerCase()]) s[hash.toLowerCase()]!.broadcast = true;
+        writeRaw(s);
+      }
       // Make sure the node really kept it; re-push once if not.
       await new Promise((r) => setTimeout(r, 2500));
       const seen = await pub.getTransaction({ hash }).catch(() => null);
@@ -193,4 +217,39 @@ export async function checkPendingEvmTx(
   if (mined > entry.nonce) return "dropped";
   await pub.sendRawTransaction({ serializedTransaction: entry.raw }).catch(() => undefined);
   return "pending";
+}
+
+/**
+ * A send with this tag that is already on the network (pending or mined
+ * successfully), or one we can still push — returns its hash so the caller
+ * re-uses it instead of signing a second transfer. Returns null when no such
+ * tx exists or it can never confirm (nonce taken by another tx, or reverted).
+ */
+export async function findLiveEvmTx(chainId: EvmChainId, from: string, tag: string): Promise<`0x${string}` | null> {
+  const entries = Object.entries(readRaw())
+    .filter(([, e]) => e.chain === chainId && e.tag === tag && e.from.toLowerCase() === from.toLowerCase())
+    .sort((a, b) => b[1].at - a[1].at);
+  if (entries.length === 0) return null;
+  const pub = evmClient(chainId);
+  for (const [hash, entry] of entries) {
+    const h = hash as Hex;
+    const receipt = await pub.getTransactionReceipt({ hash: h }).catch(() => null);
+    if (receipt) {
+      if (receipt.status === "success") return h;
+      continue; // reverted — nothing moved, a fresh send is fine
+    }
+    const seen = await pub.getTransaction({ hash: h }).catch(() => null);
+    if (seen) return h;
+    const mined = await pub.getTransactionCount({ address: entry.from as Address, blockTag: "latest" }).catch(() => -1);
+    if (mined < 0) throw new Error("Couldn't check the network for an earlier attempt — try again in a moment.");
+    if (mined > entry.nonce) continue; // its nonce slot went to another tx: it can never confirm
+    try {
+      await pub.sendRawTransaction({ serializedTransaction: entry.raw });
+      return h;
+    } catch (e) {
+      if (isAlreadyKnown(msgOf(e))) return h;
+      /* node refuses it (e.g. not enough gas) — safe to sign a new one */
+    }
+  }
+  return null;
 }

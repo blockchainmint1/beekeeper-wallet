@@ -8,7 +8,8 @@
  * Only GET and POST are supported, matching the spec. The `?t=<nonce>` query
  * is forwarded. Guards (audit 2026-11-09 M4): invoice ids are restricted to a
  * safe character set, per-IP rate limit, POSTs must come from our own app,
- * bodies capped at 32 KB.
+ * bodies capped at 32 KB. Round 2: redirects refused, upstream replies
+ * capped and always re-served as JSON.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -16,9 +17,11 @@ import {
   isAllowedCaller,
   jsonError,
   makeRateLimiter,
+  relayJson,
 } from "@/lib/security/proxy-guard";
 
-const UPSTREAM = "https://nectar-pay.com";
+// nectar-pay.com 308-redirects here; we refuse redirects, so call it directly.
+const UPSTREAM = "https://app.nectar-pay.com";
 const INVOICE_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const limited = makeRateLimiter(60);
 
@@ -31,15 +34,7 @@ async function forward(req: Request, invoiceId: string, init: RequestInit): Prom
   if (limited(req)) return jsonError(429, "rate_limited");
   if (!INVOICE_ID.test(invoiceId)) return jsonError(400, "bad_invoice_id");
   const url = new URL(req.url);
-  const res = await fetch(buildUpstreamUrl(invoiceId, url.search), init);
-  const body = await res.text();
-  return new Response(body, {
-    status: res.status,
-    headers: {
-      "Content-Type": res.headers.get("content-type") ?? "application/json",
-      "Cache-Control": "no-store",
-    },
-  });
+  return relayJson(new URL(buildUpstreamUrl(invoiceId, url.search)), init);
 }
 
 export const Route = createFileRoute("/api/nectar/pay/$invoiceId")({

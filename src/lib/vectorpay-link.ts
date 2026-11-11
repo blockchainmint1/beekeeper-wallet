@@ -8,8 +8,11 @@
  * every cash-out order carrying this wallet's private customer ID belongs to
  * that VectorPay account — no identity step in the wallet.
  *
- * This module must stay dependency-free: it is imported by client bundles.
+ * The link record is stored per wallet (scopedKey) — each vault has its own
+ * VectorPay customer ID, so one vault's bank must never show under another
+ * (round-2 audit 2.5). The default vault keeps the original key name.
  */
+import { scopedKey } from "@/lib/profiles";
 
 const KEY = "beekeeper.vectorpay.link.v1";
 
@@ -65,7 +68,7 @@ export function parseVectorPayLinkInput(raw: string): string | null {
 export function getVectorPayLink(): VectorPayLink | null {
   if (typeof localStorage === "undefined") return null;
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? "null");
+    const v = JSON.parse(localStorage.getItem(scopedKey(KEY)) ?? "null");
     return v && typeof v.linkedAt === "string" ? (v as VectorPayLink) : null;
   } catch {
     return null;
@@ -73,11 +76,11 @@ export function getVectorPayLink(): VectorPayLink | null {
 }
 
 export function setVectorPayLink(link: Omit<VectorPayLink, "linkedAt">) {
-  localStorage.setItem(KEY, JSON.stringify({ ...link, linkedAt: new Date().toISOString() }));
+  localStorage.setItem(scopedKey(KEY), JSON.stringify({ ...link, linkedAt: new Date().toISOString() }));
 }
 
 export function clearVectorPayLink() {
-  localStorage.removeItem(KEY);
+  localStorage.removeItem(scopedKey(KEY));
 }
 
 /** Deep-link handoff: the app was opened via beekeeper://link-vectorpay. */

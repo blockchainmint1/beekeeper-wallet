@@ -10,6 +10,7 @@
  *
  * Guards (audit 2026-11-09 M4): trusted host, only the documented link
  * paths, per-IP rate limit, POSTs must come from our own app, 32 KB bodies.
+ * Round 2: redirects refused, upstream replies capped, always served as JSON.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { isTsdLinkPath } from "@/lib/rewards/tsd-link-path";
@@ -18,6 +19,7 @@ import {
   isAllowedCaller,
   jsonError,
   makeRateLimiter,
+  relayJson,
   safePartnerUrl,
 } from "@/lib/security/proxy-guard";
 
@@ -28,17 +30,7 @@ async function forward(request: Request, init: RequestInit): Promise<Response> {
   if (limited(request)) return jsonError(429, "rate_limited");
   const target = safePartnerUrl(new URL(request.url).searchParams.get("url"), TRUSTED_HOSTS);
   if (!target || !isTsdLinkPath(target.pathname)) return jsonError(400, "untrusted_url");
-  const res = await fetch(target.toString(), init);
-  // A redirect must not carry the request off the trusted hosts.
-  if (res.url && !TRUSTED_HOSTS.has(new URL(res.url).hostname)) return jsonError(502, "untrusted_redirect");
-  const body = await res.text();
-  return new Response(body, {
-    status: res.status,
-    headers: {
-      "Content-Type": res.headers.get("content-type") ?? "application/json",
-      "Cache-Control": "no-store",
-    },
-  });
+  return relayJson(target, init);
 }
 
 export const Route = createFileRoute("/api/tsd/link")({

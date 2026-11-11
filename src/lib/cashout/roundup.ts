@@ -13,7 +13,7 @@ import { deriveEvmAccountAt, deriveEvmAddresses, evmClient, EVM_CHAINS, type Sta
 import { scanEvmAddresses } from "@/lib/chains/evm-scan";
 import { encodeTransfer, USDC_BY_CHAIN, USDT_BY_CHAIN, type Erc20TokenMeta } from "@/lib/chains/erc20";
 import { effectiveGasPrice } from "@/lib/chains/evm-sweep";
-import { sendEvmTransaction } from "@/lib/chains/evm-send";
+import { findLiveEvmTx, sendEvmTransaction } from "@/lib/chains/evm-send";
 import { signMessageWithKey } from "@/lib/txc/message-sign";
 import { DERIVATION_PATHS as TXC_PATHS } from "@/lib/txc/network";
 import { deriveAddress } from "@/lib/txc/wallet";
@@ -120,17 +120,22 @@ function walletFor(chain: StableEvmChainId, index: number, root: BIP32Interface)
 }
 
 /** Make sure `index` can pay for `count` token sends; funds it from #0 if needed. */
-export async function ensureGas(root: BIP32Interface, chain: StableEvmChainId, index: number, count: number) {
+export async function ensureGas(root: BIP32Interface, chain: StableEvmChainId, index: number, count: number, tag?: string) {
   if (index === 0) return;
   const pub = evmClient(chain);
   const { account } = walletFor(chain, index, root);
+  const main = walletFor(chain, 0, root);
+  // A retry after a top-up that already went out: wait for that one instead.
+  if (tag) {
+    const prior = await findLiveEvmTx(chain, main.account.address, `${tag}:gas`);
+    if (prior) await pub.waitForTransactionReceipt({ hash: prior, timeout: 180_000 });
+  }
   const perGas = await effectiveGasPrice(chain);
   const need = perGas * TOKEN_GAS * BigInt(count);
   const have = await pub.getBalance({ address: account.address });
   if (have >= need) return;
   const top = ((need - have) * 3n) / 2n;
-  const main = walletFor(chain, 0, root);
-  const hash = await sendEvmTransaction(chain, main.client, { to: account.address, value: top });
+  const hash = await sendEvmTransaction(chain, main.client, { to: account.address, value: top }, tag ? `${tag}:gas` : undefined);
   await pub.waitForTransactionReceipt({ hash, timeout: 180_000 });
 }
 
@@ -141,10 +146,20 @@ export async function sendCashRow(
   to: Address,
   /** Partial cash-out: send less than the full scanned balance. */
   rawOverride?: bigint,
+  /**
+   * Cash-out reference + line. A retry with the same tag re-uses a transfer
+   * that already went out instead of signing a second one (round-2 audit
+   * 2.2: a partial line must never move twice).
+   */
+  tag?: string,
 ): Promise<`0x${string}`> {
-  const { client } = walletFor(row.chain, row.index, root);
+  const { client, account } = walletFor(row.chain, row.index, root);
+  if (tag) {
+    const prior = await findLiveEvmTx(row.chain, account.address, tag);
+    if (prior) return prior;
+  }
   const raw = rawOverride !== undefined && rawOverride > 0n && rawOverride < row.raw ? rawOverride : row.raw;
-  return sendEvmTransaction(row.chain, client, { to: row.token.address, data: encodeTransfer(to, raw), value: 0n });
+  return sendEvmTransaction(row.chain, client, { to: row.token.address, data: encodeTransfer(to, raw), value: 0n }, tag);
 }
 
 /* ------------------------------------------------------------------ */

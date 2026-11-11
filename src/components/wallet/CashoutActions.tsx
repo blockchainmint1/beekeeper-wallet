@@ -77,7 +77,8 @@ import {
   type VectorPayLink,
 } from "@/lib/vectorpay-link";
 import { redeemVectorPayLink, vectorPayLinkStatus } from "@/lib/vectorpay-link.functions";
-import { hasAcceptedCashoutTerms, planOneTap, rememberCashoutTerms } from "@/lib/cashout/one-tap";
+import { appliedAmount, hasAcceptedCashoutTerms, planOneTap, rememberCashoutTerms } from "@/lib/cashout/one-tap";
+import { clearCashoutSession, readCashoutSession, recordCashoutLine, writeCashoutSession } from "@/lib/cashout/session";
 
 const ALL_TERM_IDS = CASHOUT_DISCLOSURES.map((d) => d.id) as string[];
 
@@ -99,11 +100,37 @@ interface Holding {
   blocked?: string;
 }
 
-type RowStatus = { state: "sending" | "sent" | "failed" | "skipped"; txid?: string; error?: string };
+/** What was sent on one line — saved so a reload can still confirm the order. */
+interface SentLine {
+  key: string;
+  chain: CashoutChain;
+  asset: CashoutAsset;
+  label: string;
+  sub: string;
+  coinAmount: number;
+  usd: number;
+  propertyId?: number;
+  evm?: Pick<EvmCashRow, "key" | "chain" | "index" | "address" | "asset" | "token" | "amount">;
+}
+type RowStatus = { state: "sending" | "sent" | "failed" | "skipped"; txid?: string; error?: string; line?: SentLine };
 
-/** Survives the trip to the TSD send screen and back. */
-export const CASHOUT_SESSION_KEY = "beekeeper.cashout.session.v1";
-const SESSION_KEY = CASHOUT_SESSION_KEY;
+function toSentLine(row: Holding): SentLine {
+  const { key, chain, asset, label, sub, coinAmount, usd, propertyId, evm } = row;
+  return {
+    key, chain, asset, label, sub, coinAmount, usd, propertyId,
+    evm: evm ? { key: evm.key, chain: evm.chain, index: evm.index, address: evm.address, asset: evm.asset, token: evm.token, amount: evm.amount } : undefined,
+  };
+}
+
+/** Rebuild a row from what was saved at send time (balances may have changed since). */
+function fromSentLine(line: SentLine): Holding {
+  return {
+    ...line,
+    evm: line.evm ? { ...line.evm, raw: 0n, nativeWei: 0n, gasWei: 0n, gas: "ready" } as EvmCashRow : undefined,
+  };
+}
+
+/** Saved per wallet so txids survive a reload (src/lib/cashout/session.ts). */
 interface CashoutSession {
   reference: string;
   step: Step;
@@ -123,22 +150,6 @@ function newReference() {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
   const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
   return `BK-${Date.now().toString(36).toUpperCase()}-${suffix}`;
-}
-
-/** Row with a manually lowered cash-out amount, or unchanged when blank/full. */
-function appliedAmount(row: Holding, amounts: Record<string, string>): Holding {
-  const txt = amounts[row.key];
-  if (!txt) return row;
-  const v = Number(txt);
-  if (!Number.isFinite(v) || v <= 0 || v >= row.usd) return row;
-  if (row.evm) {
-    const raw = BigInt(Math.round(v * 10 ** row.evm.token.decimals));
-    if (raw <= 0n || raw >= row.evm.raw) return row;
-    const coin = Number(raw) / 10 ** row.evm.token.decimals;
-    return { ...row, usd: coin, coinAmount: coin };
-  }
-  const coin = Math.min(Math.round((v / row.usd) * row.coinAmount * 1e8) / 1e8, row.coinAmount);
-  return { ...row, usd: coin, coinAmount: coin };
 }
 
 /** Raw token amount for a partial cash-out row (undefined = send the full balance). */
@@ -216,18 +227,26 @@ export function CashoutActions({
   // Restore an in-progress cash-out (e.g. after sending TSD on its own screen).
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      if (!raw) {
+      const saved = readCashoutSession<CashoutSession>();
+      const anySent = !!saved && Object.values(saved.status ?? {}).some((st) => st?.state === "sent");
+      if (!saved || !saved.reference || !anySent) {
+        // Nothing left in flight — start fresh.
+        if (saved) clearCashoutSession();
         setReference(newReference());
         return;
       }
-      const saved = JSON.parse(raw) as CashoutSession;
       setReference(saved.reference);
       setStep((saved.step as string) === "details" ? "review" : saved.step);
       setAccepted(saved.accepted);
       setSelected(saved.selected);
       setAmounts(saved.amounts ?? {});
-      setStatus(saved.status);
+      // A send that was mid-flight when the page closed: show it as needing a
+      // check — "Try again" first looks for that same transaction on chain.
+      const restored: Record<string, RowStatus> = {};
+      for (const [k, v] of Object.entries(saved.status ?? {})) {
+        restored[k] = v.state === "sending" ? { state: "failed", error: "Interrupted — tap Try again; it checks whether it already went out." } : v;
+      }
+      setStatus(restored);
       if (saved.result) setResult(saved.result);
       if (saved.step !== "intro") setOpen(true);
     } catch {
@@ -237,11 +256,7 @@ export function CashoutActions({
   useEffect(() => {
     if (!reference || step === "intro" || step === "done") return;
     const session: CashoutSession = { reference, step, accepted, selected: selected ?? [], amounts, status, result };
-    try {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    } catch {
-      /* noop */
-    }
+    writeCashoutSession(session);
   }, [reference, step, accepted, selected, amounts, status, result]);
 
   // NectarPay merchants cash out with no service fee.
@@ -352,11 +367,23 @@ export function CashoutActions({
   }, [selected, step, cashable, tsd.isLoading, evm.isLoading]);
 
   const picked = selected ?? [];
-  const chosen = useMemo(() => cashableEff.filter((row) => picked.includes(row.key)), [cashableEff, picked]);
+  const chosen = useMemo(() => {
+    // Lines already sent use what was saved at send time: after a reload the
+    // fresh balance scan no longer shows the coins that left.
+    const fresh = new Map(cashableEff.map((row) => [row.key, row]));
+    const out: Holding[] = [];
+    for (const key of picked) {
+      const st = status[key];
+      if (st?.state === "sent" && st.line) out.push(fromSentLine(st.line));
+      else if (fresh.has(key)) out.push(fresh.get(key)!);
+    }
+    return out;
+  }, [cashableEff, picked, status]);
   const chosenTotal = chosen.reduce((sum, row) => sum + row.usd, 0);
   const sentRows = chosen.filter((row) => status[row.key]?.state === "sent");
   const sentTotal = sentRows.reduce((sum, row) => sum + row.usd, 0);
   const evmPending = chosen.filter((r) => r.evm && status[r.key]?.state !== "sent");
+  const hasUnconfirmedSends = step !== "done" && Object.values(status).some((st) => st?.state === "sent");
   const allResolved = chosen.every((r) => status[r.key]?.state === "sent" || status[r.key]?.state === "skipped");
   // A checked row with a typed amount that isn't a valid partial amount.
   const invalidAmounts = picked.some((key) => {
@@ -390,11 +417,7 @@ export function CashoutActions({
     setError(null);
     setResult(null);
     setReference(newReference());
-    try {
-      sessionStorage.removeItem(SESSION_KEY);
-    } catch {
-      /* noop */
-    }
+    clearCashoutSession();
   }
 
   /** Send one EVM balance to its deposit address (tops up gas first if needed). */
@@ -406,12 +429,13 @@ export function CashoutActions({
     let next: RowStatus;
     try {
       const count = pending.filter((r) => r.evm && r.evm.chain === e.chain && r.evm.index === e.index).length || 1;
-      await ensureGas(root, e.chain, e.index, count);
-      const txid = await sendCashRow(root, e, to, partialRaw(row, partial));
-      next = { state: "sent", txid };
+      await ensureGas(root, e.chain, e.index, count, `${reference}:${e.chain}:${e.index}`);
+      const txid = await sendCashRow(root, e, to, partialRaw(row, partial), `${reference}:${row.key}`);
+      next = { state: "sent", txid, line: toSentLine(row) };
     } catch (cause) {
       next = { state: "failed", error: cause instanceof Error ? cause.message.split("\n")[0] : "Send failed" };
     }
+    recordCashoutLine(row.key, next);
     setStatus((s) => ({ ...s, [row.key]: next }));
     return next;
   }
@@ -431,13 +455,15 @@ export function CashoutActions({
         to,
         fetchPerAddress: (addresses, propertyIds) => fetchTsdPerAddr({ data: { addresses, propertyIds } }),
         onProgress: setTsdProgress,
+        tag: `${reference}:${row.key}`,
       });
-      next = { state: "sent", txid };
+      next = { state: "sent", txid, line: toSentLine(row) };
     } catch (cause) {
       next = { state: "failed", error: cause instanceof Error ? cause.message.split("\n")[0] : "Send failed" };
     } finally {
       setTsdProgress(null);
     }
+    recordCashoutLine(row.key, next);
     setStatus((s) => ({ ...s, [row.key]: next }));
     return next;
   }
@@ -485,7 +511,7 @@ export function CashoutActions({
           : signTsdProof(root, { reference, to, txids, amount });
         proofs.push({ ...proof, usd: Math.round(row.usd * 100) / 100 });
       }
-      const response = await startCashout({
+      const send = async () => startCashout({
         data: {
           reference,
           usd: q.usd,
@@ -504,6 +530,14 @@ export function CashoutActions({
           })),
         },
       });
+      let response = await send();
+      // Sends that are still confirming: wait and ask again (up to ~2 minutes).
+      for (let attempt = 0; final && !response.registered && "retryable" in response && response.retryable && attempt < 8; attempt++) {
+        setError("Waiting for the network to confirm your sends…");
+        await new Promise((r) => setTimeout(r, 15_000));
+        response = await send();
+      }
+      setError(null);
       saveLocalVectorPayOrder({
         id: response.orderId,
         side: "sell",
@@ -527,11 +561,7 @@ export function CashoutActions({
       }
       if (final) {
         setStep("done");
-        try {
-          sessionStorage.removeItem(SESSION_KEY);
-        } catch {
-          /* noop */
-        }
+        clearCashoutSession();
         return true;
       }
       // Already linked at VectorPay — no checkout bounce; go straight to sending.
@@ -599,7 +629,15 @@ export function CashoutActions({
       </div>
       <p className="mt-2 text-center text-xs text-muted-foreground">Top up is coming soon.</p>
 
-      <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          // Coins already sent but the order isn't confirmed yet: keep
+          // everything so reopening Cash out finishes the same order.
+          if (!next && !hasUnconfirmedSends) reset();
+        }}
+      >
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <p className="text-xs font-semibold uppercase text-primary">

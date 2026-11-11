@@ -42,6 +42,9 @@ export function checkEvmTransferTx(
   const call = decodeErc20TransferInput(tx.input ?? "");
   if (!call) return { ok: false, reason: "not a plain token transfer" };
   if (call.to.toLowerCase() !== want.to.toLowerCase()) return { ok: false, reason: "not sent to the cash-out address" };
+  // Only a mined, successful transfer counts (round-2 audit 2.1): a pending
+  // one could still be dropped or revert.
+  if (receiptStatus !== "0x1") return { ok: false, reason: "pending" };
   return { ok: true, raw: call.amount };
 }
 
