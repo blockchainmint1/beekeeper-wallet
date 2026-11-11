@@ -28,3 +28,4 @@
 - Cash-out order handling is capped per request (chain-lookup budget, txid cap) and rate limited per customer ID (`src/lib/security/keyed-limit.ts`) — the settlement path can otherwise be driven into thousands of chain lookups.
 - Every cash-out send passes a `<reference>:<line>` tag (`sendCashRow`, `ensureGas`, `sendOmniToken`); the signed tx is saved under it before broadcast so a retry re-uses it — a partial line must never move twice.
 - The in-progress cash-out (status + txids + sent-line snapshot) lives in `src/lib/cashout/session.ts` (per-wallet localStorage), written the moment each send returns — a reload must never strand sent coins.
+- Bridge top-ups (src/lib/bridge/*) key each customer by the wallet's TXC holder address and require a fresh signature from it on every call (`checkTopupProof`); the browser never sends Bridge IDs. Live deposit accounts are refused until `destinationFor()` has a TSD mint address, so live USDC can't land somewhere unplanned.

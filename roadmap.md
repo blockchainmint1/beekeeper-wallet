@@ -23,10 +23,12 @@
 - [x] Hide the "Already used the old BeeKeeper wallet?" migration card on the activation screen and the matching unlock-screen notice (SHOW_LEGACY_IMPORT = false in src/lib/legacy-beekeeper.ts; flip to true to restore both)
 
 ## Top-ups with Bridge (sandbox key added 2026-11-11)
-- [x] Read Bridge docs and confirm the sandbox key works (read-only customer list returned OK)
-- [ ] Decide who owns the Bridge customer (BeeKeeper direct vs VectorPay behind the scenes) — waiting on Bobby
-- [ ] Decide where top-ups land (default proposal: USDC on Base) and the top-up fee — waiting on Bobby
-- [ ] Build sandbox top-up flow once decided; production needs Bridge to approve the live account
+- [x] Read Bridge docs and confirm the sandbox key works
+- [x] Decisions: BeeKeeper owns the Bridge customer; customers receive TSD; 3% fee
+- [x] Sandbox top-up flow: Top Up button → Bridge ID check → permanent US deposit account (3% fee) → deposit history; test approve/deposit buttons; signed webhook receiver
+- [ ] TSD delivery: TSD bridge per-customer mint address (docs/tsd-mint-address-request.md) — waiting on the TSD bridge team; live accounts are refused until then
+- [ ] Go live (docs/bridge-go-live.md): Bridge business approval, `BRIDGE_API_KEY`, webhook + `BRIDGE_WEBHOOK_PUBLIC_KEY` — waiting on Bobby / Bridge
+- [ ] Cash-out bank lookup: VectorPay should remember the signing TXC address at link time and require it on lookups (today a holder of someone's bk_ ID could sign with their own key) — waiting on VectorPay
 
 ## Security audit 2026-11-09 (docs/security-audit-2026-11-09.md)
 - [x] C1 Removed keystore-generator workflow; store password no longer inlined in the APK build script (never ran on this repo)
