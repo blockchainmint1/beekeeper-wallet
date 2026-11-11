@@ -509,15 +509,16 @@ export function CashoutActions({
         side: "sell",
         createdAt: Date.now(),
         status: response.registered ? "ready" : "registration_failed",
-        usd: q.usd,
+        // The server settles amounts from the blockchain; show its numbers.
+        usd: "usd" in response && typeof response.usd === "number" ? response.usd : q.usd,
         feeUsd: response.feeUsd,
-        settlementUsd: q.settlementUsd,
+        settlementUsd: "usd" in response && typeof response.usd === "number" ? Math.round((response.usd - response.feeUsd) * 100) / 100 : q.settlementUsd,
         assetAmount: q.assetAmount,
         asset: response.asset ?? "TSD",
         chain: response.chain ?? "txc",
         checkoutUrl: response.handoffUrl,
         detail: response.detail,
-        transfers: proofs.map((p) => ({ chain: p.chain as CashoutChain, asset: p.asset, usd: p.usd })),
+        transfers: response.transfers.map((p) => ({ chain: p.chain as CashoutChain, asset: p.asset, usd: p.usd })),
       });
       setResult({ orderId: response.orderId, checkoutUrl: response.handoffUrl, detail: response.detail });
       if (!response.registered || !response.handoffUrl) {
