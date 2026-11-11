@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import { formatEther, type Address } from "viem";
+import type { BIP32Interface } from "bip32";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -41,6 +42,10 @@ import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { getTxcTokenBalancesForAddresses, getTxcTokenBalancesPerAddress } from "@/lib/txc/tokens.functions";
 import { sendOmniToken } from "@/lib/txc/omni-send";
 import { explorerTxUrl } from "@/lib/txc/mempool";
+import { DERIVATION_PATHS as TXC_PATHS } from "@/lib/txc/network";
+import { deriveAddress } from "@/lib/txc/wallet";
+import { signMessageWithKey } from "@/lib/txc/message-sign";
+import { bankLookupMessage } from "@/lib/cashout/proof";
 import { EVM_CHAINS } from "@/lib/chains/evm";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { listLinks } from "@/lib/nectar/link";
@@ -84,6 +89,23 @@ const ALL_TERM_IDS = CASHOUT_DISCLOSURES.map((d) => d.id) as string[];
 
 type Step = "intro" | "holdings" | "review" | "transfers" | "done";
 const STEPS: Step[] = ["intro", "holdings", "review", "transfers", "done"];
+
+/**
+ * Prove this wallet owns its VectorPay customer ID before the server asks
+ * VectorPay for the bank name and last-4 (round-2 audit 2.4): the lookup is
+ * signed with the wallet's own key and names the exact customer ID.
+ */
+async function signBankLookup(root: BIP32Interface, accountRef: string) {
+  const holder = deriveAddress(root, "bip44", 0, 0);
+  const node = root.derivePath(`${TXC_PATHS.bip44}/0/0`);
+  if (!node.privateKey) throw new Error("Wallet locked");
+  const buf = new Uint8Array(16);
+  crypto.getRandomValues(buf);
+  const nonce = Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+  const message = bankLookupMessage({ accountRef, address: holder.address, nonce, at: Date.now() });
+  const { signature } = signMessageWithKey({ privateKey: node.privateKey, kind: "bip44", address: holder.address, message });
+  return { address: holder.address, message, signature };
+}
 
 interface Holding {
   key: string;
@@ -281,7 +303,7 @@ export function CashoutActions({
     void (async () => {
       try {
         const accountRef = await cashoutCustomerId(root);
-        const reply = await vectorPayLinkStatus({ data: { accountRef } });
+        const reply = await vectorPayLinkStatus({ data: { accountRef, ...(await signBankLookup(root, accountRef)) } });
         if (reply.ok && reply.linked) {
           setVectorPayLink({ firstName: reply.firstName, bank: reply.bank });
           setVpLink(getVectorPayLink());

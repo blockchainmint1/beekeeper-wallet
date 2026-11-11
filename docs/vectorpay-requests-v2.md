@@ -79,7 +79,17 @@ confirm:
    TEXITcoin).
 4. You pay out only what actually landed, never the amount on the order.
 
-## 5. Small items
+## 5. Only pay a bank this customer actually linked
+
+`account_ref` arrives on an order without any authentication of its own —
+BeeKeeper signs the request, but the field is ours, not the customer's. Please:
+
+1. Pay out only to a bank that was linked through the code flow for that
+   `account_ref` (the same one-time-code link BeeKeeper redeems).
+2. Hold an order whose `account_ref` was never linked, instead of paying it out
+   or rejecting the customer's coins.
+
+## 6. Small items
 
 - The link record is now stored per wallet. If a merchant has two wallets in
   BeeKeeper, each one keeps its own VectorPay link and `bk_…` customer ID.
@@ -91,3 +101,5 @@ confirm:
 - Proof v2: yes/no + a date.
 - Webhook timestamp: header name + a date.
 - Written confirmation of the four points in section 4.
+- Bank rule from section 5: payout only to a bank linked by code for that
+  `account_ref`, and hold orders whose `account_ref` was never linked.

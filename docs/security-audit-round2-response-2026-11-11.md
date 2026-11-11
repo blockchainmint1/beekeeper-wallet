@@ -113,3 +113,52 @@ because removing it first could leave orders with no fee.
   separate HME deployment. Your steps (keep it running, publish a `mandatory`
   release row telling users to move, answer `getVectorPayConfig` with
   `configured: false`) have been passed to the owner. Nothing changed in this repo.
+
+## 5. Round-2 final report (2026-11-11) — all four BeeKeeper-side items fixed
+
+Tests: 76 across 11 files, all passing. Typecheck clean.
+
+### 5.1 TSD settles from our own node, not the explorer (Medium)
+`lookupTx` (`src/lib/cashout/verify.server.ts`) no longer reads the public
+explorer for TSD at all. One call to our daemon's `omni_gettransaction` supplies
+sender, reference, amount, validity and depth, and `checkOmniTx`
+(`src/lib/cashout/verify.ts`) requires:
+- `valid === true` — an unjudged send is `pending`, never settled at its decoded
+  amount; a rejected send counts as nothing;
+- `confirmations >= 3` (`MIN_TSD_CONFIRMATIONS`);
+- `sendingaddress` / `referenceaddress` / `propertyid` matching the order's
+  sender, our deposit address and property 39 exactly;
+- an amount it can actually read (decimal text → 1e8 units).
+If the node can't be reached the line stays unsettled and retryable instead of
+settling blind. `checkTsdSend` and the explorer decode are gone from the
+settlement path.
+
+### 5.2 A retry can't misread an RPC failure as "that send never happened" (Medium-Low)
+`findLiveEvmTx` and `checkPendingEvmTx` (`src/lib/chains/evm-send.ts`) now tell a
+genuine "that transaction isn't here" apart from a node that never answered
+(`isTxNotFound`: viem's `TransactionNotFoundError` /
+`TransactionReceiptNotFoundError` plus node wording). Only the first means "not
+there"; anything else stops the retry with "Couldn't check the network for an
+earlier attempt". The old code turned every failure into `null`, so two hiccups
+plus one advanced nonce could sign a second transfer for a partial line. Tagged
+entries (cash-out lines) now live 7 days instead of 24h so a signed tx can't
+expire mid-order; untagged re-broadcast aids still expire in 24h.
+
+### 5.3 Confirmation depth, plus a budget and a rate limit on settlement (Medium-Low)
+- `checkEvmTransferTx` takes the tx's depth and requires
+  `MIN_EVM_CONFIRMATIONS = 12`; a node that can't tell us the depth is
+  `pending`. `confirmationsFrom` computes it from `eth_blockNumber` and the
+  receipt's block.
+- `settleLine` charges every chain lookup to a per-order budget
+  (`MAX_SETTLEMENT_LOOKUPS = 80`) and stops with a clear message when it runs
+  out; the order schema caps one order at 60 txids.
+- `startVectorPayCashout` is rate limited per customer ID
+  (`src/lib/security/keyed-limit.ts`): 6 attempts per 10 minutes.
+
+### 5.4 The bank-mask lookup now proves the wallet (Medium-Low)
+`vectorPayLinkStatus` no longer answers a bare customer ID. The wallet signs
+`bankLookupMessage` (`src/lib/cashout/proof.ts`) with its own key over the exact
+customer ID, its address, a nonce and a timestamp; `checkBankLookup` verifies the
+signature, that the message names the `account_ref` being looked up, and that it
+is under 5 minutes old. Redeeming a link code is unchanged — the one-time code is
+the authentication there.

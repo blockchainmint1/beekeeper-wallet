@@ -77,3 +77,42 @@ export async function checkCashoutProof(p: ProofInput): Promise<string | null> {
     return "bad signature";
   }
 }
+
+/**
+ * Bank-mask lookups have to prove the wallet behind the customer ID
+ * (round-2 audit 2.4). The customer ID is derived from a private key, so
+ * whoever holds it can look up that account's bank name and last-4 — but
+ * nobody holding a stolen or guessed ID can, because they can't sign this.
+ */
+export function bankLookupMessage(p: { accountRef: string; address: string; nonce: string; at: number }) {
+  return [
+    "BeeKeeper bank lookup",
+    `account: ${p.accountRef}`,
+    `address: ${p.address}`,
+    `nonce: ${p.nonce}`,
+    `time: ${p.at}`,
+  ].join("\n");
+}
+
+/** A signed lookup is only good for a few minutes, so it can't be replayed. */
+export const LOOKUP_MAX_AGE_MS = 5 * 60_000;
+
+/** null when the lookup is signed by the wallet and fresh; otherwise a short reason. */
+export function checkBankLookup(p: {
+  accountRef: string;
+  address?: string;
+  message?: string;
+  signature?: string;
+  now?: number;
+}): string | null {
+  if (!p.address || !p.message || !p.signature) return "missing wallet signature";
+  const lines = p.message.split("\n");
+  if (lines.length !== 5) return "lookup message mismatch";
+  const nonce = lines[3]!.startsWith("nonce: ") ? lines[3]!.slice("nonce: ".length).trim() : "";
+  const at = lines[4]!.startsWith("time: ") ? Number(lines[4]!.slice("time: ".length)) : NaN;
+  if (!nonce || !Number.isFinite(at)) return "lookup message mismatch";
+  if (Math.abs((p.now ?? Date.now()) - at) > LOOKUP_MAX_AGE_MS) return "lookup expired — try again";
+  const expected = bankLookupMessage({ accountRef: p.accountRef, address: p.address, nonce, at });
+  if (p.message !== expected) return "lookup message mismatch";
+  return verifyTxcMessage(p.address, p.message, p.signature) ? null : "signature does not match wallet";
+}

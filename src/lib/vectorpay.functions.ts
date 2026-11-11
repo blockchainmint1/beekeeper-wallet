@@ -1,10 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { makeKeyedLimiter } from "@/lib/security/keyed-limit";
 import { CASHOUT_DISCLOSURES, MERCHANT_FEE_BPS, ORDER_FEE_BPS, ORDER_MAX_USD, ORDER_MIN_USD, type CashoutAsset, type CashoutChain } from "./vectorpay";
 
 const allowedDisclosureIds = new Set(CASHOUT_DISCLOSURES.map((item) => item.id));
 const CASHOUT_CHAINS: CashoutChain[] = ["txc", "base", "eth", "bsc", "tron"];
 const CASHOUT_ASSET_SYMBOLS: CashoutAsset[] = ["TSD", "USDC", "USDT"];
+/** Sends one order may carry: keeps one request from needing ~1,000 chain lookups. */
+const MAX_ORDER_TXIDS = 60;
+/** One customer ID gets a handful of cash-out attempts every 10 minutes (round-2 audit 3.3). */
+const cashoutLimiter = makeKeyedLimiter(6, 10 * 60_000);
 
 const startSchema = z
   .object({
@@ -37,6 +42,10 @@ const startSchema = z
     const unique = new Set(value.acceptedDisclaimers);
     if (unique.size !== CASHOUT_DISCLOSURES.length || [...unique].some((id) => !allowedDisclosureIds.has(id as never))) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["acceptedDisclaimers"], message: "All disclosures must be accepted." });
+    }
+    const txids = value.transfers.reduce((n, t) => n + (t.txids?.length ?? 0), 0);
+    if (txids > MAX_ORDER_TXIDS) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["transfers"], message: "Too many sends in one cash-out." });
     }
   });
 
@@ -78,6 +87,9 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
     const orderId = data.reference;
     const feeBps = data.merchantId ? MERCHANT_FEE_BPS : ORDER_FEE_BPS;
     const feeUsd = Math.round(data.usd * (feeBps / 10_000) * 100) / 100;
+    if (cashoutLimiter(data.customerId)) {
+      return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: "Too many cash-out attempts right now — wait a few minutes and try again.", transfers: data.transfers };
+    }
     if (!vectorPayConfigured()) {
       return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: "Cash out is not configured yet.", transfers: data.transfers };
     }
@@ -114,14 +126,16 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
     // sending address's real balance; once a txid exists, the line becomes
     // exactly what that transaction moves to our deposit address. The
     // wallet's own numbers can only ever be lowered, never raised.
-    const { settleLine } = await import("./cashout/verify.server");
+    const { settleLine, MAX_SETTLEMENT_LOOKUPS } = await import("./cashout/verify.server");
     const seenTxids = new Set<string>();
+    const budget = { left: MAX_SETTLEMENT_LOOKUPS };
     const settled: typeof data.transfers = [];
     for (const t of data.transfers) {
       const claimed = t.amount ? Math.min(Number(t.amount), t.usd || Number(t.amount)) : t.usd;
       const result = await settleLine(
         { chain: t.chain, asset: t.asset, from: t.from, to: cashoutDepositAddress(t.chain)!, txids: t.txids, claimedUsd: claimed },
         seenTxids,
+        budget,
       );
       if ("error" in result) {
         return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, retryable: !!result.retryable, detail: `Couldn't confirm the ${t.asset} on ${t.chain}: ${result.error}.`, transfers: data.transfers };

@@ -60,6 +60,14 @@
 - [ ] Edge rate limits on /api/nectar/* and /api/tsd/* — hosting setting
 - [ ] Frozen Android installs: mobile.honest.money owner to keep it up + mandatory "move" release — outside this project
 
+## Security audit round 2 final (2026-11-11, same doc §5)
+- [x] TSD settles from our own node (`omni_gettransaction`): `valid: true` + 3 confirmations, sender/reference/amount read from the node, explorer no longer used
+- [x] A retry can't read an RPC hiccup as "that send never happened" (not-found vs no-answer told apart); tagged sends live 7 days instead of 24h
+- [x] EVM settlement needs 12 confirmations; 80-lookup budget per order, 60-txid cap per order, 6 cash-out attempts per 10 min per customer
+- [x] Bank name / last-4 lookup now needs a wallet signature over that exact customer ID (proof.ts `checkBankLookup`)
+- [ ] Ask VectorPay: pay only a bank linked by code for that `account_ref`, hold never-linked ones (added to vectorpay-requests-v2.md §5)
+- [ ] Merchant discount is still wallet-claimed (auditor's Critical / deep-scan CLIENT_SIDE_AUTH) — Bobby to decide: hold at 1% until VectorPay verifies merchants, or ship as-is
+
 ## Dropped — TSD Swap API key and off-ramp removed (2026-11-10)
 BeeKeeper no longer stores a TSD Swap API key and the Send screen no longer offers the TSD → USDC off-ramp. TSD leaves the wallet only through the VectorPay cash-out roundup. The TSD Swap account link (watch-only keys) stays in Ecosystem link.
 

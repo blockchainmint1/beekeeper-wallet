@@ -4,10 +4,7 @@
  */
 import { erc20Abi, encodeFunctionData } from "viem";
 import { USDC_BY_CHAIN, USDT_BY_CHAIN } from "@/lib/chains/erc20";
-import { decodeOmniSend } from "@/lib/txc/omni-decode";
-import type { MempoolTx } from "@/lib/txc/mempool";
-import { MEMPOOL_API } from "@/lib/txc/network";
-import { TSD_PROPERTY_ID, capAtBalance, checkEvmTransferTx, checkTsdSend, unitsToUsd } from "./verify";
+import { TSD_PROPERTY_ID, capAtBalance, checkEvmTransferTx, checkOmniTx, unitsToUsd, type OmniTxLike } from "./verify";
 
 type EvmChain = "eth" | "base" | "bsc";
 const EVM = new Set(["eth", "base", "bsc"]);
@@ -79,16 +76,31 @@ export interface SettleLine {
   claimedUsd: number;
 }
 
+/**
+ * Chain lookups one cash-out order may spend (round-2 audit 3.3). Without a
+ * budget a single request could ask the RPCs for ~1,000 transactions.
+ */
+export const MAX_SETTLEMENT_LOOKUPS = 80;
+
+export const LOOKUPS_EXHAUSTED = "this cash-out has too many sends to check at once — cash out fewer at a time";
+
+export interface SettleBudget {
+  left: number;
+}
+
 /** Real dollar amount for one line, or a reason it can't be confirmed. */
 export async function settleLine(
   line: SettleLine,
   seen: Set<string>,
+  budget?: SettleBudget,
 ): Promise<{ usd: number } | { error: string; retryable?: boolean }> {
   if (!line.from) return { error: "missing sender" };
   const txids = (line.txids ?? []).map((t) => t.toLowerCase().replace(/^0x/, ""));
 
   if (txids.length === 0) {
     // Before coins move: cap at the sending address's balance right now.
+    if (budget && budget.left <= 0) return { error: LOOKUPS_EXHAUSTED };
+    if (budget) budget.left -= 1;
     try {
       const balance = await balanceUsd(line);
       return { usd: capAtBalance(line.claimedUsd, balance) };
@@ -103,6 +115,11 @@ export async function settleLine(
     seen.add(id);
     let result: { ok: true; raw: bigint } | { ok: false; reason: string } = { ok: false, reason: "not found" };
     for (let attempt = 0; attempt < 3; attempt++) {
+      // Every chain lookup is charged to the order's budget (round-2 audit 3.3).
+      if (budget) {
+        if (budget.left <= 0) return { error: LOOKUPS_EXHAUSTED };
+        budget.left -= 1;
+      }
       try {
         result = await lookupTx(line, id);
       } catch {
@@ -137,31 +154,47 @@ async function balanceUsd(line: SettleLine): Promise<number> {
 
 async function lookupTx(line: SettleLine, txid: string) {
   if (line.chain === "txc" && line.asset === "TSD") {
-    const res = await fetch(`${MEMPOOL_API}/tx/${txid}`, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8000) });
-    if (res.status === 404 || res.status === 400) return { ok: false as const, reason: "not found" };
-    if (!res.ok) throw new Error(`mempool ${res.status}`);
-    const tx = (await res.json()) as MempoolTx;
-    const checked = checkTsdSend(decodeOmniSend(tx), { from: line.from!, to: line.to });
-    if (!checked.ok) return checked;
-    // Once confirmed, Omni Core says whether the send was actually valid
-    // (e.g. the sender really had the TSD). Unconfirmed sends can't be judged yet.
-    if (tx.status?.confirmed) {
-      try {
-        const omni = await txcRpc<{ valid?: boolean }>("omni_gettransaction", [txid]);
-        if (omni.valid === false) return { ok: false as const, reason: "rejected by the TSD ledger" };
-      } catch {
-        /* node unreachable — the decoded amount still stands; VectorPay re-checks */
+    // Our node is authoritative for TSD (round-2 audit 3.1): sender, reference,
+    // amount, validity and depth all come from omni_gettransaction — never from
+    // the public explorer, and never before the TSD ledger has judged the send.
+    let omni: OmniTxLike | null;
+    try {
+      omni = await txcRpc<OmniTxLike>("omni_gettransaction", [txid]);
+    } catch (cause) {
+      const m = cause instanceof Error ? cause.message.toLowerCase() : "";
+      if (m.includes("no such transaction") || m.includes("not found") || m.includes("does not exist")) {
+        return { ok: false as const, reason: "not found" };
       }
+      // Node unreachable: the send stays unsettled rather than settling blind.
+      throw cause;
     }
-    return checked;
+    return checkOmniTx(omni, { from: line.from!, to: line.to });
   }
   const token = tokenFor(line.chain, line.asset);
   if (!token) return { ok: false as const, reason: "unsupported coin" };
   const chain = line.chain as EvmChain;
   const hash = `0x${txid}`;
-  const [tx, receipt] = await Promise.all([
+  const [tx, receipt, headHex] = await Promise.all([
     evmRpc<{ from: string; to: string; input: string } | null>(chain, "eth_getTransactionByHash", [hash]),
-    evmRpc<{ status?: string } | null>(chain, "eth_getTransactionReceipt", [hash]).catch(() => null),
+    evmRpc<{ status?: string; blockNumber?: string } | null>(chain, "eth_getTransactionReceipt", [hash]).catch(() => null),
+    evmRpc<string | null>(chain, "eth_blockNumber", []).catch(() => null),
   ]);
-  return checkEvmTransferTx(tx, receipt?.status ?? null, { from: line.from!, to: line.to, token: token.address });
+  return checkEvmTransferTx(
+    tx,
+    receipt?.status ?? null,
+    { from: line.from!, to: line.to, token: token.address },
+    confirmationsFrom(headHex, receipt?.blockNumber ?? null),
+  );
+}
+
+/**
+ * Blocks between a mined tx and the chain head, or null when the node can't
+ * say (round-2 audit 3.2: a shallow tx can still be reorged out).
+ */
+export function confirmationsFrom(headHex: string | null, minedHex: string | null): number | null {
+  if (!headHex || !minedHex) return null;
+  const head = Number.parseInt(headHex, 16);
+  const mined = Number.parseInt(minedHex, 16);
+  if (!Number.isFinite(head) || !Number.isFinite(mined) || mined < 0 || head < mined) return null;
+  return head - mined + 1;
 }

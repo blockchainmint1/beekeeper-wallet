@@ -31,6 +31,8 @@ export interface EvmTxRequest {
 const KEY = (chain: EvmChainId, address: string) =>
   `evm-nonce:${chain}:${address.toLowerCase()}`;
 const RAW_KEY = "hme.evm-raw-tx.v1";
+const RAW_TTL = 24 * 60 * 60_000;
+const RAW_TAGGED_TTL = 7 * 24 * 60 * 60_000;
 
 function readReserved(chain: EvmChainId, address: string): number | null {
   try {
@@ -72,7 +74,12 @@ function readRaw(): RawStore {
   try {
     const s = JSON.parse(localStorage.getItem(RAW_KEY) ?? "{}") as RawStore;
     const now = Date.now();
-    for (const k of Object.keys(s)) if (now - s[k]!.at > 24 * 60 * 60_000) delete s[k];
+    // A tagged entry belongs to a cash-out order that may still be open, so it
+    // must outlive the plain 24h re-broadcast window (round-2 audit 2.2).
+    for (const k of Object.keys(s)) {
+      const e = s[k]!;
+      if (now - e.at > (e.tag ? RAW_TAGGED_TTL : RAW_TTL)) delete s[k];
+    }
     return s;
   } catch {
     return {};
@@ -100,6 +107,39 @@ const isNonceCollision = (m: string) =>
   m.includes("replacement transaction underpriced") ||
   m.includes("replacement_underpriced") ||
   m.includes("nonce too low");
+
+/**
+ * The node's own "that transaction isn't here" answers, as opposed to a node
+ * that never answered (round-2 audit 2.2). Only the first may be read as
+ * "that send never happened" — an RPC hiccup must never let a retry sign a
+ * second transfer for a line that already moved.
+ */
+const NOT_FOUND_NAMES = new Set(["TransactionNotFoundError", "TransactionReceiptNotFoundError", "BlockNotFoundError"]);
+const NOT_FOUND_TEXT = [
+  "could not be found",
+  "not found",
+  "no such transaction",
+  "does not exist",
+  "unknown transaction",
+  "no information given",
+];
+
+function isTxNotFound(e: unknown): boolean {
+  const name = (e as { name?: string } | null)?.name;
+  if (name && NOT_FOUND_NAMES.has(name)) return true;
+  const m = msgOf(e);
+  return NOT_FOUND_TEXT.some((t) => m.includes(t));
+}
+
+/** Node lookup where "not there" means null; anything else stops the retry. */
+async function lookupOrNull<T>(run: () => Promise<T>): Promise<T | null> {
+  try {
+    return await run();
+  } catch (e) {
+    if (isTxNotFound(e)) return null;
+    throw new Error("Couldn't check the network for an earlier attempt — try again in a moment.");
+  }
+}
 
 export async function fees(chainId: EvmChainId) {
   const pub = evmClient(chainId);
@@ -209,7 +249,14 @@ export async function checkPendingEvmTx(
   const entry = readRaw()[hash.toLowerCase()];
   if (!entry) return "pending";
   const pub = evmClient(chainId);
-  const seen = await pub.getTransaction({ hash: hash as Hex }).catch(() => null);
+  let seen: unknown;
+  try {
+    seen = await pub.getTransaction({ hash: hash as Hex });
+  } catch (e) {
+    // A node that didn't answer proves nothing: keep waiting, never report dropped.
+    if (!isTxNotFound(e)) return "pending";
+    seen = null;
+  }
   if (seen) return "pending";
   const mined = await pub
     .getTransactionCount({ address: entry.from as Address, blockTag: "latest" })
@@ -233,15 +280,17 @@ export async function findLiveEvmTx(chainId: EvmChainId, from: string, tag: stri
   const pub = evmClient(chainId);
   for (const [hash, entry] of entries) {
     const h = hash as Hex;
-    const receipt = await pub.getTransactionReceipt({ hash: h }).catch(() => null);
+    const receipt = await lookupOrNull(() => pub.getTransactionReceipt({ hash: h }));
     if (receipt) {
       if (receipt.status === "success") return h;
       continue; // reverted — nothing moved, a fresh send is fine
     }
-    const seen = await pub.getTransaction({ hash: h }).catch(() => null);
+    const seen = await lookupOrNull(() => pub.getTransaction({ hash: h }));
     if (seen) return h;
-    const mined = await pub.getTransactionCount({ address: entry.from as Address, blockTag: "latest" }).catch(() => -1);
-    if (mined < 0) throw new Error("Couldn't check the network for an earlier attempt — try again in a moment.");
+    const mined = await lookupOrNull(() =>
+      pub.getTransactionCount({ address: entry.from as Address, blockTag: "latest" }),
+    );
+    if (mined === null) throw new Error("Couldn't check the network for an earlier attempt — try again in a moment.");
     if (mined > entry.nonce) continue; // its nonce slot went to another tx: it can never confirm
     try {
       await pub.sendRawTransaction({ serializedTransaction: entry.raw });

@@ -96,7 +96,30 @@ export const redeemVectorPayLink = createServerFn({ method: "POST" })
     return callLinkEndpoint({ code: data.code, accountRef: data.accountRef });
   });
 
-/** Report whether this wallet's customer ID is linked (no code needed). */
+/** Report whether this wallet's customer ID is linked (no code needed).
+ *
+ * The reply carries the customer's bank name and last-4, so it is no longer a
+ * bare customer-ID lookup: the wallet must sign the request (round-2 audit 2.4).
+ */
+const statusSchema = z.object({
+  accountRef: z.string().regex(/^bk_[0-9a-f]{40}$/),
+  address: z.string().min(20).max(64),
+  message: z.string().min(40).max(400),
+  signature: z.string().min(40).max(200),
+});
+
 export const vectorPayLinkStatus = createServerFn({ method: "POST" })
-  .inputValidator((data) => inputSchema.parse(data))
-  .handler(async ({ data }) => callLinkEndpoint({ accountRef: data.accountRef }));
+  .inputValidator((data) => statusSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { checkBankLookup } = await import("./cashout/proof");
+    const problem = checkBankLookup({
+      accountRef: data.accountRef,
+      address: data.address,
+      message: data.message,
+      signature: data.signature,
+    });
+    if (problem) {
+      return { ok: false, linked: false, firstName: null, bank: null, detail: `This wallet couldn't prove itself (${problem}).` };
+    }
+    return callLinkEndpoint({ accountRef: data.accountRef });
+  });
