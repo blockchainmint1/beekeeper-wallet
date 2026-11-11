@@ -14,7 +14,8 @@ export const Route = createFileRoute("/api/public/bridge/webhook")({
     handlers: {
       POST: async ({ request }) => {
         const publicKey = process.env["BRIDGE_WEBHOOK_PUBLIC_KEY"]?.trim();
-        if (!publicKey) return new Response("not configured", { status: 503 });
+        // Not set up yet: refuse like any unverifiable delivery (Bridge retries non-2xx).
+        if (!publicKey) return new Response("not configured", { status: 401 });
         const len = Number(request.headers.get("content-length") ?? "0");
         if (len > MAX_BODY) return new Response("too large", { status: 413 });
         const raw = await request.text();
