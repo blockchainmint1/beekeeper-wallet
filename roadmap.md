@@ -22,6 +22,12 @@
 - [x] VectorPay wallet linking: redeem one-time dashboard code (QR `beekeeper://link-vectorpay?code=…` or typed code) via signed call to /api/public/beekeeper/link; cash out now requires a linked VectorPay account first
 - [x] Hide the "Already used the old BeeKeeper wallet?" migration card on the activation screen and the matching unlock-screen notice (SHOW_LEGACY_IMPORT = false in src/lib/legacy-beekeeper.ts; flip to true to restore both)
 
+## Top-ups with Bridge (sandbox key added 2026-11-11)
+- [x] Read Bridge docs and confirm the sandbox key works (read-only customer list returned OK)
+- [ ] Decide who owns the Bridge customer (BeeKeeper direct vs VectorPay behind the scenes) — waiting on Bobby
+- [ ] Decide where top-ups land (default proposal: USDC on Base) and the top-up fee — waiting on Bobby
+- [ ] Build sandbox top-up flow once decided; production needs Bridge to approve the live account
+
 ## Security audit 2026-11-09 (docs/security-audit-2026-11-09.md)
 - [x] C1 Removed keystore-generator workflow; store password no longer inlined in the APK build script (never ran on this repo)
 - [x] H1 Phone app now talks to beekeeper.money (was the HME deployment); one shared origin list + test
