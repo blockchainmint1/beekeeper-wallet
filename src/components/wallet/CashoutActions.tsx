@@ -75,6 +75,7 @@ import {
 import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.functions";
 import { QrScanButton } from "@/components/wallet/QrScanButton";
 import { TopupDialog } from "@/components/wallet/TopupDialog";
+import { topupOpenOnHost } from "@/lib/bridge/visibility";
 import { recordEcosystemLink } from "@/lib/ecosystem-links";
 import {
   getVectorPayLink,
@@ -195,6 +196,11 @@ export function CashoutActions({
   const allowed = useExchangeFeaturesAllowed();
   const { root, unlocked } = useWallet();
   const [topupOpen, setTopupOpen] = useState(false);
+  // Decided after hydration so the server and browser render the same button.
+  const [topupReady, setTopupReady] = useState(false);
+  useEffect(() => {
+    setTopupReady(topupOpenOnHost(window.location.host));
+  }, []);
   const configFn = useServerFn(getVectorPayConfig);
   const startCashout = useServerFn(startVectorPayCashout);
   const fetchTsd = useServerFn(getTxcTokenBalancesForAddresses);
@@ -644,14 +650,20 @@ export function CashoutActions({
   return (
     <section className="px-4 pt-4">
       <div className="grid grid-cols-2 gap-3">
-        <Button variant="outline" size="lg" onClick={() => setTopupOpen(true)}>
-          <ArrowDownToLine /> Top up
+        <Button
+          variant="outline"
+          size="lg"
+          disabled={!topupReady}
+          title={topupReady ? undefined : "Top up is coming soon"}
+          onClick={() => setTopupOpen(true)}
+        >
+          <ArrowDownToLine /> {topupReady ? "Top up" : "Top up · soon"}
         </Button>
         <Button size="lg" onClick={() => setOpen(true)}>
           <ArrowUpFromLine /> Cash out
         </Button>
       </div>
-      <TopupDialog open={topupOpen} onOpenChange={setTopupOpen} />
+      {topupReady && <TopupDialog open={topupOpen} onOpenChange={setTopupOpen} />}
 
       <Dialog
         open={open}

@@ -30,3 +30,6 @@ account → $50 test deposit, with a $1.50 (3%) fee.
 - Stored: only Bridge reference IDs and the delivery address (`topup_customers`) and
   signed webhook events (`topup_events`). No names, emails or ID documents.
 - The deposit history is read live from Bridge's virtual-account activity.
+
+## Turn on the Top up button
+- Set `TOPUP_LIVE = true` in `src/lib/bridge/visibility.ts`. Until then beekeeper.money shows "Top up · soon"; only the preview runs the sandbox flow.
