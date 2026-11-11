@@ -98,3 +98,17 @@ The same steps run in CI on every push (`.github/workflows/security.yml`). That 
 3. The WIF v1 → v2 upgrade path. Is there any way it can lose an imported key?
 4. The partner pass-throughs: anything still relayable?
 5. Anything that leaks between wallet profiles (vaults) sharing one password.
+
+## Addendum — Nov 11, 2026 (deep scan follow-up)
+
+- **Fixed: "Anyone can set the cash-out amount."** `startVectorPayCashout` no longer trusts the
+  wallet's dollar figures. `src/lib/cashout/verify.server.ts` settles every line from the chain
+  before the order is HMAC-signed: before coins move, a line is capped at the sending address's
+  live balance (ERC-20 `balanceOf` / `omni_getbalance`); once a txid exists, the line becomes
+  exactly what that tx moves from the signed sender to our deposit address (ERC-20 `transfer`
+  calldata + receipt status; Omni Simple Send decoded from the raw tx, plus Omni Core validity
+  once confirmed). Duplicate txids in one order count once. Order total and fee are recomputed
+  from the settled lines. Pure checks + tests: `src/lib/cashout/verify.ts`, `verify.test.ts`.
+- **Open (needs VectorPay): "Anyone can claim the cash-out merchant discount."** `merchant_ref`
+  is still wallet-supplied. VectorPay has been asked to confirm the merchant with NectarPay
+  before applying 0% and to fall back to 1% otherwise.

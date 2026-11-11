@@ -43,6 +43,8 @@
 - [x] L6 removed dead `new Function` loader; added CI security workflow (types, tests, dependency audit); imported keys (WIF) now locked with HKDF v2, old ones upgrade on first open
 - [x] Marked app_releases public-read finding as intentional
 - [x] Audit packet for the auditor (source ZIP + change summary)
+- [x] Deep scan: cash-out amounts now settled from the blockchain on the server (balance cap before sending, exact tx amount after)
+- [ ] Deep scan: 0% merchant fee is still wallet-claimed — waiting on VectorPay to confirm merchants with NectarPay (note sent: vectorpay-merchant-fee-note.md)
 
 ## Dropped — TSD Swap API key and off-ramp removed (2026-11-10)
 BeeKeeper no longer stores a TSD Swap API key and the Send screen no longer offers the TSD → USDC off-ramp. TSD leaves the wallet only through the VectorPay cash-out roundup. The TSD Swap account link (watch-only keys) stays in Ecosystem link.

@@ -22,3 +22,4 @@
 - Cash-out defaults to one tap (`runOneTap` in CashoutActions.tsx, plan in src/lib/cashout/one-tap.ts) and reuses the same order/send/confirm functions as the step-by-step picker — one code path for money movement.
 - Partner pass-through routes (/api/nectar/link, /api/nectar/pay/*, /api/tsd/link) must use `src/lib/security/proxy-guard.ts` (trusted host, no path tricks, rate limit, own-app POSTs, 32 KB bodies) — the auditor flagged them as open relays.
 - Imported-key (WIF) encryption is versioned in src/lib/wif/store.ts: new entries use the HKDF v2 key; keep the legacy v1 read path, because keys saved before the change still need it to open and upgrade.
+- Cash-out order amounts are settled server-side from the chain (`src/lib/cashout/verify.server.ts`) before the order is signed to VectorPay; the wallet's numbers may only lower a line, never raise it — the deep scan flagged client-set amounts.

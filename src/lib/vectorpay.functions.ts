@@ -109,8 +109,35 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
       }
     }
 
+    // Settle every line from the chain (deep scan: "Anyone can set the
+    // cash-out amount"). Before coins move, each line is capped at the
+    // sending address's real balance; once a txid exists, the line becomes
+    // exactly what that transaction moves to our deposit address. The
+    // wallet's own numbers can only ever be lowered, never raised.
+    const { settleLine } = await import("./cashout/verify.server");
+    const seenTxids = new Set<string>();
+    const settled: typeof data.transfers = [];
+    for (const t of data.transfers) {
+      const claimed = t.amount ? Math.min(Number(t.amount), t.usd || Number(t.amount)) : t.usd;
+      const result = await settleLine(
+        { chain: t.chain, asset: t.asset, from: t.from, to: cashoutDepositAddress(t.chain)!, txids: t.txids, claimedUsd: claimed },
+        seenTxids,
+      );
+      if ("error" in result) {
+        return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: `Couldn't confirm the ${t.asset} on ${t.chain}: ${result.error}.`, transfers: data.transfers };
+      }
+      if (result.usd <= 0) continue;
+      settled.push({ ...t, usd: result.usd, amount: result.usd.toFixed(2) });
+    }
+    const settledUsd = Math.min(ORDER_MAX_USD, Math.round(settled.reduce((sum, t) => sum + t.usd, 0) * 100) / 100);
+    if (settled.length === 0 || settledUsd < ORDER_MIN_USD) {
+      return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: `The blockchain shows less than the $${ORDER_MIN_USD} minimum for this cash-out.`, transfers: data.transfers };
+    }
+    const usd = settledUsd;
+    const settledFee = Math.round(usd * (feeBps / 10_000) * 100) / 100;
+
     // Use the largest transfer as the order's headline asset/chain.
-    const primary = [...data.transfers].sort((a, b) => b.usd - a.usd)[0];
+    const primary = [...settled].sort((a, b) => b.usd - a.usd)[0];
     const chain = primary.chain;
     const asset = primary.asset;
     const destination = cashoutDepositAddress(chain)!;
@@ -124,15 +151,15 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
       asset,
       chain,
       destination_address: destination,
-      usd_amount: data.usd.toFixed(2),
-      asset_amount: data.usd.toFixed(2),
+      usd_amount: usd.toFixed(2),
+      asset_amount: usd.toFixed(2),
       rate: "1",
       fee_bps: feeBps,
-      fee_usd: feeUsd.toFixed(2),
+      fee_usd: settledFee.toFixed(2),
       return_url: returnUrl,
       cancel_url: returnUrl,
       accepted_disclaimers: data.acceptedDisclaimers,
-      transfers: data.transfers.map((row) => ({
+      transfers: settled.map((row) => ({
         chain: row.chain,
         asset: row.asset,
         usd: row.usd.toFixed(2),
@@ -144,6 +171,6 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
       })),
       ...(data.merchantId ? { merchant_ref: data.merchantId } : {}),
     });
-    return { orderId, feeUsd, feeBps, chain, asset, registered: relay.ok, handoffUrl: relay.checkoutUrl, detail: relay.detail, transfers: data.transfers };
+    return { orderId, usd, feeUsd: settledFee, feeBps, chain, asset, registered: relay.ok, handoffUrl: relay.checkoutUrl, detail: relay.detail, transfers: settled };
 
   });
