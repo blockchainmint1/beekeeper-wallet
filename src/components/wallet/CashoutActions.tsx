@@ -16,7 +16,7 @@
  *
  * NectarPay merchants pay no service fee; everyone else pays 1%.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -75,7 +75,7 @@ import {
 import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.functions";
 import { QrScanButton } from "@/components/wallet/QrScanButton";
 import { TopupDialog } from "@/components/wallet/TopupDialog";
-import { topupOpenOnHost } from "@/lib/bridge/visibility";
+import { registerUnlockTap, topupOpenOnHost } from "@/lib/bridge/visibility";
 import { recordEcosystemLink } from "@/lib/ecosystem-links";
 import {
   getVectorPayLink,
@@ -198,9 +198,14 @@ export function CashoutActions({
   const [topupOpen, setTopupOpen] = useState(false);
   // Decided after hydration so the server and browser render the same button.
   const [topupReady, setTopupReady] = useState(false);
+  // Live site only: five quick taps on "Top up · soon" open the test flow
+  // for this visit (not saved; a reload locks it again).
+  const [topupTester, setTopupTester] = useState(false);
+  const unlockTaps = useRef<number[]>([]);
   useEffect(() => {
     setTopupReady(topupOpenOnHost(window.location.host));
   }, []);
+  const topupUsable = topupReady || topupTester;
   const configFn = useServerFn(getVectorPayConfig);
   const startCashout = useServerFn(startVectorPayCashout);
   const fetchTsd = useServerFn(getTxcTokenBalancesForAddresses);
@@ -653,17 +658,27 @@ export function CashoutActions({
         <Button
           variant="outline"
           size="lg"
-          disabled={!topupReady}
-          title={topupReady ? undefined : "Top up is coming soon"}
-          onClick={() => setTopupOpen(true)}
+          aria-disabled={!topupUsable}
+          className={topupUsable ? undefined : "opacity-50"}
+          title={topupUsable ? undefined : "Top up is coming soon"}
+          onClick={() => {
+            if (topupUsable) {
+              setTopupOpen(true);
+              return;
+            }
+            const r = registerUnlockTap(unlockTaps.current, Date.now());
+            unlockTaps.current = r.taps;
+            if (r.unlocked) setTopupTester(true);
+          }}
         >
-          <ArrowDownToLine /> {topupReady ? "Top up" : "Top up · soon"}
+          <ArrowDownToLine />{" "}
+          {topupReady ? "Top up" : topupTester ? "Top up · test" : "Top up · soon"}
         </Button>
         <Button size="lg" onClick={() => setOpen(true)}>
           <ArrowUpFromLine /> Cash out
         </Button>
       </div>
-      {topupReady && <TopupDialog open={topupOpen} onOpenChange={setTopupOpen} />}
+      {topupUsable && <TopupDialog open={topupOpen} onOpenChange={setTopupOpen} />}
 
       <Dialog
         open={open}

@@ -26,6 +26,7 @@
 - [x] Read Bridge docs and confirm the sandbox key works
 - [x] Decisions: BeeKeeper owns the Bridge customer; customers receive TSD; 3% fee
 - [x] Sandbox top-up flow: Top Up button → Bridge ID check → permanent US deposit account (3% fee) → deposit history; test approve/deposit buttons; signed webhook receiver
+- [x] Live-site tester unlock: 5 quick taps on "Top up · soon" opens the sandbox flow for that visit
 - [ ] TSD delivery: TSD bridge per-customer mint address (docs/tsd-mint-address-request.md) — waiting on the TSD bridge team; live accounts are refused until then
 - [ ] Go live (docs/bridge-go-live.md): Bridge business approval, `BRIDGE_API_KEY`, webhook + `BRIDGE_WEBHOOK_PUBLIC_KEY` — waiting on Bobby / Bridge
 - [ ] Cash-out bank lookup: VectorPay should remember the signing TXC address at link time and require it on lookups (today a holder of someone's bk_ ID could sign with their own key) — waiting on VectorPay
