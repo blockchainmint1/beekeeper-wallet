@@ -74,6 +74,7 @@ import {
 } from "@/lib/vectorpay";
 import { getVectorPayConfig, startVectorPayCashout } from "@/lib/vectorpay.functions";
 import { QrScanButton } from "@/components/wallet/QrScanButton";
+import { TopupDialog } from "@/components/wallet/TopupDialog";
 import { recordEcosystemLink } from "@/lib/ecosystem-links";
 import {
   getVectorPayLink,
@@ -193,6 +194,7 @@ export function CashoutActions({
 }) {
   const allowed = useExchangeFeaturesAllowed();
   const { root, unlocked } = useWallet();
+  const [topupOpen, setTopupOpen] = useState(false);
   const configFn = useServerFn(getVectorPayConfig);
   const startCashout = useServerFn(startVectorPayCashout);
   const fetchTsd = useServerFn(getTxcTokenBalancesForAddresses);
@@ -642,14 +644,14 @@ export function CashoutActions({
   return (
     <section className="px-4 pt-4">
       <div className="grid grid-cols-2 gap-3">
-        <Button variant="outline" size="lg" disabled title="Top up is coming soon">
+        <Button variant="outline" size="lg" onClick={() => setTopupOpen(true)}>
           <ArrowDownToLine /> Top up
         </Button>
         <Button size="lg" onClick={() => setOpen(true)}>
           <ArrowUpFromLine /> Cash out
         </Button>
       </div>
-      <p className="mt-2 text-center text-xs text-muted-foreground">Top up is coming soon.</p>
+      <TopupDialog open={topupOpen} onOpenChange={setTopupOpen} />
 
       <Dialog
         open={open}

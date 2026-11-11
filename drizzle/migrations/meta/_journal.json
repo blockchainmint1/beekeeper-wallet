@@ -8,6 +8,13 @@
       "when": 1794417244486,
       "tag": "0000_app_releases_read_only_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794420681841,
+      "tag": "0001_topup_bridge_tables",
+      "breakpoints": true
     }
   ]
 }

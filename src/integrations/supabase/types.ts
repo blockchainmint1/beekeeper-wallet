@@ -80,6 +80,96 @@ export type Database = {
         }
         Relationships: []
       }
+      topup_customers: {
+        Row: {
+          base_address: string | null
+          bridge_customer_id: string | null
+          created_at: string
+          destination_address: string | null
+          destination_currency: string | null
+          destination_rail: string | null
+          env: string
+          id: string
+          kyc_link_id: string | null
+          txc_address: string
+          updated_at: string
+          virtual_account_id: string | null
+        }
+        Insert: {
+          base_address?: string | null
+          bridge_customer_id?: string | null
+          created_at?: string
+          destination_address?: string | null
+          destination_currency?: string | null
+          destination_rail?: string | null
+          env?: string
+          id?: string
+          kyc_link_id?: string | null
+          txc_address: string
+          updated_at?: string
+          virtual_account_id?: string | null
+        }
+        Update: {
+          base_address?: string | null
+          bridge_customer_id?: string | null
+          created_at?: string
+          destination_address?: string | null
+          destination_currency?: string | null
+          destination_rail?: string | null
+          env?: string
+          id?: string
+          kyc_link_id?: string | null
+          txc_address?: string
+          updated_at?: string
+          virtual_account_id?: string | null
+        }
+        Relationships: []
+      }
+      topup_events: {
+        Row: {
+          activity_type: string | null
+          amount: string | null
+          bridge_event_id: string
+          created_at: string
+          deposit_id: string | null
+          destination_tx_hash: string | null
+          developer_fee_amount: string | null
+          event_category: string | null
+          event_type: string | null
+          id: string
+          payload: Json
+          virtual_account_id: string | null
+        }
+        Insert: {
+          activity_type?: string | null
+          amount?: string | null
+          bridge_event_id: string
+          created_at?: string
+          deposit_id?: string | null
+          destination_tx_hash?: string | null
+          developer_fee_amount?: string | null
+          event_category?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json
+          virtual_account_id?: string | null
+        }
+        Update: {
+          activity_type?: string | null
+          amount?: string | null
+          bridge_event_id?: string
+          created_at?: string
+          deposit_id?: string | null
+          destination_tx_hash?: string | null
+          developer_fee_amount?: string | null
+          event_category?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json
+          virtual_account_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

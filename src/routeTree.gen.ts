@@ -57,6 +57,7 @@ import { Route as WalletTxcConsolidateRouteImport } from './routes/wallet.txc.co
 import { Route as WalletTxcMigrateRouteImport } from './routes/wallet.txc.migrate'
 import { Route as WalletTxcPathsRouteImport } from './routes/wallet.txc.paths'
 import { Route as ApiNectarPayInvoiceIdRouteImport } from './routes/api/nectar.pay.$invoiceId'
+import { Route as ApiPublicBridgeWebhookRouteImport } from './routes/api/public/bridge.webhook'
 import { Route as ApiUtxoCoinSplatRouteImport } from './routes/api/utxo.$coin.$'
 import { Route as WalletEvmChainReceiveRouteImport } from './routes/wallet.evm.$chain.receive'
 import { Route as WalletEvmChainSendRouteImport } from './routes/wallet.evm.$chain.send'
@@ -304,6 +305,11 @@ const ApiNectarPayInvoiceIdRoute = ApiNectarPayInvoiceIdRouteImport.update({
   path: '/api/nectar/pay/$invoiceId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBridgeWebhookRoute = ApiPublicBridgeWebhookRouteImport.update({
+  id: '/api/public/bridge/webhook',
+  path: '/api/public/bridge/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiUtxoCoinSplatRoute = ApiUtxoCoinSplatRouteImport.update({
   id: '/api/utxo/$coin/$',
   path: '/api/utxo/$coin/$',
@@ -379,6 +385,7 @@ export interface FileRoutesByFullPath {
   '/wallet/txc/migrate': typeof WalletTxcMigrateRoute
   '/wallet/txc/paths': typeof WalletTxcPathsRoute
   '/api/nectar/pay/$invoiceId': typeof ApiNectarPayInvoiceIdRoute
+  '/api/public/bridge/webhook': typeof ApiPublicBridgeWebhookRoute
   '/api/utxo/$coin/$': typeof ApiUtxoCoinSplatRoute
   '/wallet/evm/$chain/receive': typeof WalletEvmChainReceiveRoute
   '/wallet/evm/$chain/send': typeof WalletEvmChainSendRoute
@@ -433,6 +440,7 @@ export interface FileRoutesByTo {
   '/wallet/txc/migrate': typeof WalletTxcMigrateRoute
   '/wallet/txc/paths': typeof WalletTxcPathsRoute
   '/api/nectar/pay/$invoiceId': typeof ApiNectarPayInvoiceIdRoute
+  '/api/public/bridge/webhook': typeof ApiPublicBridgeWebhookRoute
   '/api/utxo/$coin/$': typeof ApiUtxoCoinSplatRoute
   '/wallet/evm/$chain/receive': typeof WalletEvmChainReceiveRoute
   '/wallet/evm/$chain/send': typeof WalletEvmChainSendRoute
@@ -489,6 +497,7 @@ export interface FileRoutesById {
   '/wallet/txc/migrate': typeof WalletTxcMigrateRoute
   '/wallet/txc/paths': typeof WalletTxcPathsRoute
   '/api/nectar/pay/$invoiceId': typeof ApiNectarPayInvoiceIdRoute
+  '/api/public/bridge/webhook': typeof ApiPublicBridgeWebhookRoute
   '/api/utxo/$coin/$': typeof ApiUtxoCoinSplatRoute
   '/wallet/evm/$chain/receive': typeof WalletEvmChainReceiveRoute
   '/wallet/evm/$chain/send': typeof WalletEvmChainSendRoute
@@ -546,6 +555,7 @@ export interface FileRouteTypes {
     | '/wallet/txc/migrate'
     | '/wallet/txc/paths'
     | '/api/nectar/pay/$invoiceId'
+    | '/api/public/bridge/webhook'
     | '/api/utxo/$coin/$'
     | '/wallet/evm/$chain/receive'
     | '/wallet/evm/$chain/send'
@@ -600,6 +610,7 @@ export interface FileRouteTypes {
     | '/wallet/txc/migrate'
     | '/wallet/txc/paths'
     | '/api/nectar/pay/$invoiceId'
+    | '/api/public/bridge/webhook'
     | '/api/utxo/$coin/$'
     | '/wallet/evm/$chain/receive'
     | '/wallet/evm/$chain/send'
@@ -655,6 +666,7 @@ export interface FileRouteTypes {
     | '/wallet/txc/migrate'
     | '/wallet/txc/paths'
     | '/api/nectar/pay/$invoiceId'
+    | '/api/public/bridge/webhook'
     | '/api/utxo/$coin/$'
     | '/wallet/evm/$chain/receive'
     | '/wallet/evm/$chain/send'
@@ -685,6 +697,7 @@ export interface RootRouteChildren {
   ApiTronSplatRoute: typeof ApiTronSplatRoute
   ApiTsdLinkRoute: typeof ApiTsdLinkRoute
   ApiNectarPayInvoiceIdRoute: typeof ApiNectarPayInvoiceIdRoute
+  ApiPublicBridgeWebhookRoute: typeof ApiPublicBridgeWebhookRoute
   ApiUtxoCoinSplatRoute: typeof ApiUtxoCoinSplatRoute
 }
 
@@ -1026,6 +1039,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNectarPayInvoiceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/bridge/webhook': {
+      id: '/api/public/bridge/webhook'
+      path: '/api/public/bridge/webhook'
+      fullPath: '/api/public/bridge/webhook'
+      preLoaderRoute: typeof ApiPublicBridgeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/utxo/$coin/$': {
       id: '/api/utxo/$coin/$'
       path: '/api/utxo/$coin/$'
@@ -1166,6 +1186,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTronSplatRoute: ApiTronSplatRoute,
   ApiTsdLinkRoute: ApiTsdLinkRoute,
   ApiNectarPayInvoiceIdRoute: ApiNectarPayInvoiceIdRoute,
+  ApiPublicBridgeWebhookRoute: ApiPublicBridgeWebhookRoute,
   ApiUtxoCoinSplatRoute: ApiUtxoCoinSplatRoute,
 }
 export const routeTree = rootRouteImport
