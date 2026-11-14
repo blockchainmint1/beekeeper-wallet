@@ -18,8 +18,16 @@ account → $50 test deposit, with a $1.50 (3%) fee.
    `https://beekeeper.money/api/public/bridge/webhook` with the `virtual_account` and
    `transfer` categories. Copy the webhook's public key into the secret
    `BRIDGE_WEBHOOK_PUBLIC_KEY`, then enable the webhook. Do the same separately in the
-   sandbox if you want test events.
-5. **Clean-up.** The sandbox key is saved twice (`bridge_api_test` and `BRIDGE_API_TEST`).
+   sandbox if you want test events. **Before enabling the live webhook, confirm one real
+   sandbox delivery is accepted** (round-4 audit B4: the signature format in
+   src/lib/bridge/webhook.ts is assumed from the docs, not yet seen on a real event).
+5. **TSD delivery hardening (round-4 audit B8).** When `destinationFor()` calls the TSD bridge:
+   only call the trusted TSD hosts (`TSD_TRUSTED_HOSTS`); require the reply to repeat the same
+   `txc_address`; store the mint address on the customer row; keep the TSD partner key as a server
+   secret with a rotation note; and tell the customer in the Top up screen that every deposit
+   mints to this wallet's T… address for the life of the account.
+6. **Data deletion.** Agree the retention period in docs/topup-data-retention.md before live KYC.
+7. **Clean-up.** The sandbox key is saved twice (`bridge_api_test` and `BRIDGE_API_TEST`).
    Only `BRIDGE_API_TEST` is used, so the lowercase one can be deleted.
 
 ## How it is wired
@@ -28,7 +36,10 @@ account → $50 test deposit, with a $1.50 (3%) fee.
 - Every top-up call is signed by the wallet's TEXITcoin holder key, and the Bridge record
   is keyed by that address (src/lib/bridge/topup-proof.ts).
 - Stored: only Bridge reference IDs and the delivery address (`topup_customers`) and
-  signed webhook events (`topup_events`). No names, emails or ID documents.
+  signed webhook events reduced to IDs and amounts (`topup_events`; no raw payload). No names,
+  emails, ID documents or sender bank details.
+- Live KYC can't start until TSD delivery exists (`startTopupKyc` checks `destinationFor`).
+- Opening the deposit account is its own signed action (`create-account`); signed requests work once.
 - The deposit history is read live from Bridge's virtual-account activity.
 
 ## Turn on the Top up button

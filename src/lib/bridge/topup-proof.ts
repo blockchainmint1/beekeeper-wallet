@@ -7,7 +7,11 @@
  */
 import { verifyMessage as verifyTxcMessage } from "@/lib/txc/message-sign";
 
-export const TOPUP_ACTIONS = ["status", "start", "history", "simulate-approval", "simulate-deposit"] as const;
+/**
+ * "create-account" is its own action (round-4 audit B7): reading status never
+ * creates anything at Bridge, so a replayed read can't open an account.
+ */
+export const TOPUP_ACTIONS = ["status", "start", "create-account", "history", "simulate-approval", "simulate-deposit"] as const;
 export type TopupAction = (typeof TOPUP_ACTIONS)[number];
 
 export interface TopupProofFields {
@@ -31,7 +35,7 @@ export function topupMessage(p: TopupProofFields): string {
   ].join("\n");
 }
 
-/** A signed request is only good for a few minutes. */
+/** A signed request is only good for a few minutes, and only once (the server remembers its nonce). */
 export const TOPUP_PROOF_MAX_AGE_MS = 5 * 60_000;
 
 /** null when the request is signed by `address` for `action` and still fresh; otherwise a short reason. */
@@ -59,4 +63,10 @@ export function checkTopupProof(p: {
   } catch {
     return "bad signature";
   }
+}
+
+/** The nonce line of a top-up message (the server remembers it so a request works once). */
+export function topupNonce(message: string): string {
+  const line = message.split("\n")[4] ?? "";
+  return line.startsWith("nonce: ") ? line.slice(7).trim() : "";
 }

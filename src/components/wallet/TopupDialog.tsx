@@ -23,6 +23,7 @@ import { BRIDGE_MIN_NET_USD, TOPUP_FEE_PERCENT } from "@/lib/bridge/fees";
 import { signTopup } from "@/lib/bridge/sign";
 import type { TopupLine } from "@/lib/bridge/history";
 import {
+  openTopupAccount,
   simulateTopupApproval,
   simulateTopupDeposit,
   startTopupKyc,
@@ -72,6 +73,16 @@ export function TopupDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const historyFn = useServerFn(topupHistory);
   const approveFn = useServerFn(simulateTopupApproval);
   const depositFn = useServerFn(simulateTopupDeposit);
+  const openAccountFn = useServerFn(openTopupAccount);
+
+  /** Once approved, opening the deposit account is its own signed step (round-4 audit B7). */
+  const withAccount = useCallback(
+    async (s: TopupStatus): Promise<TopupStatus> => {
+      if (!root || !s.canOpenAccount) return s;
+      return openAccountFn({ data: signTopup(root, "create-account") });
+    },
+    [root, openAccountFn],
+  );
 
   const [status, setStatus] = useState<TopupStatus | null>(null);
   const [loading, setLoading] = useState(false);
@@ -87,7 +98,7 @@ export function TopupDialog({ open, onOpenChange }: { open: boolean; onOpenChang
     setLoading(true);
     setError(null);
     try {
-      const s = await statusFn({ data: signTopup(root, "status") });
+      const s = await withAccount(await statusFn({ data: signTopup(root, "status") }));
       setStatus(s);
       if (!s.ok && s.detail) setError(s.detail);
       if (s.stage === "ready") {
@@ -99,7 +110,7 @@ export function TopupDialog({ open, onOpenChange }: { open: boolean; onOpenChang
     } finally {
       setLoading(false);
     }
-  }, [root, statusFn, historyFn]);
+  }, [root, statusFn, historyFn, withAccount]);
 
   useEffect(() => {
     if (open) void refresh();
@@ -111,7 +122,7 @@ export function TopupDialog({ open, onOpenChange }: { open: boolean; onOpenChang
     setBusy(true);
     setError(null);
     try {
-      const s = await startFn({ data: { ...signTopup(root, "start"), fullName, email, type: kind } });
+      const s = await withAccount(await startFn({ data: { ...signTopup(root, "start"), fullName, email, type: kind } }));
       setStatus(s);
       if (!s.ok) setError(s.detail);
       else {
@@ -129,7 +140,7 @@ export function TopupDialog({ open, onOpenChange }: { open: boolean; onOpenChang
     if (!root) return;
     setBusy(true);
     try {
-      setStatus(await approveFn({ data: signTopup(root, "simulate-approval") }));
+      setStatus(await withAccount(await approveFn({ data: signTopup(root, "simulate-approval") })));
     } finally {
       setBusy(false);
     }

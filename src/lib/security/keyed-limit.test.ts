@@ -29,3 +29,20 @@ describe("cash-out attempts are counted per customer (round-2 audit 3.3)", () =>
     }
   });
 });
+
+describe("confirmation re-checks of one order aren't new attempts (round-4 audit N1)", () => {
+  it("remembers an order this customer already started", async () => {
+    const { makeOrderMemory } = await import("./keyed-limit");
+    const orders = makeOrderMemory(30 * 60_000);
+    expect(orders.has("bk_a:BK-1")).toBe(false);
+    orders.add("bk_a:BK-1");
+    expect(orders.has("bk_a:BK-1")).toBe(true);
+    expect(orders.has("bk_a:BK-2")).toBe(false);
+  });
+
+  it("a full 5-minute wait (1 start + 20 re-checks) fits the per-order re-check cap of 40", () => {
+    const recheck = makeKeyedLimiter(40, 10 * 60_000);
+    const results = Array.from({ length: 21 }, () => recheck("bk_a:BK-1"));
+    expect(results.every((limited) => limited === false)).toBe(true);
+  });
+});

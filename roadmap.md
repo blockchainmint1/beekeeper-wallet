@@ -29,7 +29,7 @@
 - [x] Live-site tester unlock: 5 quick taps on "Top up · soon" opens the sandbox flow for that visit
 - [ ] TSD delivery: TSD bridge per-customer mint address (docs/tsd-mint-address-request.md) — waiting on the TSD bridge team; live accounts are refused until then
 - [ ] Go live (docs/bridge-go-live.md): Bridge business approval, `BRIDGE_API_KEY`, webhook + `BRIDGE_WEBHOOK_PUBLIC_KEY` — waiting on Bobby / Bridge
-- [ ] Cash-out bank lookup: VectorPay should remember the signing TXC address at link time and require it on lookups (today a holder of someone's bk_ ID could sign with their own key) — waiting on VectorPay
+- [x] Cash-out bank lookup bound to one wallet on BeeKeeper's side (first signed link/check claims the customer ID) — round-4 N2
 
 ## Security audit 2026-11-09 (docs/security-audit-2026-11-09.md)
 - [x] C1 Removed keystore-generator workflow; store password no longer inlined in the APK build script (never ran on this repo)
@@ -76,6 +76,21 @@
 - [x] Bank name / last-4 lookup now needs a wallet signature over that exact customer ID (proof.ts `checkBankLookup`)
 - [ ] Ask VectorPay: pay only a bank linked by code for that `account_ref`, hold never-linked ones (added to vectorpay-requests-v2.md §5)
 - [ ] Merchant discount is still wallet-claimed (auditor's Critical / deep-scan CLIENT_SIDE_AUTH) — Bobby to decide: hold at 1% until VectorPay verifies merchants, or ship as-is
+
+## Security audit round 4 (2026-11-14, docs/security-audit-round4-response-2026-11-14.md)
+- [x] N1 Ethereum cash-out re-checks no longer hit the new-attempt limit; wallet waits ~5 min
+- [x] N2 Bank details locked to the wallet that first proves the customer ID
+- [x] N3 Busy settlement checks retry instead of failing
+- [x] N4 `.env` left out of the auditor package
+- [x] B1 Five-tap unlock kept (Bobby's call); live ID checks blocked by B2
+- [x] B2 No live ID check until TSD delivery is connected
+- [x] B3 Bridge notices stored without sender bank details
+- [x] B5 Signed top-up requests and bank checks work once
+- [x] B6 Double "Start ID check" makes one Bridge customer
+- [x] B7 Opening the deposit account is its own signed step
+- [x] B9 Data retention / deletion note (docs/topup-data-retention.md)
+- [ ] B4 Confirm Bridge webhook signature with one real sandbox delivery — needs the webhook set up in Bridge (go-live step 4)
+- [ ] B8 TSD delivery hardening — waiting on the TSD bridge team's mint address
 
 ## Dropped — TSD Swap API key and off-ramp removed (2026-11-10)
 BeeKeeper no longer stores a TSD Swap API key and the Send screen no longer offers the TSD → USDC off-ramp. TSD leaves the wallet only through the VectorPay cash-out roundup. The TSD Swap account link (watch-only keys) stays in Ecosystem link.

@@ -24,3 +24,22 @@ export function makeKeyedLimiter(max: number, windowMs = 60_000) {
     }
   };
 }
+
+/**
+ * Remembers which (customer, order) pairs this worker has already seen, so a
+ * re-check of an existing order can be told apart from a new attempt.
+ */
+export function makeOrderMemory(ttlMs: number, maxEntries = 10_000) {
+  const seen = new Map<string, number>();
+  return {
+    has(key: string): boolean {
+      const until = seen.get(key);
+      return until !== undefined && until > Date.now();
+    },
+    add(key: string): void {
+      const now = Date.now();
+      seen.set(key, now + ttlMs);
+      if (seen.size > maxEntries) for (const [k, v] of seen) if (v <= now) seen.delete(k);
+    },
+  };
+}

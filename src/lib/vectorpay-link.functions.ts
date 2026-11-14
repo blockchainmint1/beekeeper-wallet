@@ -7,14 +7,11 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { makeNonceGuard } from "@/lib/security/seen-nonce";
+import { LOOKUP_MAX_AGE_MS } from "@/lib/cashout/proof";
 
 const DEFAULT_LINK_URL = "https://vector-pay.com/api/public/beekeeper/link";
 const ALLOWED_HOSTS = new Set(["vector-pay.com", "www.vector-pay.com"]);
-
-const inputSchema = z.object({
-  code: z.string().max(16).optional(),
-  accountRef: z.string().min(1).max(200),
-});
 
 export interface VectorPayLinkReply {
   ok: boolean;
@@ -88,38 +85,55 @@ async function callLinkEndpoint(input: { code?: string; accountRef: string }): P
   }
 }
 
-/** Redeem the one-time code from the customer's VectorPay dashboard. */
-export const redeemVectorPayLink = createServerFn({ method: "POST" })
-  .inputValidator((data) => inputSchema.parse(data))
-  .handler(async ({ data }) => {
-    if (!data.code) return { ok: false, linked: false, firstName: null, bank: null, detail: "Missing code." };
-    return callLinkEndpoint({ code: data.code, accountRef: data.accountRef });
-  });
-
-/** Report whether this wallet's customer ID is linked (no code needed).
- *
- * The reply carries the customer's bank name and last-4, so it is no longer a
- * bare customer-ID lookup: the wallet must sign the request (round-2 audit 2.4).
+/**
+ * Signed proof shared by redeem and status: the wallet's holder key signs the
+ * exact customer ID with a fresh nonce (round-2 audit 2.4). On top of that,
+ * the customer ID is locked to the first wallet that proves itself, and each
+ * nonce works once (round-4 audit N2, B5).
  */
-const statusSchema = z.object({
+const signedRef = {
   accountRef: z.string().regex(/^bk_[0-9a-f]{40}$/),
   address: z.string().min(20).max(64),
   message: z.string().min(40).max(400),
   signature: z.string().min(40).max(200),
-});
+};
+const redeemSchema = z.object({ ...signedRef, code: z.string().min(1).max(16) });
+const statusSchema = z.object(signedRef);
 
+const lookupReplayed = makeNonceGuard(LOOKUP_MAX_AGE_MS * 2 + 60_000);
+
+async function proveOwner(data: z.infer<typeof statusSchema>): Promise<string | null> {
+  const { checkBankLookup } = await import("./cashout/proof");
+  const problem = checkBankLookup(data);
+  if (problem) return `This wallet couldn't prove itself (${problem}).`;
+  if (lookupReplayed(`${data.address}:${data.message.split("\n")[3] ?? ""}`)) {
+    return "This wallet couldn't prove itself (request already used — try again).";
+  }
+  const { ownsAccount } = await import("./cashout/account-owner.server");
+  if (!(await ownsAccount(data.accountRef, data.address))) {
+    const { OTHER_WALLET_DETAIL } = await import("./cashout/account-owner");
+    return OTHER_WALLET_DETAIL;
+  }
+  return null;
+}
+
+/** Redeem the one-time code from the customer's VectorPay dashboard. */
+export const redeemVectorPayLink = createServerFn({ method: "POST" })
+  .inputValidator((data) => redeemSchema.parse(data))
+  .handler(async ({ data }) => {
+    const problem = await proveOwner(data);
+    if (problem) return { ok: false, linked: false, firstName: null, bank: null, detail: problem };
+    return callLinkEndpoint({ code: data.code, accountRef: data.accountRef });
+  });
+
+/**
+ * Report whether this wallet's customer ID is linked (no code needed). The
+ * reply carries the bank name and last-4, so only the owning wallet gets it.
+ */
 export const vectorPayLinkStatus = createServerFn({ method: "POST" })
   .inputValidator((data) => statusSchema.parse(data))
   .handler(async ({ data }) => {
-    const { checkBankLookup } = await import("./cashout/proof");
-    const problem = checkBankLookup({
-      accountRef: data.accountRef,
-      address: data.address,
-      message: data.message,
-      signature: data.signature,
-    });
-    if (problem) {
-      return { ok: false, linked: false, firstName: null, bank: null, detail: `This wallet couldn't prove itself (${problem}).` };
-    }
+    const problem = await proveOwner(data);
+    if (problem) return { ok: false, linked: false, firstName: null, bank: null, detail: problem };
     return callLinkEndpoint({ accountRef: data.accountRef });
   });

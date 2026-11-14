@@ -15,6 +15,13 @@
       "when": 1794420681841,
       "tag": "0001_topup_bridge_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794699684750,
+      "tag": "0002_cashout_account_owners",
+      "breakpoints": true
     }
   ]
 }

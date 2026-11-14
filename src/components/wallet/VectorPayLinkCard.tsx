@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { cashoutCustomerId } from "@/lib/cashout/roundup";
+import { signBankLookup } from "@/lib/cashout/sign-lookup";
 import { recordEcosystemLink } from "@/lib/ecosystem-links";
 import { setVectorPayLink } from "@/lib/vectorpay-link";
 import { redeemVectorPayLink } from "@/lib/vectorpay-link.functions";
@@ -33,7 +34,7 @@ export function VectorPayLinkCard({
     setError(null);
     try {
       const accountRef = await cashoutCustomerId(root);
-      const reply = await redeemVectorPayLink({ data: { code: initialCode, accountRef } });
+      const reply = await redeemVectorPayLink({ data: { code: initialCode, accountRef, ...(await signBankLookup(root, accountRef)) } });
       if (!reply.ok || !reply.linked) {
         setError(reply.detail);
         return;

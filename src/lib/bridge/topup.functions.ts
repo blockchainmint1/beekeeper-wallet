@@ -10,7 +10,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { makeKeyedLimiter } from "@/lib/security/keyed-limit";
-import type { TopupAction } from "./topup-proof";
+import { makeNonceGuard } from "@/lib/security/seen-nonce";
+import { TOPUP_PROOF_MAX_AGE_MS, topupNonce, type TopupAction } from "./topup-proof";
 import type { TopupLine } from "./history";
 
 const signed = {
@@ -24,6 +25,8 @@ type Signed = z.infer<typeof signedSchema>;
 
 const readLimit = makeKeyedLimiter(40, 10 * 60_000);
 const writeLimit = makeKeyedLimiter(8, 10 * 60_000);
+/** Each signed request works once (round-4 audit B5). */
+const replayed = makeNonceGuard(TOPUP_PROOF_MAX_AGE_MS * 2 + 60_000);
 
 export interface DepositInstructions {
   bankName: string;
@@ -46,6 +49,8 @@ export interface TopupStatus {
   tosUrl: string | null;
   deposit: DepositInstructions | null;
   deliversTo: { rail: string; currency: string; address: string } | null;
+  /** Approved and ready for a deposit account: the wallet should call openTopupAccount (round-4 audit B7). */
+  canOpenAccount: boolean;
   detail: string;
 }
 
@@ -60,6 +65,7 @@ const empty = (over: Partial<TopupStatus>): TopupStatus => ({
   tosUrl: null,
   deposit: null,
   deliversTo: null,
+  canOpenAccount: false,
   detail: "",
   ...over,
 });
@@ -82,6 +88,9 @@ async function open(action: TopupAction, data: Signed, write = false) {
   const { checkTopupProof } = await import("./topup-proof");
   const problem = checkTopupProof({ action, ...data });
   if (problem) return { error: `This wallet couldn't prove itself (${problem}).` } as const;
+  if (replayed(`${data.address}:${topupNonce(data.message)}`)) {
+    return { error: "This wallet couldn't prove itself (request already used — try again)." } as const;
+  }
   if ((write ? writeLimit : readLimit)(`${action}:${data.address}`)) {
     return { error: "Too many tries — wait a few minutes and try again." } as const;
   }
@@ -123,7 +132,14 @@ function toDeposit(va: Record<string, unknown> | null): DepositInstructions | nu
   };
 }
 
-async function buildStatus(ctx: Exclude<Awaited<ReturnType<typeof open>>, { error: string }>, data: Signed): Promise<TopupStatus> {
+/** Live: TSD delivery isn't connected yet, so nothing at Bridge is started (round-4 audit B2). */
+const LIVE_NOT_READY = "Live top-ups switch on once TSD delivery is connected.";
+
+/**
+ * Where the account stands. Reads only, unless `create` is set — that is
+ * reserved for the signed "create-account" action (round-4 audit B7).
+ */
+async function buildStatus(ctx: Exclude<Awaited<ReturnType<typeof open>>, { error: string }>, data: Signed, create = false): Promise<TopupStatus> {
   const { cfg, db } = ctx;
   let row = ctx.row;
   const sandbox = cfg.env === "sandbox";
@@ -161,7 +177,10 @@ async function buildStatus(ctx: Exclude<Awaited<ReturnType<typeof open>>, { erro
   } else {
     const dest = destinationFor(cfg.env, data);
     if (!dest) {
-      return empty({ ok: true, ...base, stage: "verifying", detail: "You're approved. Live top-ups switch on once TSD delivery is connected." });
+      return empty({ ok: true, ...base, stage: "verifying", detail: `You're approved. ${LIVE_NOT_READY}` });
+    }
+    if (!create) {
+      return empty({ ok: true, ...base, stage: "verifying", canOpenAccount: true, detail: "You're approved — opening your deposit account…" });
     }
     const { bridgeFeeString } = await import("./fees");
     const r = await bridgeFetch(
@@ -208,6 +227,15 @@ export const topupStatus = createServerFn({ method: "POST" })
     return buildStatus(ctx, data);
   });
 
+/** Approved customers: open the permanent deposit account (its own signed action). */
+export const openTopupAccount = createServerFn({ method: "POST" })
+  .inputValidator((d) => signedSchema.parse(d))
+  .handler(async ({ data }): Promise<TopupStatus> => {
+    const ctx = await open("create-account", data, true);
+    if ("error" in ctx) return empty({ configured: !("unconfigured" in ctx), detail: ctx.error });
+    return buildStatus(ctx, data, true);
+  });
+
 const startSchema = z.object({
   ...signed,
   fullName: z.string().trim().min(2).max(120),
@@ -223,9 +251,20 @@ export const startTopupKyc = createServerFn({ method: "POST" })
     const ctx = await open("start", proof, true);
     if ("error" in ctx) return empty({ configured: !("unconfigured" in ctx), detail: ctx.error });
     if (ctx.row?.kyc_link_id) return buildStatus(ctx, proof);
+    // No real ID check before the product can deliver (round-4 audit B2).
+    if (!destinationFor(ctx.cfg.env, proof)) {
+      return empty({ ok: true, sandbox: ctx.cfg.env === "sandbox", stage: "new", detail: LIVE_NOT_READY });
+    }
 
     const { bridgeFetch } = await import("./client.server");
-    const r = await bridgeFetch(ctx.cfg, "POST", "/kyc_links", { full_name: data.fullName, email: data.email, type: data.type });
+    const { kycIdempotencyKey } = await import("./idempotency");
+    const r = await bridgeFetch(
+      ctx.cfg,
+      "POST",
+      "/kyc_links",
+      { full_name: data.fullName, email: data.email, type: data.type },
+      await kycIdempotencyKey({ env: ctx.cfg.env, address: data.address, fullName: data.fullName, email: data.email, type: data.type }),
+    );
     const j = (r.json ?? {}) as Record<string, unknown>;
     const linkId = typeof j["id"] === "string" ? (j["id"] as string) : null;
     if (!r.ok || !linkId) {

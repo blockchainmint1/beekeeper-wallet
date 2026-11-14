@@ -82,7 +82,8 @@ export interface SettleLine {
  */
 export const MAX_SETTLEMENT_LOOKUPS = 80;
 
-export const LOOKUPS_EXHAUSTED = "this cash-out has too many sends to check at once — cash out fewer at a time";
+/** Retryable (round-4 audit N3): sends that are still confirming cost extra lookups; once mined, a re-check fits the budget. */
+export const LOOKUPS_EXHAUSTED = "there are a lot of sends still confirming — checking again shortly";
 
 export interface SettleBudget {
   left: number;
@@ -99,7 +100,7 @@ export async function settleLine(
 
   if (txids.length === 0) {
     // Before coins move: cap at the sending address's balance right now.
-    if (budget && budget.left <= 0) return { error: LOOKUPS_EXHAUSTED };
+    if (budget && budget.left <= 0) return { error: LOOKUPS_EXHAUSTED, retryable: true };
     if (budget) budget.left -= 1;
     try {
       const balance = await balanceUsd(line);
@@ -117,7 +118,7 @@ export async function settleLine(
     for (let attempt = 0; attempt < 3; attempt++) {
       // Every chain lookup is charged to the order's budget (round-2 audit 3.3).
       if (budget) {
-        if (budget.left <= 0) return { error: LOOKUPS_EXHAUSTED };
+        if (budget.left <= 0) return { error: LOOKUPS_EXHAUSTED, retryable: true };
         budget.left -= 1;
       }
       try {

@@ -32,7 +32,6 @@ import {
   X,
 } from "lucide-react";
 import { formatEther, type Address } from "viem";
-import type { BIP32Interface } from "bip32";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -42,10 +41,7 @@ import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { getTxcTokenBalancesForAddresses, getTxcTokenBalancesPerAddress } from "@/lib/txc/tokens.functions";
 import { sendOmniToken } from "@/lib/txc/omni-send";
 import { explorerTxUrl } from "@/lib/txc/mempool";
-import { DERIVATION_PATHS as TXC_PATHS } from "@/lib/txc/network";
-import { deriveAddress } from "@/lib/txc/wallet";
-import { signMessageWithKey } from "@/lib/txc/message-sign";
-import { bankLookupMessage } from "@/lib/cashout/proof";
+import { signBankLookup } from "@/lib/cashout/sign-lookup";
 import { EVM_CHAINS } from "@/lib/chains/evm";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { listLinks } from "@/lib/nectar/link";
@@ -92,22 +88,8 @@ const ALL_TERM_IDS = CASHOUT_DISCLOSURES.map((d) => d.id) as string[];
 type Step = "intro" | "holdings" | "review" | "transfers" | "done";
 const STEPS: Step[] = ["intro", "holdings", "review", "transfers", "done"];
 
-/**
- * Prove this wallet owns its VectorPay customer ID before the server asks
- * VectorPay for the bank name and last-4 (round-2 audit 2.4): the lookup is
- * signed with the wallet's own key and names the exact customer ID.
- */
-async function signBankLookup(root: BIP32Interface, accountRef: string) {
-  const holder = deriveAddress(root, "bip44", 0, 0);
-  const node = root.derivePath(`${TXC_PATHS.bip44}/0/0`);
-  if (!node.privateKey) throw new Error("Wallet locked");
-  const buf = new Uint8Array(16);
-  crypto.getRandomValues(buf);
-  const nonce = Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
-  const message = bankLookupMessage({ accountRef, address: holder.address, nonce, at: Date.now() });
-  const { signature } = signMessageWithKey({ privateKey: node.privateKey, kind: "bip44", address: holder.address, message });
-  return { address: holder.address, message, signature };
-}
+/** Confirmation re-checks after the last send: 20 × 15 s ≈ 5 minutes (round-4 audit N1). */
+const RECHECK_POLLS = 20;
 
 interface Holding {
   key: string;
@@ -340,7 +322,7 @@ export function CashoutActions({
     setVpError(null);
     try {
       const accountRef = await cashoutCustomerId(root);
-      const reply = await redeemVectorPayLink({ data: { code, accountRef } });
+      const reply = await redeemVectorPayLink({ data: { code, accountRef, ...(await signBankLookup(root, accountRef)) } });
       if (!reply.ok || !reply.linked) {
         setVpError(reply.detail);
         return;
@@ -566,8 +548,10 @@ export function CashoutActions({
         },
       });
       let response = await send();
-      // Sends that are still confirming: wait and ask again (up to ~2 minutes).
-      for (let attempt = 0; final && !response.registered && "retryable" in response && response.retryable && attempt < 8; attempt++) {
+      // Sends that are still confirming: wait and ask again. Ethereum needs 12
+      // confirmations (~2.5 min), so keep asking for up to ~5 minutes. These
+      // re-checks of the same order don't count as new cash-out attempts.
+      for (let attempt = 0; final && !response.registered && "retryable" in response && response.retryable && attempt < RECHECK_POLLS; attempt++) {
         setError("Waiting for the network to confirm your sends…");
         await new Promise((r) => setTimeout(r, 15_000));
         response = await send();

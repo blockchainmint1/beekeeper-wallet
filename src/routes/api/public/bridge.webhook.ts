@@ -54,7 +54,8 @@ export const Route = createFileRoute("/api/public/bridge/webhook")({
             amount: str(obj["amount"]),
             developer_fee_amount: str(obj["developer_fee_amount"]),
             destination_tx_hash: str(obj["destination_tx_hash"]) ?? str(receipt["destination_tx_hash"]),
-            payload: evt as never,
+            // No raw payload (round-4 audit B3): Bridge events can carry the
+            // sender's name and bank details. Only the fields above are kept.
           },
           { onConflict: "bridge_event_id", ignoreDuplicates: true },
         );

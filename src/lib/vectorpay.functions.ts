@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { makeKeyedLimiter } from "@/lib/security/keyed-limit";
+import { makeKeyedLimiter, makeOrderMemory } from "@/lib/security/keyed-limit";
 import { CASHOUT_DISCLOSURES, MERCHANT_FEE_BPS, ORDER_FEE_BPS, ORDER_MAX_USD, ORDER_MIN_USD, type CashoutAsset, type CashoutChain } from "./vectorpay";
 
 const allowedDisclosureIds = new Set(CASHOUT_DISCLOSURES.map((item) => item.id));
@@ -8,8 +8,15 @@ const CASHOUT_CHAINS: CashoutChain[] = ["txc", "base", "eth", "bsc", "tron"];
 const CASHOUT_ASSET_SYMBOLS: CashoutAsset[] = ["TSD", "USDC", "USDT"];
 /** Sends one order may carry: keeps one request from needing ~1,000 chain lookups. */
 const MAX_ORDER_TXIDS = 60;
-/** One customer ID gets a handful of cash-out attempts every 10 minutes (round-2 audit 3.3). */
+/** One customer ID gets a handful of NEW cash-out orders every 10 minutes (round-2 audit 3.3). */
 const cashoutLimiter = makeKeyedLimiter(6, 10 * 60_000);
+/**
+ * Re-checking an order this customer already started (waiting for Ethereum's
+ * 12 confirmations) doesn't count as a new attempt (round-4 audit N1); it has
+ * its own, looser per-order cap so the settlement path still can't be hammered.
+ */
+const recheckLimiter = makeKeyedLimiter(40, 10 * 60_000);
+const startedOrders = makeOrderMemory(30 * 60_000);
 
 const startSchema = z
   .object({
@@ -87,9 +94,11 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
     const orderId = data.reference;
     const feeBps = data.merchantId ? MERCHANT_FEE_BPS : ORDER_FEE_BPS;
     const feeUsd = Math.round(data.usd * (feeBps / 10_000) * 100) / 100;
-    if (cashoutLimiter(data.customerId)) {
+    const orderKey = `${data.customerId}:${data.reference}`;
+    if (startedOrders.has(orderKey) ? recheckLimiter(orderKey) : cashoutLimiter(data.customerId)) {
       return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: "Too many cash-out attempts right now — wait a few minutes and try again.", transfers: data.transfers };
     }
+    startedOrders.add(orderKey);
     if (!vectorPayConfigured()) {
       return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: "Cash out is not configured yet.", transfers: data.transfers };
     }

@@ -53,6 +53,24 @@ export type Database = {
         }
         Relationships: []
       }
+      cashout_account_owners: {
+        Row: {
+          account_ref: string
+          created_at: string
+          txc_address: string
+        }
+        Insert: {
+          account_ref: string
+          created_at?: string
+          txc_address: string
+        }
+        Update: {
+          account_ref?: string
+          created_at?: string
+          txc_address?: string
+        }
+        Relationships: []
+      }
       cashout_order_status: {
         Row: {
           created_at: string
