@@ -25,6 +25,11 @@ const UPSTREAMS: Record<string, Upstream[]> = {
   ltc: [{ base: "https://litecoinspace.org/api" }],
   btc: [
     { base: "https://btcbook.nownodes.io/api/v2", key: true },
+    // Public Blockbook failover. Trezor blocks Cloudflare-hosted callers,
+    // so it sits last; the others answer our worker.
+    { base: "https://bitcoin.atomicwallet.io/api/v2" },
+    { base: "https://blockbook.btc.zelcore.io/api/v2" },
+    { base: "https://btcbook.guarda.co/api/v2" },
     { base: "https://btc1.trezor.io/api/v2" },
   ],
   doge: [
