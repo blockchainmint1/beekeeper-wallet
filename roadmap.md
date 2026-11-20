@@ -117,7 +117,7 @@ There will never be an iOS version. Removed the iOS native project, the iOS buil
 - [x] Clean public copy builder (scripts/make-public-copy.sh) + first public copy ZIP
 - [x] Round-6 sign-off edits: copy git-ignores .env, ANDROID/CAPACITOR notes left out, package name + MIT licence, stale AGENTS.md comment
 - [x] VectorPay accepts a second code from the same account (checked in VectorPay's source); not yet tried live
-- [ ] Owner check on cash-out order creation (auditor's recommended follow-up) — waiting on Bobby's go-ahead
+- [x] Owner check on cash-out order creation: only the wallet recorded as the customer ID's owner can place an order (signed per call, single-use)
 - [ ] Create the new public GitHub repo and push the copy — Bobby
 - [ ] Turn on secret scanning, push protection, branch protection in GitHub settings — Bobby
 - [ ] Five-tap Top up stays (Bobby kept it); revisit before Top up goes live

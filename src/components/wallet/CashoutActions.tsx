@@ -41,7 +41,7 @@ import { useExchangeFeaturesAllowed } from "@/lib/native/capabilities";
 import { getTxcTokenBalancesForAddresses, getTxcTokenBalancesPerAddress } from "@/lib/txc/tokens.functions";
 import { sendOmniToken } from "@/lib/txc/omni-send";
 import { explorerTxUrl } from "@/lib/txc/mempool";
-import { signBankLookup } from "@/lib/cashout/sign-lookup";
+import { signBankLookup, signOrderOwner } from "@/lib/cashout/sign-lookup";
 import { EVM_CHAINS } from "@/lib/chains/evm";
 import { useWallet } from "@/lib/txc/wallet-context";
 import { listLinks } from "@/lib/nectar/link";
@@ -535,11 +535,14 @@ export function CashoutActions({
           : signTsdProof(root, { reference, to, txids, amount });
         proofs.push({ ...proof, usd: Math.round(row.usd * 100) / 100 });
       }
+      const customerId = await cashoutCustomerId(root);
+      // A fresh owner signature for every call, re-checks included: each works once.
       const send = async () => startCashout({
         data: {
           reference,
           usd: q.usd,
-          customerId: await cashoutCustomerId(root),
+          customerId,
+          owner: signOrderOwner(root, customerId, reference),
           acceptedDisclaimers: acceptedIds,
           ...(merchantId ? { merchantId } : {}),
           transfers: proofs.map((p) => ({
@@ -564,6 +567,16 @@ export function CashoutActions({
         response = await send();
       }
       setError(null);
+      if ("needsConfirm" in response && response.needsConfirm) {
+        // This wallet hasn't confirmed its VectorPay link with a code yet.
+        // Before any coins move, send the merchant back to the code box.
+        clearVectorPayLink();
+        setVpLink(null);
+        setVpError(response.detail);
+        if (!final) setStep("intro");
+        else setError(response.detail);
+        return false;
+      }
       saveLocalVectorPayOrder({
         id: response.orderId,
         side: "sell",

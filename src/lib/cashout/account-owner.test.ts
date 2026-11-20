@@ -23,3 +23,12 @@ describe("who owns a VectorPay customer ID (round-4 N2, round-5 §3)", () => {
     expect(mayClaimAfterRedeem("ok", { ok: true, linked: true })).toBe(false);
   });
 });
+
+describe("placing a cash-out order uses the same owner rule (round-7 sign-off §2)", () => {
+  it("an order for an unclaimed customer ID is sent to confirm with a code, not placed", () => {
+    expect(ownerDecision(null, "TAnyone", "lookup")).toBe("unclaimed");
+  });
+  it("an order from a different wallet than the recorded owner is refused", () => {
+    expect(ownerDecision("TOwner", "TSomeoneElse", "lookup")).toBe("other-wallet");
+  });
+});

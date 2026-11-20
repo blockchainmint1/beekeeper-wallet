@@ -116,3 +116,52 @@ export function checkBankLookup(p: {
   if (p.message !== expected) return "lookup message mismatch";
   return verifyTxcMessage(p.address, p.message, p.signature) ? null : "signature does not match wallet";
 }
+
+/**
+ * Cash-out orders have to come from the wallet that owns the customer ID
+ * (round-7 sign-off §2): the holder key signs the customer ID AND this order
+ * reference with a fresh nonce, and the server checks the signer is the
+ * owner recorded in `cashout_account_owners`. A different first line from the
+ * bank lookup, so a lookup signature can never be reused to place an order.
+ */
+export function orderOwnerMessage(p: { accountRef: string; reference: string; address: string; nonce: string; at: number }) {
+  return [
+    "BeeKeeper cash-out order",
+    `account: ${p.accountRef}`,
+    `order: ${p.reference}`,
+    `address: ${p.address}`,
+    `nonce: ${p.nonce}`,
+    `time: ${p.at}`,
+  ].join("\n");
+}
+
+/** The nonce line of a signed order-owner message ("" when absent). */
+export function orderOwnerNonce(message: string): string {
+  const line = message.split("\n")[4] ?? "";
+  return line.startsWith("nonce: ") ? line.slice("nonce: ".length).trim() : "";
+}
+
+/** null when the order is signed by the wallet, for this ID and order, and fresh; otherwise a short reason. */
+export function checkOrderOwner(p: {
+  accountRef: string;
+  reference: string;
+  address?: string;
+  message?: string;
+  signature?: string;
+  now?: number;
+}): string | null {
+  if (!p.address || !p.message || !p.signature) return "missing wallet signature";
+  const lines = p.message.split("\n");
+  if (lines.length !== 6) return "order message mismatch";
+  const nonce = orderOwnerNonce(p.message);
+  const at = lines[5]!.startsWith("time: ") ? Number(lines[5]!.slice("time: ".length)) : NaN;
+  if (!nonce || !Number.isFinite(at)) return "order message mismatch";
+  if (Math.abs((p.now ?? Date.now()) - at) > LOOKUP_MAX_AGE_MS) return "signature expired — try again";
+  const expected = orderOwnerMessage({ accountRef: p.accountRef, reference: p.reference, address: p.address, nonce, at });
+  if (p.message !== expected) return "order message mismatch";
+  try {
+    return verifyTxcMessage(p.address, p.message, p.signature) ? null : "signature does not match wallet";
+  } catch {
+    return "bad signature";
+  }
+}

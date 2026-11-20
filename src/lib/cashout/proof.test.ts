@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BIP32Factory } from "bip32";
 import * as ecc from "@bitcoinerlab/secp256k1";
-import { bankLookupMessage, checkBankLookup } from "./proof";
+import { bankLookupMessage, checkBankLookup, checkOrderOwner, orderOwnerMessage } from "./proof";
 import { signMessageWithKey } from "@/lib/txc/message-sign";
 import { deriveAddress } from "@/lib/txc/wallet";
 import { DERIVATION_PATHS } from "@/lib/txc/network";
@@ -55,5 +55,39 @@ describe("a bank-name lookup has to prove the wallet (round-2 audit 2.4)", () =>
         signature: "x".repeat(88),
       }),
     ).toBe("lookup message mismatch");
+  });
+});
+
+describe("a cash-out order has to come from the owning wallet (round-7 sign-off §2)", () => {
+  const ORDER = "BK-TSD-" + "A".repeat(24);
+  function signedOrder(accountRef: string, reference: string, at: number, signer: Uint8Array = key) {
+    const message = orderOwnerMessage({ accountRef, reference, address: holder.address, nonce: "n0nce1", at });
+    const { signature } = signMessageWithKey({ privateKey: signer, kind: "bip44", address: holder.address, message });
+    return { accountRef, reference, address: holder.address, message, signature };
+  }
+
+  it("a fresh order signed by the wallet is accepted", () => {
+    expect(checkOrderOwner(signedOrder(REF, ORDER, Date.now()))).toBeNull();
+  });
+  it("a signature for one order can't be reused for another order", () => {
+    const signed = signedOrder(REF, ORDER, Date.now());
+    expect(checkOrderOwner({ ...signed, reference: "BK-TSD-" + "B".repeat(24) })).toBe("order message mismatch");
+  });
+  it("a signature for one customer ID can't be reused for another", () => {
+    const signed = signedOrder(REF, ORDER, Date.now());
+    expect(checkOrderOwner({ ...signed, accountRef: OTHER_REF })).toBe("order message mismatch");
+  });
+  it("a bank-lookup signature can't be used to place an order", () => {
+    const lookup = signedLookup(REF, Date.now());
+    expect(checkOrderOwner({ ...lookup, reference: ORDER })).toBe("order message mismatch");
+  });
+  it("an order signature older than a few minutes is refused", () => {
+    expect(checkOrderOwner(signedOrder(REF, ORDER, Date.now() - 10 * 60_000))).toBe("signature expired — try again");
+  });
+  it("an order signed by a different key is refused", () => {
+    expect(checkOrderOwner(signedOrder(REF, ORDER, Date.now(), otherKey))).toBe("signature does not match wallet");
+  });
+  it("an order with no owner signature is refused", () => {
+    expect(checkOrderOwner({ accountRef: REF, reference: ORDER })).toBe("missing wallet signature");
   });
 });

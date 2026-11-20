@@ -1,6 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { makeKeyedLimiter, makeOrderMemory } from "@/lib/security/keyed-limit";
+import { makeNonceGuard } from "@/lib/security/seen-nonce";
+import { LOOKUP_MAX_AGE_MS } from "@/lib/cashout/proof";
+import { CONFIRM_LINK_DETAIL, OTHER_WALLET_DETAIL, ownerDecision } from "@/lib/cashout/account-owner";
 import { CASHOUT_DISCLOSURES, MERCHANT_FEE_BPS, ORDER_FEE_BPS, ORDER_MAX_USD, ORDER_MIN_USD, type CashoutAsset, type CashoutChain } from "./vectorpay";
 
 const allowedDisclosureIds = new Set(CASHOUT_DISCLOSURES.map((item) => item.id));
@@ -17,6 +20,8 @@ const cashoutLimiter = makeKeyedLimiter(6, 10 * 60_000);
  */
 const recheckLimiter = makeKeyedLimiter(40, 10 * 60_000);
 const startedOrders = makeOrderMemory(30 * 60_000);
+/** Each signed order-owner proof works once (same bar as bank lookups, round-4 B5). */
+const orderProofReplayed = makeNonceGuard(LOOKUP_MAX_AGE_MS * 2 + 60_000);
 
 const startSchema = z
   .object({
@@ -24,6 +29,18 @@ const startSchema = z
     usd: z.number().finite().min(ORDER_MIN_USD).max(ORDER_MAX_USD),
     /** Wallet-derived customer ID (bk_ + 40 hex) — VectorPay keys saved banks to it. */
     customerId: z.string().regex(/^bk_[0-9a-f]{40}$/),
+    /**
+     * Owner proof (round-7 sign-off §2): the wallet's holder key signs this
+     * customer ID + order reference; the signer must be the ID's recorded
+     * owner. Optional only so an old open tab gets a friendly refusal.
+     */
+    owner: z
+      .object({
+        address: z.string().min(20).max(64),
+        message: z.string().min(40).max(400),
+        signature: z.string().min(40).max(200),
+      })
+      .optional(),
     acceptedDisclaimers: z.array(z.string().min(1).max(64)).length(CASHOUT_DISCLOSURES.length),
     /** NectarPay merchant id, when this wallet is linked — 0% fee tier. */
     merchantId: z.string().trim().min(3).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
@@ -94,6 +111,37 @@ export const startVectorPayCashout = createServerFn({ method: "POST" })
     const orderId = data.reference;
     const feeBps = data.merchantId ? MERCHANT_FEE_BPS : ORDER_FEE_BPS;
     const feeUsd = Math.round(data.usd * (feeBps / 10_000) * 100) / 100;
+    const refuse = (detail: string, extra: { needsConfirm?: boolean; retryable?: boolean } = {}) => ({
+      orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail, transfers: data.transfers,
+      chain: undefined as CashoutChain | undefined, asset: undefined as CashoutAsset | undefined, ...extra,
+    });
+
+    // Only the wallet that owns this customer ID may place orders for it
+    // (round-7 sign-off §2). Checked before the rate limit, so someone holding
+    // a leaked ID can't use up the real merchant's attempts either.
+    const { checkOrderOwner, orderOwnerNonce } = await import("./cashout/proof");
+    const ownerProblem = checkOrderOwner({ accountRef: data.customerId, reference: data.reference, ...data.owner });
+    if (ownerProblem) {
+      return refuse(
+        ownerProblem === "missing wallet signature"
+          ? "This page is out of date — reload it and try again. Nothing was sent."
+          : `This wallet couldn't prove it owns this cash-out account (${ownerProblem}). Nothing was sent.`,
+      );
+    }
+    if (orderProofReplayed(`${data.owner!.address}:${orderOwnerNonce(data.owner!.message)}`)) {
+      return refuse("This wallet couldn't prove itself (request already used — try again).");
+    }
+    const { readAccountOwner } = await import("./cashout/account-owner.server");
+    let existingOwner: string | null;
+    try {
+      existingOwner = await readAccountOwner(data.customerId);
+    } catch {
+      return refuse("Couldn't check this wallet's VectorPay link right now — try again.");
+    }
+    const decision = ownerDecision(existingOwner, data.owner!.address, "lookup");
+    if (decision === "other-wallet") return refuse(OTHER_WALLET_DETAIL);
+    if (decision === "unclaimed") return refuse(CONFIRM_LINK_DETAIL, { needsConfirm: true });
+
     const orderKey = `${data.customerId}:${data.reference}`;
     if (startedOrders.has(orderKey) ? recheckLimiter(orderKey) : cashoutLimiter(data.customerId)) {
       return { orderId, feeUsd, feeBps, registered: false, handoffUrl: null, detail: "Too many cash-out attempts right now — wait a few minutes and try again.", transfers: data.transfers };
