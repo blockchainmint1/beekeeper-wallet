@@ -121,4 +121,5 @@ There will never be an iOS version. Removed the iOS native project, the iOS buil
 - [x] Bobby kept the original repo (blockchainmint1/beekeeper-wallet) public, notes and history included — no separate public repo
 - [ ] Send the auditor the round-8 package, then publish the cash-out owner check (its gap is now described in the public notes) — Bobby / auditor
 - [ ] Turn on secret-scanning alerts for blockchainmint1/beekeeper-wallet — Bobby
+- [x] GitHub rulesets removed (org + repo) so Lovable can save straight to main again — Bobby, 2026-11-20
 - [ ] Five-tap Top up stays (Bobby kept it); revisit before Top up goes live
