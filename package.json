@@ -1,5 +1,6 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "beekeeper-wallet",
+  "license": "MIT",
   "private": true,
   "sideEffects": [
     "src/styles.css"

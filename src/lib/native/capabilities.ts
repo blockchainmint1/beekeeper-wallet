@@ -9,8 +9,8 @@
  *  1. Build-time: `VITE_DISABLE_EXCHANGE=true` (set for App Store builds).
  *  2. Runtime: the Capacitor platform reports `ios`.
  *
- * See AGENTS.md: any new exchange-like feature must be gated here and hidden
- * from iOS before it ships.
+ * BeeKeeper is web-only now (no iOS app), so on the web this always allows;
+ * it stays as a harmless switch for installs that are already out there.
  */
 import { useEffect, useState } from "react";
 import { nativePlatform } from "./platform";

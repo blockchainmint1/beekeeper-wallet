@@ -11,7 +11,7 @@
  *       nectar://...
  *       https://pay.honest.money/...
  *
- * See ANDROID.md for the source-of-truth list.
+ * (Legacy: Android builds are discontinued; kept for existing installs.)
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";

@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://beekeeper.money"><img src="https://img.shields.io/badge/live-beekeeper.money-ffb900?style=flat-square&logo=googlechrome&logoColor=141008" alt="Live at beekeeper.money" /></a>
   <a href="https://honest.money"><img src="https://img.shields.io/badge/part%20of-honest.money-141008?style=flat-square&logoColor=ffb900&labelColor=2a2118" alt="Part of the honest.money ecosystem" /></a>
-  <img src="https://img.shields.io/badge/tests-111%20passing-3fb950?style=flat-square" alt="111 tests passing" />
+  <img src="https://img.shields.io/badge/tested%20with-Vitest-3fb950?style=flat-square" alt="Tested with Vitest" />
   <img src="https://img.shields.io/badge/web--only-no%20iOS%2C%20no%20Android%20app-8b8f96?style=flat-square" alt="Web only" />
 </p>
 
@@ -233,7 +233,7 @@ password, and the private key never leaves the device except to sign.
   cap, and per-customer rate limits; partner relays are rate limited with capped
   bodies.
 - **Independently audited.** BeeKeeper has been through repeated rounds of
-  third-party security review, and every change ships only after one.
+  third-party security review.
 - **CI checks without secrets.** `.github/workflows/security.yml` runs types, tests
   and a dependency audit on every push and pull request with no secrets, so it is
   safe on forks. Every GitHub Action is pinned to an exact commit, and release
@@ -257,7 +257,7 @@ bun run dev
 | Command           | What it does                          |
 | ----------------- | ------------------------------------- |
 | `bun run dev`     | Dev server on <http://localhost:8080> |
-| `bunx vitest run` | Unit tests — 111 tests, 19 files      |
+| `bunx vitest run` | Unit tests                            |
 | `bun run build`   | Production build                      |
 | `bun run lint`    | ESLint                                |
 | `bun run format`  | Prettier                              |
