@@ -108,3 +108,13 @@ BeeKeeper is the web merchant entry point; merchants who want a native mobile ap
 ## Dropped — iPhone app (2026-11-10)
 There will never be an iOS version. Removed the iOS native project, the iOS build/setup commands and the iOS Capacitor package. BeeKeeper is web-only (plus the frozen Android installs above).
 
+
+## Public-readiness review (2026-11-20, .lovable/reviews/public-readiness-2026-11-20.md)
+- [x] History scanned for leaked keys: none (only the publishable key and storage-key labels)
+- [x] §3 A status check no longer claims a customer ID; only a VectorPay-accepted link code does (claims after VectorPay confirms)
+- [x] GitHub Actions pinned to commit SHAs, Android workflow given explicit permissions, Dependabot alerts added
+- [x] MIT LICENSE, SECURITY.md (help@honest.money), README no longer links private docs or lists open items
+- [x] Clean public copy builder (scripts/make-public-copy.sh) + first public copy ZIP
+- [ ] Create the new public GitHub repo and push the copy — Bobby
+- [ ] Turn on secret scanning, push protection, branch protection in GitHub settings — Bobby
+- [ ] Five-tap Top up stays (Bobby kept it); revisit before Top up goes live

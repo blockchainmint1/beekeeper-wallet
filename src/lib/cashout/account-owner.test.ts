@@ -1,14 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { ownerDecision } from "./account-owner";
+import { mayClaimAfterRedeem, ownerDecision } from "./account-owner";
 
-describe("bank details stay with the wallet that first claimed the customer ID (round-4 audit N2)", () => {
-  it("lets the first signed wallet claim an unowned customer ID", () => {
-    expect(ownerDecision(null, "TOwner")).toBe("claim");
+describe("who owns a VectorPay customer ID (round-4 N2, round-5 §3)", () => {
+  it("a link code can claim an unowned customer ID", () => {
+    expect(ownerDecision(null, "TOwner", "redeem")).toBe("claim");
   });
-  it("lets the same wallet back in every time", () => {
-    expect(ownerDecision("TOwner", "TOwner")).toBe("ok");
+  it("a plain status check never claims an unowned customer ID", () => {
+    expect(ownerDecision(null, "TAnyone", "lookup")).toBe("unclaimed");
   });
-  it("refuses a different wallet asking about someone else's customer ID", () => {
-    expect(ownerDecision("TOwner", "TSomeoneElse")).toBe("other-wallet");
+  it("lets the owning wallet back in on link and on status", () => {
+    expect(ownerDecision("TOwner", "TOwner", "redeem")).toBe("ok");
+    expect(ownerDecision("TOwner", "TOwner", "lookup")).toBe("ok");
+  });
+  it("refuses a different wallet on link and on status", () => {
+    expect(ownerDecision("TOwner", "TSomeoneElse", "redeem")).toBe("other-wallet");
+    expect(ownerDecision("TOwner", "TSomeoneElse", "lookup")).toBe("other-wallet");
+  });
+  it("claims only after VectorPay accepts the code", () => {
+    expect(mayClaimAfterRedeem("claim", { ok: true, linked: true })).toBe(true);
+    expect(mayClaimAfterRedeem("claim", { ok: false, linked: false })).toBe(false);
+    expect(mayClaimAfterRedeem("claim", { ok: true, linked: false })).toBe(false);
+    expect(mayClaimAfterRedeem("ok", { ok: true, linked: true })).toBe(false);
   });
 });

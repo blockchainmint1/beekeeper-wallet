@@ -74,6 +74,7 @@ import { TopupDialog } from "@/components/wallet/TopupDialog";
 import { registerUnlockTap, topupOpenOnHost } from "@/lib/bridge/visibility";
 import { recordEcosystemLink } from "@/lib/ecosystem-links";
 import {
+  clearVectorPayLink,
   getVectorPayLink,
   parseVectorPayLinkInput,
   setVectorPayLink,
@@ -299,7 +300,13 @@ export function CashoutActions({
       try {
         const accountRef = await cashoutCustomerId(root);
         const reply = await vectorPayLinkStatus({ data: { accountRef, ...(await signBankLookup(root, accountRef)) } });
-        if (reply.ok && reply.linked) {
+        if (reply.ok && reply.needsConfirm) {
+          // Linked at VectorPay, but this wallet hasn't confirmed itself with a
+          // code yet (round-5 §3): show the code box instead of bank details.
+          clearVectorPayLink();
+          setVpLink(null);
+          setVpError(reply.detail);
+        } else if (reply.ok && reply.linked) {
           setVectorPayLink({ firstName: reply.firstName, bank: reply.bank });
           setVpLink(getVectorPayLink());
         }

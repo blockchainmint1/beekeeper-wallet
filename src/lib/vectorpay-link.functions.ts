@@ -9,6 +9,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { makeNonceGuard } from "@/lib/security/seen-nonce";
 import { LOOKUP_MAX_AGE_MS } from "@/lib/cashout/proof";
+import {
+  CONFIRM_LINK_DETAIL,
+  OTHER_WALLET_DETAIL,
+  mayClaimAfterRedeem,
+  ownerDecision,
+  type OwnerAction,
+  type OwnerDecision,
+} from "@/lib/cashout/account-owner";
 
 const DEFAULT_LINK_URL = "https://vector-pay.com/api/public/beekeeper/link";
 const ALLOWED_HOSTS = new Set(["vector-pay.com", "www.vector-pay.com"]);
@@ -87,9 +95,9 @@ async function callLinkEndpoint(input: { code?: string; accountRef: string }): P
 
 /**
  * Signed proof shared by redeem and status: the wallet's holder key signs the
- * exact customer ID with a fresh nonce (round-2 audit 2.4). On top of that,
- * the customer ID is locked to the first wallet that proves itself, and each
- * nonce works once (round-4 audit N2, B5).
+ * exact customer ID with a fresh nonce (round-2 audit 2.4), and each nonce
+ * works once (round-4 B5). Ownership (round-4 N2, round-5 §3): only a redeem
+ * that VectorPay accepts can claim an unowned ID; a status check never claims.
  */
 const signedRef = {
   accountRef: z.string().regex(/^bk_[0-9a-f]{40}$/),
@@ -102,38 +110,71 @@ const statusSchema = z.object(signedRef);
 
 const lookupReplayed = makeNonceGuard(LOOKUP_MAX_AGE_MS * 2 + 60_000);
 
-async function proveOwner(data: z.infer<typeof statusSchema>): Promise<string | null> {
+type Refusal = { problem: string };
+type Proven = { problem: null; decision: OwnerDecision };
+
+async function proveWallet(data: z.infer<typeof statusSchema>, action: OwnerAction): Promise<Refusal | Proven> {
   const { checkBankLookup } = await import("./cashout/proof");
   const problem = checkBankLookup(data);
-  if (problem) return `This wallet couldn't prove itself (${problem}).`;
+  if (problem) return { problem: `This wallet couldn't prove itself (${problem}).` };
   if (lookupReplayed(`${data.address}:${data.message.split("\n")[3] ?? ""}`)) {
-    return "This wallet couldn't prove itself (request already used — try again).";
+    return { problem: "This wallet couldn't prove itself (request already used — try again)." };
   }
-  const { ownsAccount } = await import("./cashout/account-owner.server");
-  if (!(await ownsAccount(data.accountRef, data.address))) {
-    const { OTHER_WALLET_DETAIL } = await import("./cashout/account-owner");
-    return OTHER_WALLET_DETAIL;
+  const { readAccountOwner } = await import("./cashout/account-owner.server");
+  let existing: string | null;
+  try {
+    existing = await readAccountOwner(data.accountRef);
+  } catch {
+    return { problem: "Couldn't check this wallet's VectorPay link right now — try again." };
   }
-  return null;
+  const decision = ownerDecision(existing, data.address, action);
+  if (decision === "other-wallet") return { problem: OTHER_WALLET_DETAIL };
+  return { problem: null, decision };
 }
+
+const refused = (detail: string): VectorPayLinkReply & { needsConfirm: boolean } => ({
+  ok: false,
+  linked: false,
+  firstName: null,
+  bank: null,
+  detail,
+  needsConfirm: false,
+});
 
 /** Redeem the one-time code from the customer's VectorPay dashboard. */
 export const redeemVectorPayLink = createServerFn({ method: "POST" })
   .inputValidator((data) => redeemSchema.parse(data))
   .handler(async ({ data }) => {
-    const problem = await proveOwner(data);
-    if (problem) return { ok: false, linked: false, firstName: null, bank: null, detail: problem };
-    return callLinkEndpoint({ code: data.code, accountRef: data.accountRef });
+    const proof = await proveWallet(data, "redeem");
+    if (proof.problem !== null) return refused(proof.problem);
+    const reply = await callLinkEndpoint({ code: data.code, accountRef: data.accountRef });
+    if (mayClaimAfterRedeem(proof.decision, reply)) {
+      const { claimAccountOwner } = await import("./cashout/account-owner.server");
+      if (!(await claimAccountOwner(data.accountRef, data.address))) return refused(OTHER_WALLET_DETAIL);
+    }
+    return { ...reply, needsConfirm: false };
   });
 
 /**
- * Report whether this wallet's customer ID is linked (no code needed). The
- * reply carries the bank name and last-4, so only the owning wallet gets it.
+ * Report whether this wallet's customer ID is linked (no code needed). Bank
+ * name and last-4 go only to the owning wallet; an unclaimed ID gets
+ * "linked, please confirm once" with no bank details, and is not claimed.
  */
 export const vectorPayLinkStatus = createServerFn({ method: "POST" })
   .inputValidator((data) => statusSchema.parse(data))
   .handler(async ({ data }) => {
-    const problem = await proveOwner(data);
-    if (problem) return { ok: false, linked: false, firstName: null, bank: null, detail: problem };
-    return callLinkEndpoint({ accountRef: data.accountRef });
+    const proof = await proveWallet(data, "lookup");
+    if (proof.problem !== null) return refused(proof.problem);
+    const reply = await callLinkEndpoint({ accountRef: data.accountRef });
+    if (proof.decision === "unclaimed") {
+      return {
+        ok: reply.ok,
+        linked: reply.linked,
+        firstName: null,
+        bank: null,
+        detail: reply.linked ? CONFIRM_LINK_DETAIL : reply.detail,
+        needsConfirm: reply.ok && reply.linked,
+      };
+    }
+    return { ...reply, needsConfirm: false };
   });

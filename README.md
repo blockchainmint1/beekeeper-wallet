@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://beekeeper.money"><img src="https://img.shields.io/badge/live-beekeeper.money-ffb900?style=flat-square&logo=googlechrome&logoColor=141008" alt="Live at beekeeper.money" /></a>
   <a href="https://honest.money"><img src="https://img.shields.io/badge/part%20of-honest.money-141008?style=flat-square&logoColor=ffb900&labelColor=2a2118" alt="Part of the honest.money ecosystem" /></a>
-  <img src="https://img.shields.io/badge/tests-109%20passing-3fb950?style=flat-square" alt="109 tests passing" />
+  <img src="https://img.shields.io/badge/tests-111%20passing-3fb950?style=flat-square" alt="111 tests passing" />
   <img src="https://img.shields.io/badge/web--only-no%20iOS%2C%20no%20Android%20app-8b8f96?style=flat-square" alt="Web only" />
 </p>
 
@@ -131,8 +131,7 @@ movement.
 
 VectorPay uses **one shared deposit address per chain**, so your money is never
 matched by amount. A deposit is credited only when the order carries its **txid**
-_and_ a **signature from the sending address** over the proof message
-([`docs/vectorpay-cashout-proof.md`](docs/vectorpay-cashout-proof.md)). A duplicated
+_and_ a **signature from the sending address** over the proof message. A duplicated
 txid cannot credit twice.
 
 ### Where the numbers come from
@@ -159,7 +158,7 @@ reveal the sandbox flow for that visit only (`src/lib/bridge/visibility.ts`). Li
 deposit accounts are refused until the TSD bridge team supplies a per-customer mint
 address, so real USDC cannot land somewhere unplanned.
 
-Going live is a checklist, not a code change: [`docs/bridge-go-live.md`](docs/bridge-go-live.md).
+Going live is a checklist with our partners, not a code change.
 
 ---
 
@@ -182,7 +181,7 @@ src/
     security/        proxy guard, keyed limits, single-use nonces
     profiles.ts      per-wallet storage namespacing
     native/          trusted origins, platform bridge, capabilities
-docs/                audit reports, partner API notes, go-live checklists
+docs/images/         README artwork
 ```
 
 **Server routes.** `api/public/` is reachable without a session, so each handler
@@ -224,7 +223,8 @@ password, and the private key never leaves the device except to sign.
 - **Bank details need proof of ownership.** Anything that reveals a customer's bank
   name or last-4 requires a wallet signature over that exact customer ID
   (`checkBankLookup`) _and_ must come from the wallet recorded for that ID in
-  `cashout_account_owners` — the first signer claims it.
+  `cashout_account_owners`. Only a one-time link code that VectorPay accepts can
+  record that wallet; a status check never does.
 - **Signed requests are single-use.** `makeNonceGuard`
   (`src/lib/security/seen-nonce.ts`) rejects replays, and only the `create-account`
   top-up action may create a Bridge resource — a copied read can neither reveal nor
@@ -232,17 +232,14 @@ password, and the private key never leaves the device except to sign.
 - **Abuse is bounded.** Cash-out order handling has a chain-lookup budget, a txid
   cap, and per-customer rate limits; partner relays are rate limited with capped
   bodies.
-- **Audited, repeatedly.** Round reports, our responses and the fix-by-fix tables
-  live in [`docs/`](docs/). See [`SECURITY-AUDIT.md`](SECURITY-AUDIT.md) and
-  [`docs/security-audit-round4-response-2026-11-14.md`](docs/security-audit-round4-response-2026-11-14.md).
-- **CI checks without secrets.** `.github/workflows/security.yml` runs on every push
-  and pull request and needs no secrets — the repo is public and release signing
-  keys are never generated or echoed in CI.
+- **Independently audited.** BeeKeeper has been through repeated rounds of
+  third-party security review, and every change ships only after one.
+- **CI checks without secrets.** `.github/workflows/security.yml` runs types, tests
+  and a dependency audit on every push and pull request with no secrets, so it is
+  safe on forks. Every GitHub Action is pinned to an exact commit, and release
+  signing keys are never generated or echoed in CI.
 
-Known open items are tracked honestly in [`roadmap.md`](roadmap.md): the 0% merchant
-discount is still wallet-claimed pending VectorPay verification, Argon2id for new
-wallets needs a migration plan, and TSD delivery awaits the bridge team's mint
-address.
+**Found a problem?** Please report it privately — see [`SECURITY.md`](SECURITY.md).
 
 ---
 
@@ -260,7 +257,7 @@ bun run dev
 | Command           | What it does                          |
 | ----------------- | ------------------------------------- |
 | `bun run dev`     | Dev server on <http://localhost:8080> |
-| `bunx vitest run` | Unit tests — 109 tests, 19 files      |
+| `bunx vitest run` | Unit tests — 111 tests, 19 files      |
 | `bun run build`   | Production build                      |
 | `bun run lint`    | ESLint                                |
 | `bun run format`  | Prettier                              |
@@ -268,23 +265,15 @@ bun run dev
 Environment: `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` are generated by
 Lovable Cloud — do not hand-edit `src/integrations/supabase/*`. Server-only secrets
 (Bridge, VectorPay signing, NowNodes) live in project secrets, never in this repo.
-`.env` is git-ignored and excluded from audit packages.
+`.env` holds only public values (the backend address and its publishable key, which
+ship in every visitor's browser anyway).
 
-Working rules for contributors and agents are in [`AGENTS.md`](AGENTS.md) — read it
-before touching money movement, storage keys, or trusted origins. The live task list
-is [`roadmap.md`](roadmap.md).
+Before touching money movement, storage keys or trusted origins, read the rules in
+[Architecture](#architecture) and [Security](#security) above.
 
-### Docs worth reading
+### License
 
-| File                                                                   | About                                                 |
-| ---------------------------------------------------------------------- | ----------------------------------------------------- |
-| [`docs/vectorpay-cashout-proof.md`](docs/vectorpay-cashout-proof.md)   | Deposit attribution: txid + sending-address signature |
-| [`docs/tsd-cashout-api.md`](docs/tsd-cashout-api.md)                   | TSD cash-out API notes                                |
-| [`docs/bridge-go-live.md`](docs/bridge-go-live.md)                     | Top-up go-live checklist                              |
-| [`docs/topup-data-retention.md`](docs/topup-data-retention.md)         | What top-up data we keep and how to delete it         |
-| [`docs/tsd-mint-address-request.md`](docs/tsd-mint-address-request.md) | The TSD mint address we are waiting on                |
-| [`docs/vectorpay-requests-v2.md`](docs/vectorpay-requests-v2.md)       | What BeeKeeper needs VectorPay to change              |
-| [`SECURITY-AUDIT.md`](SECURITY-AUDIT.md)                               | Audit history and posture                             |
+[MIT](LICENSE). Security reports: [`SECURITY.md`](SECURITY.md).
 
 ---
 
@@ -292,15 +281,15 @@ is [`roadmap.md`](roadmap.md).
 
 BeeKeeper is one tool among several built for the same mission: honest money.
 
-|                                                     |                                                                                                 |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| **[Honest Money](https://honest.money)**            | The umbrella — TEXITcoin, AOCS, and the work of Robert J. "Bobby" Gray                          |
-| **[TXC — TEXITcoin](https://texitcoin.org/build)**  | The blockchain and Omni layer 2; build docs at texitcoin.org/build                              |
-| **[ZCU — Zero Chill](https://zerochill.com/build)** | Same shape as TXC, address path `969696` instead of `696969`; build docs at zerochill.com/build |
-| **ISK**                                             | Like TXC, address path `969696`                                                                 |
-| **[NectarPay](https://honest.money)**               | Merchant payments — linked merchants pay no cash-out service fee                                |
-| **VectorPay**                                       | Cash-out partner: identity checks, bank linking, pricing, settlement                            |
-| **Bridge**                                          | Stablecoin banking behind Top up: a permanent US account number per customer                    |
+|                                                     |                                                                                               |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **[Honest Money](https://honest.money)**            | The umbrella — TEXITcoin, AOCS, and the work of Robert J. "Bobby" Gray                        |
+| **[TXC — TEXITcoin](https://texitcoin.org/build)**  | The blockchain and Omni layer 2; build docs at texitcoin.org/build                            |
+| **[ZCU — Zero Chill](https://zerochill.com/build)** | Zero Chill's own EVM chain, priced from the wZCU/USDC pool; build docs at zerochill.com/build |
+| **ISK**                                             | Like TXC, with address path `969696` instead of TXC's `696969`                                |
+| **[NectarPay](https://honest.money)**               | Merchant payments — linked merchants pay no cash-out service fee                              |
+| **VectorPay**                                       | Cash-out partner: identity checks, bank linking, pricing, settlement                          |
+| **Bridge**                                          | Stablecoin banking behind Top up: a permanent US account number per customer                  |
 
 ---
 
@@ -317,5 +306,5 @@ BeeKeeper is one tool among several built for the same mission: honest money.
 </p>
 
 <p align="center">
-  <sub>Built with <a href="https://lovable.dev">Lovable</a>. This code is yours.</sub>
+  <sub>Built with <a href="https://lovable.dev">Lovable</a> · <a href="LICENSE">MIT licensed</a>.</sub>
 </p>
