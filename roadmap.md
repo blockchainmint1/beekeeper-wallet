@@ -118,6 +118,7 @@ There will never be an iOS version. Removed the iOS native project, the iOS buil
 - [x] Round-6 sign-off edits: copy git-ignores .env, ANDROID/CAPACITOR notes left out, package name + MIT licence, stale AGENTS.md comment
 - [x] VectorPay accepts a second code from the same account (checked in VectorPay's source); not yet tried live
 - [x] Owner check on cash-out order creation: only the wallet recorded as the customer ID's owner can place an order (signed per call, single-use)
-- [ ] Create the new public GitHub repo and push the copy — Bobby
-- [ ] Turn on secret scanning, push protection, branch protection in GitHub settings — Bobby
+- [x] Bobby kept the original repo (blockchainmint1/beekeeper-wallet) public, notes and history included — no separate public repo
+- [ ] Send the auditor the round-8 package, then publish the cash-out owner check (its gap is now described in the public notes) — Bobby / auditor
+- [ ] Turn on secret-scanning alerts for blockchainmint1/beekeeper-wallet — Bobby
 - [ ] Five-tap Top up stays (Bobby kept it); revisit before Top up goes live
